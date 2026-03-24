@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --color-dark: var(--dark-bg);
+  --font-serif: var(--font-algreya);
+}
+
+/* Add any custom styles here */
+:root {
+  --accent-color: rgb(27, 97, 0);
+}
+
+* {
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Add any additional custom styles needed */
+.animate-scroll {
+  animation: scroll 20s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+:root {
+  --accent-color: #ed7513;
+  --dark-bg: #0a0a0a;
+  --card-bg: rgba(22, 22, 22, 0.8);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --hover-bg: rgba(255, 255, 255, 0.05);
+  --text-color: #888;
+  --highlight-color: var(--accent-color);
+}
+
+.alegreya {
+  font-family: "Alegreya SC", serif;
+}
+
+.hero-btn {
+  background-image: linear-gradient(
+    to right,
+    var(--highlight-color),
+    rgb(27, 97, 0)
+  );
+  transition: transform 0.3s;
+}
+
+.hero-btn:hover {
+  box-shadow:
+    0 0 10px var(--accent-color),
+    0 0 20px var(--accent-color);
+}
+
+.contact:hover {
+  text-shadow:
+    0 2px 10px var(--accent-color),
+    0 2px 20px var(--accent-color);
+  background-color: transparent;
+}
+
+@keyframes pulse-slow {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+html {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+}
+
+html::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
+}
+
+/* Custom Scrollbar for elements with scrolling content */
+.scrollable {
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: rgba(74, 222, 128, 0.3) rgba(24, 24, 27, 0.6);
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+}
+
+.scrollable::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  display: block;
+}
+
+.scrollable::-webkit-scrollbar-track {
+  background: rgba(24, 24, 27, 0.6);
+  border-radius: 8px;
+}
+
+.scrollable::-webkit-scrollbar-thumb {
+  background: rgba(74, 222, 128, 0.3);
+  border-radius: 8px;
+  transition: background 0.3s ease;
+}
+
+.scrollable::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 222, 128, 0.5);
+}
+
+/* Hide scrollbar but keep functionality - use for horizontal scrolling tabs */
+.hide-scrollbar {
+  scrollbar-width: none;
+  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+  /* Chrome, Safari, Opera */
+}
+
+/* Smooth scrolling for the entire page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Prevent content shift during page load */
+html {
+  overflow-y: scroll;
+}
+
+@keyframes shake {
+  0%,
+  50%,
+  100% {
+    transform: rotate(0deg);
+  }
+
+  5%,
+  15% {
+    transform: rotate(-5deg);
+  }
+
+  10%,
+  20% {
+    transform: rotate(5deg);
+  }
+}
+
+.animate-shake {
+  animation: shake 10s ease-in-out infinite;
+}
+
+@keyframes scrollBg {
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 0 100%;
+  }
+}
+
+.bg-scroll {
+  background-image: url("/images/your-background.jpg");
+  /* 🔁 Replace with your own image */
+  background-size: cover;
+  background-repeat: repeat-y;
+  animation: scrollBg 60s linear infinite;
+}
+
+@keyframes slideSideToSide {
+  0% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(5px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-side {
+  animation: slideSideToSide 2s ease-in-out infinite;
+}

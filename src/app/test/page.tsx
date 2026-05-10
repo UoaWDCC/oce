@@ -21,6 +21,7 @@ Notes:
 The new layout improves readability  
 and creates clearer visual hierarchy.
 `;
+
 export default function Test(): ReactNode {
   const [modalOpened, setModalOpened] = useState<boolean>(false);
 
@@ -33,7 +34,12 @@ export default function Test(): ReactNode {
           }}
         />
       </div>
-      <ChatBox open={modalOpened}>
+      <ChatBox
+        open={modalOpened}
+        toggleOpen={() => {
+          setModalOpened(!modalOpened);
+        }}
+      >
         <ChatMessage>
           Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
           eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad

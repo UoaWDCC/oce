@@ -1,12 +1,14 @@
 "use client";
 import Image from "next/image";
-import { ReactNode, useState } from "react";
+import { ReactNode } from "react";
 
-export default function ChatButton(): ReactNode {
-  //NOTE: may need to move this state into context later
-  const [modalOpened, setModalOpened] = useState<boolean>(false);
+interface IChatButton {
+  toggleOpen(): void;
+}
+
+export default function ChatButton({ toggleOpen }: IChatButton): ReactNode {
   return (
-    <div className="p-5" onClick={() => setModalOpened(!modalOpened)}>
+    <div className="p-5" onClick={toggleOpen}>
       <Image
         src={"/chatButton.svg"}
         alt="button to open up the AI chatbot"

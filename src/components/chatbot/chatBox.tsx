@@ -48,7 +48,7 @@ and creates clearer visual hierarchy.
   }
   return (
     <div
-      className={`${open ? `` : `hidden`} flex flex-col rounded-2xl min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-1/4 bg-white shadow-xl overflow-hidden z-20`}
+      className={`${open ? `` : `hidden`} flex flex-col rounded-2xl min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 bg-white shadow-xl overflow-hidden z-20 md:w-2/5 lg:w-1/4`}
     >
       <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
         <p className="font-bold text-white text-lg">AI Tutor</p>

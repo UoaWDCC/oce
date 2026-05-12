@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { ReactNode, useState, useRef } from "react";
+import React, { ReactNode, useState, useRef, useEffect } from "react";
 import ChatInput from "./chatInput";
 import ChatMessage from "./chatMessage";
 import ChatReply from "./chatReply";
@@ -47,6 +47,9 @@ and creates clearer visual hierarchy.
   function submitMessage(chatMessage: IChatMessage) {
     setMessages([...messages, chatMessage]);
   }
+  useEffect(() => {
+    lastMessageRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
   return (
     <div
       className={`${open ? `` : `hidden`} flex flex-col rounded-2xl min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 bg-white shadow-xl overflow-hidden z-20 md:w-2/5 lg:w-1/4`}

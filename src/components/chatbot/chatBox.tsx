@@ -16,8 +16,8 @@ export interface IChatMessage {
   message: string;
 }
 
-//TODO: note that the way that message content is passed into the div hasn't been finalised.
 export default function ChatBox({ open, toggleOpen }: IChatBox): ReactNode {
+  //NOTE: the way that message content is passed into the div hasn't been finalised
   const [messages, setMessages] = useState<IChatMessage[]>([
     {
       type: "user",
@@ -61,7 +61,7 @@ and creates clearer visual hierarchy.
           />
         </button>
       </div>
-      <div className=" overflow-y-auto pr-2 ">
+      <div className="overflow-y-auto pr-2 ">
         <div className="relative h-full py-3 box-border w-full pl-3">
           <div className="flex flex-col w-full gap-5 pb-3">
             {messages.map((message, index) => {
@@ -72,7 +72,9 @@ and creates clearer visual hierarchy.
             })}
           </div>
         </div>
-        <ChatInput submitMessage={submitMessage} />
+        <div className="sticky bottom-5">
+          <ChatInput submitMessage={submitMessage} />
+        </div>
       </div>
     </div>
   );

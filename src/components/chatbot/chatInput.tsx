@@ -17,8 +17,8 @@ export default function ChatInput({
   }
 
   return (
-    <div className="w-full h-8 px-3 mb-6 z-10">
-      <div className="shadow-2xl rounded-full h-10 outline-2 outline-[#e9d5ff] flex items-center">
+    <div className="w-full h-8 px-3 mb-6 z-30 bg-white">
+      <div className="shadow-2xl rounded-full h-10 outline-2 outline-[#e9d5ff] flex items-center bg-white">
         <input
           className="text-sm flex-1 h-full pr-3 pl-4 min-w-0"
           value={inputValue}

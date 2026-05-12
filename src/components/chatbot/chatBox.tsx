@@ -65,9 +65,9 @@ and creates clearer visual hierarchy.
           />
         </button>
       </div>
-      <div className="overflow-y-auto pr-2 ">
+      <div className="overflow-y-scroll pr-2 ">
         <div className="relative h-full py-3 box-border w-full pl-3">
-          <div className="flex flex-col w-full gap-5 pb-3">
+          <div className="flex flex-col w-full gap-3 pb-3">
             {messages.map((message, index) => {
               if (message.type == "user") {
                 return (

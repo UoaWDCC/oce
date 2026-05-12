@@ -5,14 +5,15 @@ import { useState } from "react";
 
 interface IChatReply {
   children: string;
+  ref: React.Ref<HTMLDivElement>;
 }
 
-export default function ChatReply({ children }: IChatReply) {
+export default function ChatReply({ children, ref }: IChatReply) {
   //NOTE: This may need to be moved outside and into context if it
   const [favourited, setFavourited] = useState<boolean>(false);
   //NOTE: assume that the content being input into text is markdown by default.
   return (
-    <div className="px-3">
+    <div className="px-3" ref={ref}>
       <div className="w-full">
         <div className="markdown">
           <ReactMarkdown>{children}</ReactMarkdown>

@@ -1,6 +1,6 @@
 "use client";
 import Image from "next/image";
-import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { ChangeEvent, ReactNode, useRef, useState } from "react";
 import { IChatMessage } from "./chatBox";
 
 interface IChatInputProps {

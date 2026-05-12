@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import React, { ReactNode, useState } from "react";
+import React, { ReactNode, useState, useRef } from "react";
 import ChatInput from "./chatInput";
 import ChatMessage from "./chatMessage";
 import ChatReply from "./chatReply";
@@ -43,6 +43,7 @@ and creates clearer visual hierarchy.
 `,
     },
   ]);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
   function submitMessage(chatMessage: IChatMessage) {
     setMessages([...messages, chatMessage]);
   }
@@ -66,9 +67,23 @@ and creates clearer visual hierarchy.
           <div className="flex flex-col w-full gap-5 pb-3">
             {messages.map((message, index) => {
               if (message.type == "user") {
-                return <ChatMessage key={index}>{message.message}</ChatMessage>;
+                return (
+                  <ChatMessage
+                    key={index}
+                    ref={index === messages.length - 1 ? lastMessageRef : null}
+                  >
+                    {message.message}
+                  </ChatMessage>
+                );
               }
-              return <ChatReply key={index}>{message.message}</ChatReply>;
+              return (
+                <ChatReply
+                  key={index}
+                  ref={index === messages.length - 1 ? lastMessageRef : null}
+                >
+                  {message.message}
+                </ChatReply>
+              );
             })}
           </div>
         </div>

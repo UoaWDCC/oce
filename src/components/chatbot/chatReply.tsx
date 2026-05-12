@@ -11,6 +11,7 @@ interface IChatReply {
 export default function ChatReply({ children, ref }: IChatReply) {
   //NOTE: This may need to be moved outside and into context if it
   const [favourited, setFavourited] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
   //NOTE: assume that the content being input into text is markdown by default.
   return (
     <div className="px-3" ref={ref}>
@@ -20,9 +21,17 @@ export default function ChatReply({ children, ref }: IChatReply) {
         </div>
       </div>
       <div className="flex gap-2">
-        <button>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(children);
+            setCopied(true);
+            setTimeout(() => {
+              setCopied(false);
+            }, 3000);
+          }}
+        >
           <Image
-            src={"/copyButton.svg"}
+            src={copied ? "/checkButton.svg" : "/copyButton.svg"}
             alt="copy the chatbot's response"
             height={25}
             width={25}

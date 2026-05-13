@@ -77,19 +77,12 @@ and creates clearer visual hierarchy.
           <div className="flex flex-col w-full gap-3 pb-3">
             {messages.map((message, index) => {
               if (message.type == "user") {
-                return (
-                  <ChatMessage
-                    key={index}
-                    ref={index === messages.length - 1 ? lastMessageRef : null}
-                  >
-                    {message.message}
-                  </ChatMessage>
-                );
+                return <ChatMessage key={index}>{message.message}</ChatMessage>;
               }
               return <ChatReply key={index}>{message.message}</ChatReply>;
             })}
           </div>
-          <div className="" ref={lastMessageRef}></div>
+          <div className="h-0" ref={lastMessageRef}></div>
         </div>
         <div className="sticky bottom-5">
           <div className="flex justify-center pb-3">

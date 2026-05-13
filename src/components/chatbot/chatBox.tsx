@@ -5,6 +5,8 @@ import React, { ReactNode, useState, useRef, useEffect } from "react";
 import ChatInput from "./chatInput";
 import ChatMessage from "./chatMessage";
 import ChatReply from "./chatReply";
+import ChatDownButton from "./chatDownButton";
+import useOnScreen from "@/hooks/useOnScreen";
 
 interface IChatBox {
   open: boolean;
@@ -47,8 +49,13 @@ and creates clearer visual hierarchy.
   function submitMessage(chatMessage: IChatMessage) {
     setMessages([...messages, chatMessage]);
   }
+  const isVisible = useOnScreen(lastMessageRef);
   useEffect(() => {
-    lastMessageRef.current?.scrollIntoView({ behavior: "smooth" });
+    lastMessageRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+      inline: "nearest",
+    });
   }, [messages]);
   return (
     <div
@@ -79,18 +86,24 @@ and creates clearer visual hierarchy.
                   </ChatMessage>
                 );
               }
-              return (
-                <ChatReply
-                  key={index}
-                  ref={index === messages.length - 1 ? lastMessageRef : null}
-                >
-                  {message.message}
-                </ChatReply>
-              );
+              return <ChatReply key={index}>{message.message}</ChatReply>;
             })}
           </div>
+          <div className="" ref={lastMessageRef}></div>
         </div>
         <div className="sticky bottom-5">
+          <div className="flex justify-center pb-3">
+            {isVisible ? null : (
+              <ChatDownButton
+                scrollDown={() => {
+                  lastMessageRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                  });
+                }}
+              />
+            )}
+          </div>
+
           <ChatInput submitMessage={submitMessage} />
         </div>
       </div>

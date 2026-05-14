@@ -26,19 +26,12 @@ interface InsertComment {
 async function checkDAOMembership(
   supabase: SupabaseClient,
   user_id: string,
-  post_id: string,
+  daoGroupId: string,
 ) {
-  const { data, error } = await supabase
-    .from("posts")
-    .select("dao_group_id")
-    .eq("id", post_id)
-    .single();
-  if (error || !data) return false;
-
   const { data: member_data } = await supabase
     .from("dao_members")
     .select("user_id")
-    .eq("dao_group_id", data.dao_group_id)
+    .eq("dao_group_id", daoGroupId)
     .eq("user_id", user_id)
     .single();
   return !!member_data;
@@ -47,7 +40,7 @@ async function checkDAOMembership(
 // POST - Create new comment
 export async function POST(
   req: NextRequest,
-  { params }: { params: { postId: string } },
+  { params }: { params: { daoGroupId: string, postId: string } },
 ) {
   try {
     const accessToken = req.headers
@@ -81,7 +74,8 @@ export async function POST(
       );
     }
 
-    const isDaoMember = await checkDAOMembership(supabase, user.id, postId);
+    const daoGroupId = params.daoGroupId;
+    const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
     if (!isDaoMember) {
       return NextResponse.json(
         { error: "Unauthorized" },

@@ -14,7 +14,6 @@ export interface Post {
 }
 
 export interface CreatePostFields {
-  dao_group_id: string;
   post_type_id: number;
   title: string;
   body: string;

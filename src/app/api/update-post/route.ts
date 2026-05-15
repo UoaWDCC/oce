@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import type { CreatePostFields } from "../../../../types/posts"
+import type { UpdatePostFields } from "../../../../types/posts"
 
 export async function PATCH(request: Request, { params }: { params: { daoGroupId: string, postId: string } }) {
     const supabase = await createClient();
@@ -15,7 +15,7 @@ export async function PATCH(request: Request, { params }: { params: { daoGroupId
         );
     }
 
-    const body = (await request.json()) as CreatePostFields;
+    const body = (await request.json()) as UpdatePostFields;
 
     if (!body.title || !body.body || !body.post_type_id || body.anonymous === undefined || body.is_pinned === undefined) {
         return Response.json(
@@ -32,7 +32,8 @@ export async function PATCH(request: Request, { params }: { params: { daoGroupId
             body: body.body, 
             anonymous: body.anonymous, 
             is_pinned: body.is_pinned, 
-            image_url: body.image_url 
+            image_url: body.image_url,
+            updated_at: 'now()'
         })
         .eq("id", params.postId)
         .eq("author_id", user.id)  // ensure user can only update their own posts

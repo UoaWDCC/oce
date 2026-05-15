@@ -33,6 +33,20 @@ export async function POST(request: Request, { params }: { params: { daoGroupId:
         );
     }
 
+    const { data: membership } = await supabase
+        .from("dao_members")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("dao_group_id", params.daoGroupId)
+        .single();
+
+    if (!membership) {
+        return Response.json(
+            { error: "User is not a member of the specified DAO group" },
+            { status: 403 }
+        );
+    }
+
     const { data, error } = await supabase.from("posts").insert({ ...body, author_id: user.id, dao_group_id: params.daoGroupId }).select().single();
     if (error) {
         if (error.code === "23505") {

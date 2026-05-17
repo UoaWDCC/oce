@@ -1,8 +1,8 @@
 import { createClient } from "@/utils/supabase/server";
 
-export async function DELETE(request: Request, { params }: { params: { daoGroupId: string, postId: string } }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }> }) {
     const supabase = await createClient();
-
+    const {daoGroupId, postId} = await params;
     // Check user is authenticated
     const {
         data: { user },
@@ -19,8 +19,8 @@ export async function DELETE(request: Request, { params }: { params: { daoGroupI
     const { data: post, error: postError } = await supabase
         .from("posts")
         .select("id, author_id")
-        .eq("id", params.postId)
-        .eq("dao_group_id", params.daoGroupId)
+        .eq("id", postId)
+        .eq("dao_group_id", daoGroupId)
         .single();
 
     if (postError || !post) {
@@ -44,7 +44,7 @@ export async function DELETE(request: Request, { params }: { params: { daoGroupI
         .update({ 
             deleted_at: 'now()'
         })
-        .eq("post_id", params.postId)
+        .eq("post_id", postId)
 
     if (commentsError) {
         return Response.json(
@@ -59,8 +59,8 @@ export async function DELETE(request: Request, { params }: { params: { daoGroupI
         .update({ 
             deleted_at: 'now()'
         })
-        .eq("id", params.postId)
-        .eq("dao_group_id", params.daoGroupId)
+        .eq("id", postId)
+        .eq("dao_group_id", daoGroupId)
         .eq("author_id", user.id)
         .select()
         .single();

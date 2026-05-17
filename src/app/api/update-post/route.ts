@@ -32,11 +32,10 @@ export async function PATCH(request: Request, { params }: { params: { daoGroupId
             body: body.body, 
             anonymous: body.anonymous, 
             is_pinned: body.is_pinned, 
-            image_url: body.image_url,
-            updated_at: 'now()'
+            image_url: body.image_url
         })
         .eq("id", params.postId)
-        .eq("author_id", user.id)  // ensure user can only update their own posts
+        .eq("author_id", user.id)
         .select()
         .single();
 

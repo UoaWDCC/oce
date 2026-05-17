@@ -1,8 +1,9 @@
 import { createClient } from "@/utils/supabase/server";
 import type { UpdatePostFields } from "../../../../types/posts"
 
-export async function PATCH(request: Request, { params }: { params: { daoGroupId: string, postId: string } }) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }>  }) {
     const supabase = await createClient();
+    const {daoGroupId, postId} = await params;
 
     const {
         data: { user },
@@ -34,7 +35,7 @@ export async function PATCH(request: Request, { params }: { params: { daoGroupId
             is_pinned: body.is_pinned, 
             image_url: body.image_url
         })
-        .eq("id", params.postId)
+        .eq("id", postId)
         .eq("author_id", user.id)
         .select()
         .single();

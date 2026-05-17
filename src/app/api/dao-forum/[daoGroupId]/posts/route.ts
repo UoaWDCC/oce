@@ -1,7 +1,7 @@
 import { createClient } from "@/utils/supabase/server";
 import type { CreatePostFields } from "../../../../../../types/posts"
 
-export async function GET({ params }: { params: { daoGroupId: string } }) {
+export async function GET(_request: Request, { params }: { params: { daoGroupId: string } }) {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from("posts")

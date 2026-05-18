@@ -28,7 +28,7 @@ async function checkDAOMembership(
   user_id: string,
   daoGroupId: string,
 ) {
-  const { data: member_data } = await supabase
+  const { data: memberData } = await supabase
     .from("dao_members")
     .select("user_id")
     .eq("dao_group_id", daoGroupId)
@@ -105,14 +105,14 @@ export async function POST(
     }
 
     if (parent_comment_id) {
-      const { data: parentComment, error: parentCommentNotFound } = await supabase
+      const { data: parentComment, error: parentCommentError } = await supabase
         .from("comments")
         .select("deleted_at")
         .eq("id", parent_comment_id)
         .eq("post_id", postId)
         .single();
       
-      if ( parentCommentNotFound || !parentComment || parentComment.deleted_at !== null ) {
+      if ( parentCommentError || !parentComment || parentComment.deleted_at !== null ) {
         return NextResponse.json(
           { error: "Parent comment not found" },
           { status: 400, headers: corsHeaders },

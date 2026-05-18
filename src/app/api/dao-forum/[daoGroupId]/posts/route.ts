@@ -1,6 +1,20 @@
 import { createClient } from "@/utils/supabase/server";
 import type { CreatePostFields } from "../../../../../../types/posts"
 
+export async function GET(_request: Request, { params }: { params: Promise<{ daoGroupId: string }> }) {
+    const daoGroupId = await params;
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from("posts")
+        .select("id, author_id, post_type_id, title, anonymous, is_pinned, created_at, deleted_at")
+        .eq("dao_group_id", daoGroupId)
+        .order("created_at", { ascending: false });
+    if (error) {
+        return Response.json({ error: error.message }, { status: 500 });
+    }
+    return Response.json(data);
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ daoGroupId: string }> }) {
     const daoGroupId = await params;
     const supabase = await createClient();

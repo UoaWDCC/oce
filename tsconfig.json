@@ -19,7 +19,8 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@app-types/*": ["./types/*"]
     },
     "types": ["@cloudflare/workers-types"]
   },

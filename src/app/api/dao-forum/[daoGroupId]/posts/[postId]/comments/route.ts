@@ -79,7 +79,19 @@ export async function POST(
     if (!isDaoMember) {
       return NextResponse.json(
         { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
+    const { data: parentPost, error: postError } = await supabase
+      .from("posts")
+      .select("deleted_at")
+      .eq("id", postId)
+      .single();
+    if ( postError || !parentPost || parentPost.deleted_at !== null) {
+      return NextResponse.json(
+        { error: "Post not found" },
+        { status: 404, headers: corsHeaders },
       );
     }
 
@@ -91,6 +103,22 @@ export async function POST(
         { error: "Comment cannot be empty" },
         { status: 400, headers: corsHeaders },
       );
+    }
+
+    if (parent_comment_id) {
+      const { data: parentComment, error: parentCommentNotFound } = await supabase
+        .from("comments")
+        .select("deleted_at")
+        .eq("id", parent_comment_id)
+        .eq("post_id", postId)
+        .single();
+      
+      if ( parentCommentNotFound || !parentComment || parentComment.deleted_at !== null ) {
+        return NextResponse.json(
+          { error: "Parent comment not found" },
+          { status: 400, headers: corsHeaders },
+        );
+      }
     }
 
     const insertComment: InsertComment = {
@@ -111,7 +139,7 @@ export async function POST(
 
     return NextResponse.json(
       { success: true, comment: newComment },
-      { headers: corsHeaders },
+      { status: 201, headers: corsHeaders },
     );
   } catch (error) {
     console.error("Error creating comment:", error);

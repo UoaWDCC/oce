@@ -40,7 +40,7 @@ async function checkDAOMembership(
 // POST - Create new comment
 export async function POST(
   req: NextRequest,
-  { params }: { params: { daoGroupId: string, postId: string } },
+  { params }: { params: Promise<{ daoGroupId: string, postId: string }> },
 ) {
   try {
     const accessToken = req.headers
@@ -53,7 +53,7 @@ export async function POST(
       );
     }
 
-    const postId = params.postId;
+    const { daoGroupId, postId } = await params;
 
     if (!postId) {
       return NextResponse.json(
@@ -74,7 +74,6 @@ export async function POST(
       );
     }
 
-    const daoGroupId = params.daoGroupId;
     const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
     if (!isDaoMember) {
       return NextResponse.json(

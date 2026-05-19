@@ -9,12 +9,13 @@ const corsHeaders = {
 
 interface Conversation {
   id: string;
-  StudentUID: string;
-  CreatedAt: string;
+  user_id: string;
+  status: string;
+  created_at: string;
 }
 
 // GET /api/conversation
-// Gets the latest/current conversation for this user
+// Gets the active conversation
 export async function GET(req: NextRequest) {
   try {
     const accessToken = req.headers
@@ -43,11 +44,10 @@ export async function GET(req: NextRequest) {
     }
 
     const { data: conversation, error } = (await supabase
-      .from("Conversation")
+      .from("conversations")
       .select("*")
-      .eq("StudentUID", user.id)
-      .order("CreatedAt", { ascending: false })
-      .limit(1)
+      .eq("user_id", user.id)
+      .eq("status", "active")
       .maybeSingle()) as { data: Conversation | null; error: any };
 
     if (error) {
@@ -71,8 +71,7 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/conversation
-// Creates a new conversation
-// Also used for reset
+// Creates a new conversation and set previous active conversation to ended
 export async function POST(req: NextRequest) {
   try {
     const accessToken = req.headers
@@ -100,23 +99,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { data: conversation, error } = (await supabase
-      .from("Conversation")
-      .insert({
-        StudentUID: user.id,
-      })
-      .select("*")
-      .single()) as { data: Conversation; error: any };
+    const { error: updateError } = await supabase
+      .from("conversations")
+      .update({ status: "ended" })
+      .eq("user_id", user.id)
+      .eq("status", "active");
 
-    if (error) {
+    if (updateError) {
       return NextResponse.json(
-        { error: error.message },
+        { error: updateError.message },
         { status: 500, headers: corsHeaders },
       );
     }
+    const { data: newConversation, error: postError } = (await supabase
+      .from("conversations")
+      .insert({ user_id: user.id, status: "active" })
+      .select("*")
+      .single()) as { data: Conversation; error: any };
 
+    if (postError) {
+      return NextResponse.json(
+        { error: postError.message },
+        { status: 500, headers: corsHeaders },
+      );
+    }
     return NextResponse.json(
-      { conversation },
+      { conversation: newConversation },
       { status: 201, headers: corsHeaders },
     );
   } catch (error) {

@@ -21,3 +21,13 @@ export interface CreatePostFields {
   is_pinned: boolean;
   image_url: string | null;
 }
+
+export interface UpdatePostFields {
+  post_type_id: number;
+  title: string;
+  body: string;
+  anonymous: boolean;
+  is_pinned: boolean;
+  image_url: string | null;
+  updated_at: string | null;
+}

@@ -6,3 +6,4 @@ dist
 .env.local
 .open-next
 .vscode
+.DS_Store

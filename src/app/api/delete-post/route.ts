@@ -1,21 +1,29 @@
 import { createClient } from "@/utils/supabase/server";
+import { NextResponse } from "next/server";
+
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'DELETE',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization'
+}
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }> }) {
-    const supabase = await createClient();
+
+    const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
+    const supabase = await createClient(accessToken);
     const {daoGroupId, postId} = await params;
-    // Check user is authenticated
+
     const {
         data: { user },
         error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Invalid user" },
-            { status: 401 }
+            { status: 401, headers: corsHeaders }
         );
     }
 
-    // Check post exists and belongs to user
     const { data: post, error: postError } = await supabase
         .from("posts")
         .select("id, author_id")
@@ -24,41 +32,34 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ d
         .single();
 
     if (postError || !post) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Post not found" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
         );
     }
 
-    // Check user is the author
     if (post.author_id !== user.id) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Unauthorized, you are not the author of this post" },
-            { status: 403 }
+            { status: 403, headers: corsHeaders }
         );
     }
 
-    // Soft delete comments under the post
     const { error: commentsError } = await supabase
         .from("comments")
-        .update({ 
-            deleted_at: 'now()'
-        })
+        .update({ deleted_at: 'now()' })
         .eq("post_id", postId)
 
     if (commentsError) {
-        return Response.json(
+        return NextResponse.json(
             { error: commentsError.message },
-            { status: 500 }
+            { status: 500, headers: corsHeaders }
         );
     }
 
-    // Soft delete the post
     const { data, error } = await supabase
         .from("posts")
-        .update({ 
-            deleted_at: 'now()'
-        })
+        .update({ deleted_at: 'now()' })
         .eq("id", postId)
         .eq("dao_group_id", daoGroupId)
         .eq("author_id", user.id)
@@ -66,18 +67,18 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ d
         .single();
 
     if (error) {
-        return Response.json(
+        return NextResponse.json(
             { error: error.message },
-            { status: 500 }
+            { status: 500, headers: corsHeaders }
         );
     }
 
     if (!data) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Post not found or unauthorized" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
         );
     }
 
-    return Response.json(data, { status: 200 });
+    return NextResponse.json(data, { status: 200, headers: corsHeaders });
 }

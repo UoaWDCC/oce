@@ -55,8 +55,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
             is_pinned: body.is_pinned, 
             image_url: body.image_url
         })
+        .eq("dao_group_id", daoGroupId)
         .eq("id", postId)
-        .eq("author_id", user.id)
         .select()
         .single();
 

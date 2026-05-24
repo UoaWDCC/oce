@@ -2,7 +2,7 @@ import { createClient } from "@/utils/supabase/server";
 import type { CreatePostFields } from "../../../../../../types/posts"
 
 export async function GET(_request: Request, { params }: { params: Promise<{ daoGroupId: string }> }) {
-    const daoGroupId = await params;
+    const { daoGroupId } = await params;
     const supabase = await createClient();
     const { data, error } = await supabase
         .from("posts")
@@ -16,7 +16,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ dao
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ daoGroupId: string }> }) {
-    const daoGroupId = await params;
+    const { daoGroupId } = await params;
     const supabase = await createClient();
 
     const {

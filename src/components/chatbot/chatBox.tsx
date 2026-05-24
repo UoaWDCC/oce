@@ -7,20 +7,17 @@ import ChatMessage from "./chatMessage";
 import ChatReply from "./chatReply";
 import ChatDownButton from "./chatDownButton";
 import useOnScreen from "@/hooks/useOnScreen";
+import { useChatModal } from "@/context/ChatBoxModalProvider";
 
-interface IChatBox {
-  open: boolean;
-  toggleOpen(): void;
-}
-
-export interface IChatMessage {
+export interface ChatMessageType {
   type: "user" | "bot";
   message: string;
 }
 
-export default function ChatBox({ open, toggleOpen }: IChatBox): ReactNode {
+export default function ChatBox(): ReactNode {
+  const { open, toggleOpen } = useChatModal();
   //NOTE: the way that message content is passed into the div hasn't been finalised
-  const [messages, setMessages] = useState<IChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessageType[]>([
     {
       type: "user",
       message: "test",
@@ -46,7 +43,7 @@ and creates clearer visual hierarchy.
     },
   ]);
   const lastMessageRef = useRef<HTMLDivElement>(null);
-  function submitMessage(chatMessage: IChatMessage) {
+  function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);
   }
   const isVisible = useOnScreen(lastMessageRef);
@@ -96,7 +93,6 @@ and creates clearer visual hierarchy.
               />
             )}
           </div>
-
           <ChatInput submitMessage={submitMessage} />
         </div>
       </div>

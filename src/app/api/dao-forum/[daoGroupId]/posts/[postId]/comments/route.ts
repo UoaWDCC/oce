@@ -34,7 +34,7 @@ async function checkDAOMembership(
     .eq("dao_group_id", daoGroupId)
     .eq("user_id", user_id)
     .single();
-  return !!member_data;
+  return !!memberData;
 }
 
 // POST - Create new comment

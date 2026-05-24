@@ -17,10 +17,11 @@ export default function ChatInput({
   }
 
   return (
-    <div className="w-full h-8 px-3 mb-6 z-30">
-      <div className="shadow-2xl rounded-full h-10 outline-2 outline-[#e9d5ff] flex items-center bg-white">
+    <div className="w-full mb-3 pl-4 z-30 flex pr-1">
+      <div className="shadow-2xl rounded-full min-h-10 outline-2 outline-[#e9d5ff] flex items-center bg-white w-full px-0 pl-5">
+        {/* TODO: change to a textarea */}
         <input
-          className="text-sm flex-1 h-full pr-3 pl-4 min-w-0"
+          className="text-sm flex-1 min-w-0 outline-none"
           ref={inputRef}
           value={inputValue}
           onChange={updateInputValue}
@@ -28,7 +29,6 @@ export default function ChatInput({
             if (e.key === "Enter") {
               setInputValue("");
               submitMessage({ type: "user", message: inputRef.current!.value });
-              //TODO: enable scroll to bottom of page when new message is sent
             }
           }}
         />

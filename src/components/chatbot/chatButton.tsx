@@ -1,12 +1,10 @@
 "use client";
+import { useChatModal } from "@/context/ChatBoxModalProvider";
 import Image from "next/image";
 import { ReactNode } from "react";
 
-interface IChatButton {
-  toggleOpen(): void;
-}
-
-export default function ChatButton({ toggleOpen }: IChatButton): ReactNode {
+export default function ChatButton(): ReactNode {
+  const { toggleOpen } = useChatModal();
   return (
     <div className="p-5" onClick={toggleOpen}>
       <Image

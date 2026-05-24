@@ -11,6 +11,7 @@ servers:
 tags:
   - name: Auth
   - name: DAO
+  - name: DAO Forum
   - name: Learning
   - name: Blockchain
 paths:
@@ -396,6 +397,131 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/dao-forum/{daoGroupId}/posts:
+    get:
+      tags:
+        - DAO Forum
+      summary: List posts for a DAO forum group
+      operationId: listDaoForumPosts
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+      responses:
+        "200":
+          description: DAO forum posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostSummary"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - DAO Forum
+      summary: Create a post in a DAO forum group
+      operationId: createDaoForumPost
+      description: >
+        Uses the current Supabase cookie-backed session in the route code.
+        The user must be a member of the DAO group.
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+            example:
+              post_type_id: 1
+              title: Test post
+              body: Testing a DAO forum post
+              anonymous: false
+              is_pinned: false
+              image_url: null
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Conflict with existing state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/dao-forum/{daoGroupId}/posts/{postId}:
+    get:
+      tags:
+        - DAO Forum
+      summary: Get one DAO forum post
+      operationId: getDaoForumPost
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: DAO forum post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags:
+        - DAO Forum
+      summary: Update one DAO forum post
+      operationId: updateDaoForumPost
+      description: >
+        Uses the current Supabase cookie-backed session in the route code.
+        The route only updates posts authored by the current user.
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostRequest"
+            example:
+              post_type_id: 1
+              title: Updated post
+              body: Updated post body
+              anonymous: false
+              is_pinned: false
+              image_url: null
+              updated_at: "2026-05-24T00:00:00.000Z"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/member-voted:
     options:
       tags:
@@ -624,6 +750,24 @@ components:
       scheme: bearer
       bearerFormat: JWT
 
+  parameters:
+    DaoGroupId:
+      name: daoGroupId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: DAO forum group UUID.
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: DAO forum post UUID.
+
   responses:
     BadRequest:
       description: Bad request
@@ -754,6 +898,84 @@ components:
           items:
             type: object
             additionalProperties: true
+
+    PostSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        post_type_id:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        anonymous:
+          type: boolean
+        is_pinned:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Post:
+      allOf:
+        - $ref: "#/components/schemas/PostSummary"
+        - type: object
+          properties:
+            dao_group_id:
+              type: string
+              format: uuid
+            body:
+              type: string
+              nullable: true
+            image_url:
+              type: string
+              nullable: true
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    CreatePostRequest:
+      type: object
+      required:
+        - post_type_id
+        - title
+        - body
+        - anonymous
+        - is_pinned
+      properties:
+        post_type_id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        anonymous:
+          type: boolean
+        is_pinned:
+          type: boolean
+        image_url:
+          type: string
+          nullable: true
+
+    UpdatePostRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreatePostRequest"
+        - type: object
+          properties:
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
 
     SummonDaoRequest:
       type: object

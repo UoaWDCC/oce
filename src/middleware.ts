@@ -13,7 +13,6 @@ const publicApiRoutes = [
   "/api/register",
   "/api/check-user",
   "/api/get-user-daos",
-  "/api/dao-forum",
 ];
 
 // CORS configuration

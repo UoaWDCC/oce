@@ -1,5 +1,12 @@
 import { createClient } from "@/utils/supabase/server";
 import type { Post, UpdatePostFields} from "@app-types/posts"
+import { NextResponse } from "next/server";
+
+const corsHeaders = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET, PATCH",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
 
 export async function GET(_request: Request, { params }: { params: Promise<{ daoGroupId: string; postId: string }> }) {
     const { daoGroupId, postId } = await params;
@@ -13,12 +20,18 @@ export async function GET(_request: Request, { params }: { params: Promise<{ dao
 
     if (error) {
         if (error.code === "PGRST116") {
-            return Response.json({ error: "Post not found" }, { status: 404 });
+            return NextResponse.json(
+                { error: "Post not found" }, 
+                { status: 404, headers: corsHeaders }
+            );
         }
-        return Response.json({ error: error.message }, { status: 500 });
+        return NextResponse.json(
+            { error: error.message }, 
+            { status: 500, headers: corsHeaders }
+        );
     }
 
-    return Response.json(data as Post);
+    return NextResponse.json(data as Post, { headers: corsHeaders });
 }
 
 export async function PATCH(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }>  }) {
@@ -30,18 +43,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
         error: userError,
     } = await supabase.auth.getUser();
     if (userError || !user) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Invalid user" },
-            { status: 401 }
+            { status: 401, headers: corsHeaders }
         );
     }
 
     const body = (await request.json()) as UpdatePostFields;
 
     if (!body.title || !body.body || !body.post_type_id || body.anonymous === undefined || body.is_pinned === undefined) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Missing required fields" },
-            { status: 400 }
+            { status: 400, headers: corsHeaders }
         );
     }
 
@@ -61,18 +74,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
         .single();
 
     if (error) {
-        return Response.json(
+        return NextResponse.json(
             { error: error.message },
-            { status: 500 }
+            { status: 500, headers: corsHeaders }
         );
     }
 
     if (!data) {
-        return Response.json(
+        return NextResponse.json(
             { error: "Post not found or unauthorized" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
         );
     }
 
-    return Response.json(data, { status: 200 });
+    return NextResponse.json(data, { status: 200, headers: corsHeaders });
 }

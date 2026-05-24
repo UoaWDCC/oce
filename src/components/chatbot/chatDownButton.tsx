@@ -10,7 +10,7 @@ export default function ChatDownButton({
   scrollDown,
 }: IChatDownButtonProps): ReactNode {
   return (
-    <button onClick={() => scrollDown()} className="sticky bottom-10">
+    <button onClick={() => scrollDown()} className="">
       <Image
         src={"/downButton.svg"}
         alt="scroll down to the bottom of the chat"

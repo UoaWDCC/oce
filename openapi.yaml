@@ -521,6 +521,36 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - DAO Forum
+      summary: Soft delete one DAO forum post
+      operationId: deleteDaoForumPost
+      description: >
+        Uses a Bearer token to authenticate the current user. The route first
+        verifies that the post exists in the DAO group and that the current
+        user is the post author, then soft-deletes comments for the post and
+        soft-deletes the post by setting deleted_at.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Soft-deleted post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /api/member-voted:
     options:

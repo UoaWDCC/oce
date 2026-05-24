@@ -1,5 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
-import type { Post, UpdatePostFields} from "@app-types/posts"
+import type { Post, UpdatePostFields } from "@app-types/posts"
 import { NextResponse } from "next/server";
 
 const corsHeaders = {
@@ -10,42 +10,76 @@ const corsHeaders = {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ daoGroupId: string; postId: string }> }) {
     const { daoGroupId, postId } = await params;
-    const supabase = await createClient();
+    const accessToken = _request.headers.get("Authorization")?.replace("Bearer ", "");
+
+    if (!accessToken) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: corsHeaders },
+        );
+    }
+
+    const supabase = await createClient(accessToken);
+
+    const {
+        data: { user },
+        error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+        return NextResponse.json(
+            { error: "Invalid auth token" },
+            { status: 401, headers: corsHeaders },
+        );
+    }
+
     const { data, error } = await supabase
         .from("posts")
         .select("*")
         .eq("dao_group_id", daoGroupId)
         .eq("id", postId)
-        .single();
+        .maybeSingle();
 
     if (error) {
-        if (error.code === "PGRST116") {
-            return NextResponse.json(
-                { error: "Post not found" }, 
-                { status: 404, headers: corsHeaders }
-            );
-        }
         return NextResponse.json(
-            { error: error.message }, 
-            { status: 500, headers: corsHeaders }
+            { error: error.message },
+            { status: 500, headers: corsHeaders },
+        );
+    }
+
+    if (!data) {
+        return NextResponse.json(
+            { error: "Post not found" },
+            { status: 404, headers: corsHeaders },
         );
     }
 
     return NextResponse.json(data as Post, { headers: corsHeaders });
 }
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }>  }) {
-    const supabase = await createClient();
-    const {daoGroupId, postId} = await params;
+export async function PATCH(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }> }) {
+    const { daoGroupId, postId } = await params;
+
+    const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
+
+    if (!accessToken) {
+        return NextResponse.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: corsHeaders },
+        );
+    }
+
+    const supabase = await createClient(accessToken);
 
     const {
         data: { user },
         error: userError,
     } = await supabase.auth.getUser();
+
     if (userError || !user) {
         return NextResponse.json(
-            { error: "Invalid user" },
-            { status: 401, headers: corsHeaders }
+            { error: "Invalid auth token" },
+            { status: 401, headers: corsHeaders },
         );
     }
 
@@ -60,18 +94,18 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
 
     const { data, error } = await supabase
         .from("posts")
-        .update({ 
-            post_type_id: body.post_type_id, 
-            title: body.title, 
-            body: body.body, 
-            anonymous: body.anonymous, 
-            is_pinned: body.is_pinned, 
+        .update({
+            post_type_id: body.post_type_id,
+            title: body.title,
+            body: body.body,
+            anonymous: body.anonymous,
+            is_pinned: body.is_pinned,
             image_url: body.image_url
         })
         .eq("dao_group_id", daoGroupId)
         .eq("id", postId)
         .select()
-        .single();
+        .maybeSingle();
 
     if (error) {
         return NextResponse.json(

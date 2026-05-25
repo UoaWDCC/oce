@@ -4,6 +4,8 @@ import { createContext, useContext, useState, ReactNode } from "react";
 export interface ChatModalContextType {
   open: boolean;
   toggleOpen(): void;
+  openZoomChatBox: boolean;
+  toggleOpenZoomChatBox(): void;
 }
 
 const ChatModalContext = createContext<ChatModalContextType | undefined>(
@@ -12,13 +14,20 @@ const ChatModalContext = createContext<ChatModalContextType | undefined>(
 
 export function ChatModalProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<boolean>(false);
+  const [openZoomChatBox, setOpenZoomChatBox] = useState<boolean>(false);
 
   function toggleOpen() {
     setOpen(!open);
   }
 
+  function toggleOpenZoomChatBox() {
+    setOpenZoomChatBox(!openZoomChatBox);
+  }
+
   return (
-    <ChatModalContext.Provider value={{ open, toggleOpen }}>
+    <ChatModalContext.Provider
+      value={{ open, toggleOpen, openZoomChatBox, toggleOpenZoomChatBox }}
+    >
       {children}
     </ChatModalContext.Provider>
   );

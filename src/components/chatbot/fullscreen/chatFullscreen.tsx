@@ -8,7 +8,7 @@ import ChatDownButton from "../chatDownButton";
 import ChatInput from "../chatInput";
 import { useChatModal } from "@/context/ChatBoxModalProvider";
 
-export default function ChatScreen() {
+export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
   //NOTE: the way that message content is passed into the div hasn't been finalised

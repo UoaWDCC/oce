@@ -19,8 +19,7 @@ export default function ChatInput({
   return (
     <div className="sticky mb-3 px-4 z-30 flex w-full min-w-0">
       <div className="shadow-2xl rounded-full min-h-10 outline-2 outline-[#e9d5ff] flex items-center bg-white w-full min-w-0 pl-5 pr-1 overflow-hidden">
-        {" "}
-        {/* TODO: change to a textarea */}
+        {/* TODO: change to a textarea? */}
         <input
           className="text-sm flex-1 min-w-0 outline-none"
           ref={inputRef}

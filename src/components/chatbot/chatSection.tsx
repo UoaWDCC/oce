@@ -1,7 +1,7 @@
 import React from "react";
 import { useChatModal } from "@/context/ChatBoxModalProvider";
 import ChatArea from "./fullscreen/chatArea";
-import ChatScreen from "./fullscreen/chatScreen";
+import ChatFullscreen from "./fullscreen/chatFullscreen";
 
 export interface ChatMessageType {
   type: "user" | "bot";
@@ -18,5 +18,5 @@ export default function ChatSection() {
     return <ChatArea />;
   }
 
-  return <ChatScreen />;
+  return <ChatFullscreen />;
 }

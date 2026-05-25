@@ -1,6 +1,6 @@
 "use client";
 import { useChatModal } from "@/context/ChatBoxModalProvider";
-import ChatScreen from "./chatScreen";
+import ChatFullscreen from "./chatFullscreen";
 import ConversationsList from "./conversationsList";
 
 export default function ChatArea() {
@@ -13,7 +13,7 @@ export default function ChatArea() {
       <div className="flex h-full w-full p-5">
         <div className="w-full flex gap-3">
           <ConversationsList />
-          <ChatScreen />
+          <ChatFullscreen />
         </div>
       </div>
     </div>

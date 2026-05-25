@@ -4,8 +4,8 @@ import { createClient } from "@/utils/supabase/server";
 interface CommentAuthor {
   id: string;
   username: string;
-  first_name: string;
-  last_name: string;
+  FirstName: string;
+  LastName: string;
 }
 
 interface RawComment {
@@ -96,12 +96,25 @@ export async function GET(
       );
     }
 
-    // Check if user is a member of this DAO
+    // dao_members.user_id references AllowedUsers(id), not auth user id
+    const { data: allowedUser, error: allowedUserError } = await supabase
+      .from("AllowedUsers")
+      .select("id")
+      .ilike("Email", user.email!)
+      .single();
+
+    if (allowedUserError || !allowedUser) {
+      return NextResponse.json(
+        { error: "Forbidden" },
+        { status: 403, headers: corsHeaders }
+      );
+    }
+
     const { data: membership, error: membershipError } = await supabase
       .from("dao_members")
       .select("user_id")
       .eq("dao_group_id", daoGroupId)
-      .eq("user_id", user.id)
+      .eq("user_id", allowedUser.id)
       .single();
 
     if (membershipError || !membership) {
@@ -124,11 +137,11 @@ export async function GET(
         updated_at,
         deleted_at,
         like_count,
-        author:allowed_users!author_id (
+        author:AllowedUsers!author_id (
           id,
           username,
-          first_name,
-          last_name
+          FirstName,
+          LastName
         )
       `
       )

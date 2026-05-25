@@ -2,13 +2,13 @@
 import Image from "next/image";
 import { ReactNode } from "react";
 
-interface IChatDownButtonProps {
+interface ChatDownButtonPropsType {
   scrollDown(): void;
 }
 
 export default function ChatDownButton({
   scrollDown,
-}: IChatDownButtonProps): ReactNode {
+}: ChatDownButtonPropsType): ReactNode {
   return (
     <button onClick={() => scrollDown()} className="">
       <Image

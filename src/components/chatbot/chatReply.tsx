@@ -3,12 +3,11 @@ import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import { useState } from "react";
 
-interface IChatReply {
+interface ChatReplyType {
   children: string;
-  // ref: React.Ref<HTMLDivElement>;
 }
 
-export default function ChatReply({ children }: IChatReply) {
+export default function ChatReply({ children }: ChatReplyType) {
   //NOTE: This may need to be moved outside and into context if it
   const [favourited, setFavourited] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);

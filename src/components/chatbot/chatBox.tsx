@@ -8,6 +8,7 @@ import ChatReply from "./chatReply";
 import ChatDownButton from "./chatDownButton";
 import useOnScreen from "@/hooks/useOnScreen";
 import { useChatModal } from "@/context/ChatBoxModalProvider";
+import ChatArea from "./fullscreen/chatArea";
 
 export interface ChatMessageType {
   type: "user" | "bot";
@@ -15,7 +16,8 @@ export interface ChatMessageType {
 }
 
 export default function ChatBox(): ReactNode {
-  const { open, toggleOpen } = useChatModal();
+  const { open, toggleOpen, openZoomChatBox, toggleOpenZoomChatBox } =
+    useChatModal();
   //NOTE: the way that message content is passed into the div hasn't been finalised
   const [messages, setMessages] = useState<ChatMessageType[]>([
     {
@@ -46,6 +48,7 @@ and creates clearer visual hierarchy.
   function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);
   }
+
   const isVisible = useOnScreen(lastMessageRef);
   useEffect(() => {
     lastMessageRef.current?.scrollIntoView({
@@ -54,48 +57,68 @@ and creates clearer visual hierarchy.
       inline: "nearest",
     });
   }, [messages]);
+
   return (
-    <div
-      className={`${open ? `` : `hidden`} flex flex-col rounded-2xl min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 bg-white shadow-xl overflow-hidden z-20 md:w-2/5 lg:w-1/4`}
-    >
-      <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
-        <p className="font-bold text-white text-lg">AI Tutor</p>
-        <button onClick={() => toggleOpen()}>
-          <Image
-            src={"/cancelButton.svg"}
-            alt="close the chatbot window"
-            width={30}
-            height={30}
-          />
-        </button>
-      </div>
-      <div className="overflow-y-scroll pr-2 ">
-        <div className="relative h-full py-3 box-border w-full pl-3">
-          <div className="flex flex-col w-full gap-3 pb-3">
-            {messages.map((message, index) => {
-              if (message.type == "user") {
-                return <ChatMessage key={index}>{message.message}</ChatMessage>;
-              }
-              return <ChatReply key={index}>{message.message}</ChatReply>;
-            })}
-          </div>
-          <div className="h-0" ref={lastMessageRef}></div>
-        </div>
-        <div className="sticky bottom-5">
-          <div className="flex justify-center pb-3">
-            {isVisible ? null : (
+    <>
+      {openZoomChatBox ? (
+        <ChatArea />
+      ) : (
+        <div
+          className={`${open ? `` : `hidden`} flex flex-col rounded-2xl min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 bg-white shadow-xl overflow-hidden z-20 md:w-2/5 lg:w-1/4`}
+        >
+          <div className="absolute bottom-15 right-1/2 z-40">
+            {!isVisible && (
               <ChatDownButton
-                scrollDown={() => {
-                  lastMessageRef.current?.scrollIntoView({
-                    behavior: "smooth",
-                  });
-                }}
+                scrollDown={() =>
+                  lastMessageRef.current?.scrollIntoView({ behavior: "smooth" })
+                }
               />
             )}
           </div>
-          <ChatInput submitMessage={submitMessage} />
+          <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
+            <p className="font-bold text-white text-lg">AI Tutor</p>
+            <div className="flex-1 gap-2 flex justify-end">
+              <button onClick={() => toggleOpenZoomChatBox()}>
+                <Image
+                  src={"/zoomButton.svg"}
+                  alt="make the chatbox window bigger"
+                  width={25}
+                  height={25}
+                />
+              </button>
+
+              <button onClick={() => toggleOpen()}>
+                <Image
+                  src={"/cancelButton.svg"}
+                  alt="close the chatbot window"
+                  width={30}
+                  height={30}
+                />
+              </button>
+            </div>
+          </div>
+          <div className="min-h-0 pt-3 flex-1 overflow-y-scroll h-full w-full">
+            <div className="relative py-3 pr-2 w-full pl-3">
+              <div className="flex flex-col w-full gap-3 pb-3 ">
+                {messages.map((message, index) => {
+                  if (message.type == "user") {
+                    return (
+                      <ChatMessage key={index}>{message.message}</ChatMessage>
+                    );
+                  }
+                  return <ChatReply key={index}>{message.message}</ChatReply>;
+                })}
+              </div>
+              <div className="h-3" ref={lastMessageRef}></div>
+            </div>
+          </div>
+          <div className="bg-transparent w-full bg-none">
+            <div className="">
+              <ChatInput submitMessage={submitMessage} />
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }

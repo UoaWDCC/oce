@@ -1,15 +1,19 @@
 "use client";
 import Image from "next/image";
 import { ChangeEvent, ReactNode, useRef, useState } from "react";
-import { IChatMessage } from "./chatBox";
 
-interface IChatInputProps {
-  submitMessage(chatMessage: IChatMessage): void;
+interface ChatMessageType {
+  type: "user" | "bot";
+  message: string;
+}
+
+interface ChatInputPropsType {
+  submitMessage(chatMessage: ChatMessageType): void;
 }
 
 export default function ChatInput({
   submitMessage,
-}: IChatInputProps): ReactNode {
+}: ChatInputPropsType): ReactNode {
   const [inputValue, setInputValue] = useState<string>("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   function updateInputValue(e: ChangeEvent<HTMLInputElement>) {

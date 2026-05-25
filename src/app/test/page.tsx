@@ -1,9 +1,6 @@
 "use client";
-import ChatMessage from "@/components/chatbot/chatMessage";
 import ChatButton from "@/components/chatbot/chatButton";
 import { ReactNode } from "react";
-import ChatBox from "@/components/chatbot/chatBox";
-import ChatArea from "@/components/chatbot/fullscreen/chatArea";
 import { ChatModalProvider } from "@/context/ChatBoxModalProvider";
 import ChatSection from "@/components/chatbot/chatSection";
 

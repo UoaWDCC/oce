@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { authenticateUser } from "@/utils/authHelper";
 import type { CreatePostFields } from "../../../../../../types/posts"
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,28 +11,9 @@ const corsHeaders = {
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ daoGroupId: string }> }) {
     const { daoGroupId } = await params;
 
-    const accessToken = _request.headers.get("Authorization")?.replace("Bearer ", "");
-
-    if (!accessToken) {
-        return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
-
-    const supabase = await createClient(accessToken);
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-        return NextResponse.json(
-            { error: "Invalid auth token" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
+    const auth = await authenticateUser(_request, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase } = auth;
 
     const { data, error } = await supabase
         .from("posts")
@@ -51,28 +32,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 export async function POST(request: NextRequest, { params }: { params: Promise<{ daoGroupId: string }> }) {
     const { daoGroupId } = await params;
 
-    const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
-
-    if (!accessToken) {
-        return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
-
-    const supabase = await createClient(accessToken);
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-        return NextResponse.json(
-            { error: "Invalid auth token" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
+    const auth = await authenticateUser(request, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase, user } = auth;
 
     const body = (await request.json()) as CreatePostFields;
 

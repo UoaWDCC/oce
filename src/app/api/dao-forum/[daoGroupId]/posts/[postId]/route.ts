@@ -1,4 +1,4 @@
-import { createClient } from "@/utils/supabase/server";
+import { authenticateUser } from "@/utils/authHelper";
 import type { Post, UpdatePostFields } from "@app-types/posts"
 import { NextResponse } from "next/server";
 
@@ -10,28 +10,9 @@ const corsHeaders = {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ daoGroupId: string; postId: string }> }) {
     const { daoGroupId, postId } = await params;
-    const accessToken = _request.headers.get("Authorization")?.replace("Bearer ", "");
-
-    if (!accessToken) {
-        return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
-
-    const supabase = await createClient(accessToken);
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-        return NextResponse.json(
-            { error: "Invalid auth token" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
+    const auth = await authenticateUser(_request, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase } = auth;
 
     const { data, error } = await supabase
         .from("posts")
@@ -60,28 +41,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ dao
 export async function PATCH(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }> }) {
     const { daoGroupId, postId } = await params;
 
-    const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
-
-    if (!accessToken) {
-        return NextResponse.json(
-            { error: "Unauthorized" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
-
-    const supabase = await createClient(accessToken);
-
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-        return NextResponse.json(
-            { error: "Invalid auth token" },
-            { status: 401, headers: corsHeaders },
-        );
-    }
+    const auth = await authenticateUser(request, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase } = auth;
 
     const body = (await request.json()) as UpdatePostFields;
 
@@ -126,20 +88,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
 
 export async function DELETE(request: Request, { params }: { params: Promise<{ daoGroupId: string, postId: string }> }) {
 
-    const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
-    const supabase = await createClient(accessToken);
     const { daoGroupId, postId } = await params;
 
-    const {
-        data: { user },
-        error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-        return NextResponse.json(
-            { error: "Invalid user" },
-            { status: 401, headers: corsHeaders }
-        );
-    }
+    const auth = await authenticateUser(request, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase, user } = auth;
 
     const { data: post, error: postError } = await supabase
         .from("posts")

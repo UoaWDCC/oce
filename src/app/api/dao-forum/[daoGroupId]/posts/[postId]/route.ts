@@ -43,7 +43,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
 
     const auth = await authenticateUser(request, corsHeaders);
     if (auth.response) return auth.response;
-    const { supabase } = auth;
+    const { supabase, user } = auth;
 
     const body = (await request.json()) as UpdatePostFields;
 
@@ -51,6 +51,27 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
         return NextResponse.json(
             { error: "Missing required fields" },
             { status: 400, headers: corsHeaders }
+        );
+    }
+
+    const { data: post, error: postError } = await supabase
+        .from("posts")
+        .select("id, author_id")
+        .eq("id", postId)
+        .eq("dao_group_id", daoGroupId)
+        .single();
+
+    if (postError || !post) {
+        return NextResponse.json(
+            { error: "Post not found" },
+            { status: 404, headers: corsHeaders }
+        );
+    }
+
+    if (post.author_id !== user.id) {
+        return NextResponse.json(
+            { error: "Unauthorized, you are not the author of this post" },
+            { status: 403, headers: corsHeaders }
         );
     }
 
@@ -73,13 +94,6 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ da
         return NextResponse.json(
             { error: error.message },
             { status: 500, headers: corsHeaders }
-        );
-    }
-
-    if (!data) {
-        return NextResponse.json(
-            { error: "Post not found or unauthorized" },
-            { status: 404, headers: corsHeaders }
         );
     }
 

@@ -6,4 +6,5 @@ dist
 .env.local
 .open-next
 .vscode
-tsconfig.tsbuildinfo
+*.tsbuildinfo
+.DS_Store

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { SupabaseClient } from "@supabase/supabase-js";
+import { authenticateUser } from "@/utils/authHelper";
+import { checkDAOMembership } from "@/utils/daoMembership";
+import type { CreateCommentFields, InsertComment } from "@app-types/comments";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,51 +9,12 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-interface CommentBody {
-  body?: string;
-  image_url?: string;
-  parent_comment_id?: string;
-}
-
-interface InsertComment {
-  post_id: string;
-  author_id: string;
-  parent_comment_id?: string;
-  body?: string;
-  image_url?: string;
-}
-
-// Helper to check if user is a member of this DAO
-async function checkDAOMembership(
-  supabase: SupabaseClient,
-  user_id: string,
-  daoGroupId: string,
-) {
-  const { data: memberData } = await supabase
-    .from("dao_members")
-    .select("user_id")
-    .eq("dao_group_id", daoGroupId)
-    .eq("user_id", user_id)
-    .single();
-  return !!memberData;
-}
-
 // POST - Create new comment
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ daoGroupId: string, postId: string }> },
+  { params }: { params: Promise<{ daoGroupId: string; postId: string }> },
 ) {
   try {
-    const accessToken = req.headers
-      .get("Authorization")
-      ?.replace("Bearer ", "");
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
     const { daoGroupId, postId } = await params;
 
     if (!postId) {
@@ -62,17 +24,9 @@ export async function POST(
       );
     }
 
-    const supabase = await createClient(accessToken);
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Invalid auth token" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
+    const auth = await authenticateUser(req, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase, user } = auth;
 
     const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
     if (!isDaoMember) {
@@ -86,33 +40,55 @@ export async function POST(
       .from("posts")
       .select("deleted_at")
       .eq("id", postId)
-      .single();
-    if ( postError || !parentPost || parentPost.deleted_at !== null) {
+      .eq("dao_group_id", daoGroupId)
+      .maybeSingle();
+    if (postError || !parentPost || parentPost.deleted_at !== null) {
       return NextResponse.json(
         { error: "Post not found" },
         { status: 404, headers: corsHeaders },
       );
     }
 
-    const comment = (await req.json()) as CommentBody;
-    const { parent_comment_id, body, image_url } = comment;
+    let comment: CreateCommentFields;
+    try {
+      comment = (await req.json()) as CreateCommentFields;
+    } catch {
+      return NextResponse.json(
+        { error: "Invalid JSON body" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
 
-    if (!body && !image_url) {
+    const { parent_comment_id, body, image_url } = comment;
+    const parentCommentId =
+      typeof parent_comment_id === "string"
+        ? parent_comment_id.trim() || undefined
+        : undefined;
+    const bodyValue =
+      typeof body === "string" ? body.trim() || undefined : undefined;
+    const imageUrlValue =
+      typeof image_url === "string" ? image_url.trim() || undefined : undefined;
+
+    if (!bodyValue && !imageUrlValue) {
       return NextResponse.json(
         { error: "Comment cannot be empty" },
         { status: 400, headers: corsHeaders },
       );
     }
 
-    if (parent_comment_id) {
+    if (parentCommentId) {
       const { data: parentComment, error: parentCommentError } = await supabase
         .from("comments")
         .select("deleted_at")
-        .eq("id", parent_comment_id)
+        .eq("id", parentCommentId)
         .eq("post_id", postId)
-        .single();
-      
-      if ( parentCommentError || !parentComment || parentComment.deleted_at !== null ) {
+        .maybeSingle();
+
+      if (
+        parentCommentError ||
+        !parentComment ||
+        parentComment.deleted_at !== null
+      ) {
         return NextResponse.json(
           { error: "Parent comment not found" },
           { status: 400, headers: corsHeaders },
@@ -123,9 +99,9 @@ export async function POST(
     const insertComment: InsertComment = {
       post_id: postId,
       author_id: user.id,
-      parent_comment_id,
-      body,
-      image_url,
+      parent_comment_id: parentCommentId,
+      body: bodyValue,
+      image_url: imageUrlValue,
     };
 
     const { data: newComment, error: insertError } = await supabase

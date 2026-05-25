@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect } from "react";
-import { IChatBox, IChatMessage } from "../chatBox";
+import { ChatMessageType } from "../chatBox";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
 import ChatInput from "../chatInput";
+import { useChatModal } from "@/context/ChatBoxModalProvider";
 
-export default function ChatScreen({ open, toggleOpen }: IChatBox) {
+export default function ChatScreen() {
+  const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
+    useChatModal();
   //NOTE: the way that message content is passed into the div hasn't been finalised
-  const [messages, setMessages] = useState<IChatMessage[]>([
+  const [messages, setMessages] = useState<ChatMessageType[]>([
     {
       type: "user",
       message: "test",
@@ -35,7 +38,7 @@ and creates clearer visual hierarchy.
     },
   ]);
   const lastMessageRef = useRef<HTMLDivElement>(null);
-  function submitMessage(chatMessage: IChatMessage) {
+  function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);
   }
   const isVisible = useOnScreen(lastMessageRef, "-40px");
@@ -48,7 +51,9 @@ and creates clearer visual hierarchy.
   }, [messages]);
   return (
     <div
-      className={`${open ? `` : `hidden`} flex flex-col rounded-2xl h-full w-full bg-white shadow-xl z-20 relative`}
+      className={`${open ? `` : `hidden`} flex flex-col rounded-2xl 
+${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 overflow-hidden z-20 md:w-2/5 lg:w-1/4`} bg-white  shadow-xl
+`}
     >
       <div className="absolute bottom-15 right-1/2 z-40">
         {!isVisible && (
@@ -61,14 +66,35 @@ and creates clearer visual hierarchy.
       </div>
       <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
         <p className="font-bold text-white text-lg">AI Tutor</p>
-        <button onClick={() => toggleOpen()}>
-          <Image
-            src={"/cancelButton.svg"}
-            alt="close the chatbot window"
-            width={30}
-            height={30}
-          />
-        </button>
+        <div className="flex-1 gap-2 flex justify-end">
+          <button
+            onClick={() => {
+              toggleOpenZoomChatBox();
+            }}
+          >
+            <Image
+              src={"/zoomButton.svg"}
+              alt="make the chatbox window bigger"
+              width={25}
+              height={25}
+            />
+          </button>
+          <button
+            onClick={() => {
+              if (openZoomChatBox) {
+                toggleOpenZoomChatBox();
+              }
+              toggleOpen();
+            }}
+          >
+            <Image
+              src={"/cancelButton.svg"}
+              alt="close the chatbot window"
+              width={30}
+              height={30}
+            />
+          </button>
+        </div>
       </div>
       <div className="min-h-0 pt-3 flex-1 overflow-y-scroll h-full w-full">
         <div className="relative py-3 pr-2 w-full pl-3">

@@ -4,7 +4,7 @@ import ChatScreen from "./chatScreen";
 import ConversationsList from "./conversationsList";
 
 export default function ChatArea() {
-  const { open, toggleOpen, toggleOpenZoomChatBox } = useChatModal();
+  const { open } = useChatModal();
 
   return (
     <div
@@ -13,13 +13,7 @@ export default function ChatArea() {
       <div className="flex h-full w-full p-5">
         <div className="w-full flex gap-3">
           <ConversationsList />
-          <ChatScreen
-            open={open}
-            toggleOpen={() => {
-              toggleOpenZoomChatBox();
-              toggleOpen();
-            }}
-          />
+          <ChatScreen />
         </div>
       </div>
     </div>

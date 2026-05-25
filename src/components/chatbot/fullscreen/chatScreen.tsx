@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChatMessageType } from "../chatBox";
+import { ChatMessageType } from "@/../types/chat";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";

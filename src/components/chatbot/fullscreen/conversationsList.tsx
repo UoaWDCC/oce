@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Conversation from "./conversation";
 
 interface ConversationType {

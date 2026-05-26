@@ -11,3 +11,8 @@ export interface InsertComment {
   body?: string | null;
   image_url?: string | null;
 }
+
+export interface UpdateCommentFields {
+  body?: string | null;
+  image_url?: string | null;
+}

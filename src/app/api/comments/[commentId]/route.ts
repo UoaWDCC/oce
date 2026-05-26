@@ -1,71 +1,140 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { authenticateUser } from "@/utils/authHelper";
+import type { UpdateCommentFields } from "@app-types/comments";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Methods": "PATCH, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ commentId: string }> }
+  context: { params: Promise<{ commentId: string }> },
 ) {
   const { commentId } = await context.params;
-  const accessToken = req.headers.get("Authorization")?.replace("Bearer ", "");
 
-  if (!accessToken) {
+  const auth = await authenticateUser(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const { supabase, user } = auth;
+
+  let json: UpdateCommentFields;
+  try {
+    json = (await req.json()) as UpdateCommentFields;
+  } catch {
     return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: corsHeaders }
+      { error: "Invalid JSON body" },
+      { status: 400, headers: corsHeaders },
     );
   }
 
-  const supabase = await createClient(accessToken);
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
+  if (
+    json.body !== undefined &&
+    json.body !== null &&
+    typeof json.body !== "string"
+  ) {
     return NextResponse.json(
-      { error: "Unauthorized" },
-      { status: 401, headers: corsHeaders }
+      { error: "Comment body must be a string or null" },
+      { status: 400, headers: corsHeaders },
     );
   }
 
-  const json = (await req.json()) as { body?: string; image_url?: string };
-  const updates: { body?: string; image_url?: string; updated_at: string } = {
+  if (
+    json.image_url !== undefined &&
+    json.image_url !== null &&
+    typeof json.image_url !== "string"
+  ) {
+    return NextResponse.json(
+      { error: "Image URL must be a string or null" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  const updates: {
+    body?: string | null;
+    image_url?: string | null;
+    updated_at: string;
+  } = {
     updated_at: new Date().toISOString(),
   };
-  if (json.body !== undefined) updates.body = json.body;
-  if (json.image_url !== undefined) updates.image_url = json.image_url;
+
+  if (json.body !== undefined) {
+    updates.body = json.body === null ? null : json.body.trim();
+  }
+
+  if (json.image_url !== undefined) {
+    updates.image_url = json.image_url === null ? null : json.image_url.trim();
+  }
+
+  if (updates.body === "") {
+    return NextResponse.json(
+      { error: "Comment body cannot be empty" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (updates.image_url === "") {
+    return NextResponse.json(
+      { error: "Image URL cannot be empty" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (json.body === undefined && json.image_url === undefined) {
+    return NextResponse.json(
+      { error: "No update fields provided" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
 
   const { data: comment, error: fetchError } = await supabase
     .from("comments")
-    .select("id, author_id, deleted_at")
+    .select("id, author_id, post_id, body, image_url, deleted_at")
     .eq("id", commentId)
-    .single();
+    .maybeSingle();
 
   if (fetchError || !comment) {
     return NextResponse.json(
       { error: "Comment not found" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
   if (comment.deleted_at !== null) {
     return NextResponse.json(
       { error: "Comment not found" },
-      { status: 404, headers: corsHeaders }
+      { status: 404, headers: corsHeaders },
     );
   }
 
   if (comment.author_id !== user.id) {
     return NextResponse.json(
       { error: "Forbidden" },
-      { status: 403, headers: corsHeaders }
+      { status: 403, headers: corsHeaders },
+    );
+  }
+
+  const nextBody = updates.body !== undefined ? updates.body : comment.body;
+  const nextImageUrl =
+    updates.image_url !== undefined ? updates.image_url : comment.image_url;
+
+  if (!nextBody && !nextImageUrl) {
+    return NextResponse.json(
+      { error: "Comment cannot be empty" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  const { data: post, error: postError } = await supabase
+    .from("posts")
+    .select("id, deleted_at")
+    .eq("id", comment.post_id)
+    .maybeSingle();
+
+  if (postError || !post || post.deleted_at !== null) {
+    return NextResponse.json(
+      { error: "Post not found" },
+      { status: 404, headers: corsHeaders },
     );
   }
 
@@ -79,8 +148,8 @@ export async function PATCH(
 
   if (error || !data) {
     return NextResponse.json(
-      { error: "Failed to update comment" },
-      { status: 500, headers: corsHeaders }
+      { error: error?.message || "Failed to update comment" },
+      { status: 500, headers: corsHeaders },
     );
   }
 

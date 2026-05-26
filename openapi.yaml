@@ -605,6 +605,58 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/comments/{commentId}:
+    options:
+      tags:
+        - DAO Forum
+      summary: CORS preflight for updating a DAO forum comment
+      operationId: optionsUpdateDaoForumComment
+      responses:
+        "200":
+          description: CORS preflight accepted
+    patch:
+      tags:
+        - DAO Forum
+      summary: Update one DAO forum comment
+      operationId: updateDaoForumComment
+      description: >
+        Uses a Bearer token to authenticate the current user. The comment must
+        exist, not be soft-deleted, and be authored by the current user. The
+        parent post must also exist and not be soft-deleted. At least one of
+        body or image_url must be provided; string values are trimmed, empty
+        strings are rejected, and the update cannot leave the comment with
+        neither body nor image_url.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCommentRequest"
+            example:
+              body: Updated DAO forum comment
+              image_url: null
+      responses:
+        "200":
+          description: Updated comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateCommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/member-voted:
     options:
       tags:
@@ -850,6 +902,14 @@ components:
         type: string
         format: uuid
       description: DAO forum post UUID.
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: DAO forum comment UUID.
 
   responses:
     BadRequest:
@@ -1114,6 +1174,23 @@ components:
       properties:
         success:
           type: boolean
+        comment:
+          $ref: "#/components/schemas/Comment"
+
+    UpdateCommentRequest:
+      type: object
+      description: At least one of body or image_url must be provided.
+      properties:
+        body:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+
+    UpdateCommentResponse:
+      type: object
+      properties:
         comment:
           $ref: "#/components/schemas/Comment"
 

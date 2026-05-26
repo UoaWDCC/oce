@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ commentId: string }> }
@@ -9,7 +15,10 @@ export async function PATCH(
   const accessToken = req.headers.get("Authorization")?.replace("Bearer ", "");
 
   if (!accessToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: corsHeaders }
+    );
   }
 
   const supabase = await createClient(accessToken);
@@ -20,7 +29,10 @@ export async function PATCH(
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 401, headers: corsHeaders }
+    );
   }
 
   const json = (await req.json()) as { body?: string; image_url?: string };
@@ -37,15 +49,24 @@ export async function PATCH(
     .single();
 
   if (fetchError || !comment) {
-    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Comment not found" },
+      { status: 404, headers: corsHeaders }
+    );
   }
 
   if (comment.deleted_at !== null) {
-    return NextResponse.json({ error: "Comment not found" }, { status: 404 });
+    return NextResponse.json(
+      { error: "Comment not found" },
+      { status: 404, headers: corsHeaders }
+    );
   }
 
   if (comment.author_id !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden" },
+      { status: 403, headers: corsHeaders }
+    );
   }
 
   const { data, error } = await supabase
@@ -59,9 +80,16 @@ export async function PATCH(
   if (error || !data) {
     return NextResponse.json(
       { error: "Failed to update comment" },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 
-  return NextResponse.json({ comment: data });
+  return NextResponse.json({ comment: data }, { headers: corsHeaders });
+}
+
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 200,
+    headers: corsHeaders,
+  });
 }

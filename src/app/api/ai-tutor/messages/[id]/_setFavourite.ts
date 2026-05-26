@@ -8,9 +8,7 @@ export async function setFavourite(
 ) {
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
   const supabase = await createClient(token);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,18 +18,13 @@ export async function setFavourite(
     .from("messages")
     .select("role, conversations!inner(user_id)")
     .eq("id", messageId)
-    .single();
+    .maybeSingle();
 
-  console.log("DEBUG messageId:", messageId);
-  console.log("DEBUG message:", JSON.stringify(message, null, 2));
-  console.log("DEBUG fetchError:", fetchError);
-  console.log("DEBUG user.id:", user.id);
+  if (fetchError) {
+    return NextResponse.json({ error: fetchError.message }, { status: 500 });
+  }
 
-  if (
-    !message ||
-    (message.conversations as unknown as { user_id: string }).user_id !==
-      user.id
-  ) {
+  if (!message || (message.conversations as unknown as { user_id: string }).user_id !== user.id) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 
@@ -42,15 +35,15 @@ export async function setFavourite(
     );
   }
 
-  const { data: updated, error } = await supabaseAdmin
+  const { data: updated, error: updateError } = await supabaseAdmin
     .from("messages")
     .update({ is_favourite: value })
     .eq("id", messageId)
     .select()
     .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (updateError) {
+    return NextResponse.json({ error: updateError.message }, { status: 500 });
   }
 
   return NextResponse.json(updated);

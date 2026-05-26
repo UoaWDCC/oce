@@ -552,6 +552,59 @@ paths:
         "500":
           $ref: "#/components/responses/InternalServerError"
 
+  /api/dao-forum/{daoGroupId}/posts/{postId}/comments:
+    options:
+      tags:
+        - DAO Forum
+      summary: CORS preflight for creating DAO forum comments
+      operationId: optionsCreateDaoForumComment
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO Forum
+      summary: Create a comment on a DAO forum post
+      operationId: createDaoForumComment
+      description: >
+        Uses a Bearer token to authenticate the current user. The user must be
+        a member of the DAO group, the post must exist in that DAO group and
+        not be soft-deleted, and any parent comment must exist on the same
+        post and not be soft-deleted. At least one of body or image_url must be
+        provided after trimming whitespace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+            example:
+              body: Testing a DAO forum comment
+              image_url: null
+              parent_comment_id: null
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
   /api/member-voted:
     options:
       tags:
@@ -1006,6 +1059,63 @@ components:
               type: string
               format: date-time
               nullable: true
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        post_id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        parent_comment_id:
+          type: string
+          format: uuid
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateCommentRequest:
+      type: object
+      description: At least one of body or image_url must be provided.
+      properties:
+        body:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        parent_comment_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    CreateCommentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        comment:
+          $ref: "#/components/schemas/Comment"
 
     SummonDaoRequest:
       type: object

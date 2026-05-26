@@ -1,5 +1,10 @@
 import { createClient, supabaseAdmin } from "@/utils/supabase/server";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
 
 export async function DELETE(request:Request , { params }: { params: Promise<{ commentId: string }> }) {
     const { commentId } = await params;
@@ -8,7 +13,10 @@ export async function DELETE(request:Request , { params }: { params: Promise<{ c
     const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
 
     if (!accessToken) {
-        return Response.json({ error: "Unauthorized" }, { status: 401 });
+        return Response.json(
+            { error: "Unauthorized" },
+            { status: 401, headers: corsHeaders }
+        );
     }
 
     const supabase = await createClient(accessToken);
@@ -22,7 +30,7 @@ export async function DELETE(request:Request , { params }: { params: Promise<{ c
     if (userError || !user) {
         return Response.json(
             { error: "Unauthorized" },
-            { status: 401 }
+            { status: 401, headers: corsHeaders }
         );
     }
     const { data: comment, error: fetchError } = await supabase
@@ -34,7 +42,7 @@ export async function DELETE(request:Request , { params }: { params: Promise<{ c
     if (fetchError || !comment|| comment.deleted_at != null) {
         return Response.json(
             { message: "Comment does not exist" },
-            { status: 404 }
+            { status: 404, headers: corsHeaders }
         );
     }
 
@@ -100,14 +108,22 @@ export async function DELETE(request:Request , { params }: { params: Promise<{ c
         if (updateError) {
             return Response.json(
                 { error: "Failed to delete comment" },
-                { status: 500 }
+                { status: 500, headers: corsHeaders }
             );
         }
 
-        return Response.json({ success: true });
+        return Response.json({ success: true }, { headers: corsHeaders });
     }
 
-    return Response.json({ error: "Forbidden" }, { status: 403 });
+    return Response.json(
+        { error: "Forbidden" },
+        { status: 403, headers: corsHeaders }
+    );
+}
 
-    
+export async function OPTIONS() {
+    return new Response(null, {
+        status: 200,
+        headers: corsHeaders,
+    });
 }

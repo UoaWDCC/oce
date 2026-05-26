@@ -655,8 +655,8 @@ paths:
     options:
       tags:
         - DAO Forum
-      summary: CORS preflight for updating a DAO forum comment
-      operationId: optionsUpdateDaoForumComment
+      summary: CORS preflight for DAO forum comment mutations
+      operationId: optionsDaoForumComment
       responses:
         "200":
           description: CORS preflight accepted
@@ -694,6 +694,35 @@ paths:
                 $ref: "#/components/schemas/UpdateCommentResponse"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - DAO Forum
+      summary: Soft delete one DAO forum comment
+      operationId: deleteDaoForumComment
+      description: >
+        Uses a Bearer token to authenticate the current user. The comment must
+        exist, not be soft-deleted, and be authored by the current user. The
+        parent post must also exist and not be soft-deleted. The route
+        soft-deletes the comment by setting deleted_at.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "200":
+          description: Soft-deleted comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteCommentResponse"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -1266,6 +1295,12 @@ components:
           nullable: true
 
     UpdateCommentResponse:
+      type: object
+      properties:
+        comment:
+          $ref: "#/components/schemas/Comment"
+
+    DeleteCommentResponse:
       type: object
       properties:
         comment:

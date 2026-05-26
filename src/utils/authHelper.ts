@@ -13,7 +13,9 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { createClient as createServerSupabaseClient } from "@/utils/supabase/server";
 import type { User } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
 
 // Service role client for server-side lookups
 const supabaseAdmin = createClient(
@@ -30,6 +32,60 @@ export interface AuthResult {
   isTutor: boolean;
   allowedCourses: string[]; // empty for admins (they see everything)
   allowedUserUID: string | null; // UID from AllowedUsers (same as Student.UID)
+}
+
+export type AuthenticatedUserResult =
+  | {
+      supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>;
+      user: User;
+      accessToken: string;
+      response?: never;
+    }
+  | {
+      response: NextResponse;
+      supabase?: never;
+      user?: never;
+      accessToken?: never;
+    };
+
+/**
+ * Authenticate a bearer-token API request and return the user-scoped Supabase client.
+ * This does not perform any role or AllowedUsers checks.
+ */
+export async function authenticateUser(
+  request: Request,
+  headers?: HeadersInit,
+): Promise<AuthenticatedUserResult> {
+  const accessToken = request.headers
+    .get("Authorization")
+    ?.replace("Bearer ", "");
+
+  if (!accessToken) {
+    return {
+      response: NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401, headers },
+      ),
+    };
+  }
+
+  const supabase = await createServerSupabaseClient(accessToken);
+
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    return {
+      response: NextResponse.json(
+        { error: "Invalid auth token" },
+        { status: 401, headers },
+      ),
+    };
+  }
+
+  return { supabase, user, accessToken };
 }
 
 /**

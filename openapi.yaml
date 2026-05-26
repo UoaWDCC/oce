@@ -1,0 +1,1300 @@
+openapi: 3.0.3
+info:
+  title: OCE Application API
+  version: 0.1.0
+  description: >
+    OpenAPI specification for the API routes currently present under
+    src/app/api in this repository.
+servers:
+  - url: http://localhost:3000
+    description: Local Next.js development server
+tags:
+  - name: Auth
+  - name: DAO
+  - name: DAO Forum
+  - name: Learning
+  - name: Blockchain
+paths:
+  /api/check-user:
+    options:
+      tags:
+        - Auth
+      summary: CORS preflight for check-user
+      operationId: optionsCheckUser
+      responses:
+        "204":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - Auth
+      summary: Check whether an email is allowed to register for a course
+      operationId: checkUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckUserRequest"
+            example:
+              email: student@example.com
+              course: INFO101
+      responses:
+        "200":
+          description: Registration allowance result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AllowedResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/register:
+    options:
+      tags:
+        - Auth
+      summary: CORS preflight for register
+      operationId: optionsRegister
+      responses:
+        "200":
+          description: CORS preflight accepted
+    get:
+      tags:
+        - Auth
+      summary: Health check for the register API
+      operationId: getRegisterHealth
+      responses:
+        "200":
+          description: Register API health message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+    post:
+      tags:
+        - Auth
+      summary: Complete user registration profile setup
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+            example:
+              uuid: 11111111-1111-1111-1111-111111111111
+              course: INFO101
+      responses:
+        "200":
+          description: Registration completed or user already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessMessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/user/session:
+    get:
+      tags:
+        - Auth
+      summary: Get current authenticated user session and wallet data
+      operationId: getUserSession
+      description: Uses the current Supabase cookie-backed session.
+      responses:
+        "200":
+          description: Authenticated session data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSessionResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/summon:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for summon
+      operationId: optionsSummon
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO
+      summary: Summon/create a DAO
+      operationId: summonDao
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SummonDaoRequest"
+            example:
+              daoName: Test DAO
+              votingTokenName: Test Voting Token
+              votingTokenSymbol: TVT
+              votingPeriod: 600
+              gracePeriod: 300
+              quorum: 20
+              minRetention: 66
+              sponsorThreshold: 1
+              newOffering: 0
+              selectedWallet: "0x0000000000000000000000000000000000000000"
+              members:
+                - address: "0x0000000000000000000000000000000000000000"
+                  shares: 1
+                  loot: 0
+              shamans: []
+      responses:
+        "200":
+          description: DAO creation result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/get-user-daos:
+    get:
+      tags:
+        - DAO
+      summary: Get DAOs for the authenticated user
+      operationId: getUserDaos
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Student and DAO list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  student:
+                    type: object
+                    additionalProperties: true
+                  daos:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Dao"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/get-dao-user:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for get-dao-user
+      operationId: optionsGetDaoUser
+      responses:
+        "200":
+          description: CORS preflight accepted
+    get:
+      tags:
+        - DAO
+      summary: Get current user wallet context for a DAO
+      operationId: getDaoUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: DAOID
+          in: query
+          required: true
+          schema:
+            type: string
+          description: DAO contract address or DAO identifier used by the app.
+      responses:
+        "200":
+          description: DAO user context
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/get-class-daos:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for get-class-daos
+      operationId: optionsGetClassDaos
+      responses:
+        "200":
+          description: CORS preflight accepted
+    get:
+      tags:
+        - DAO
+      summary: Get DAOs associated with the authenticated user's class
+      operationId: getClassDaos
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Class DAO list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  daos:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Dao"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/get-addresses:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for get-addresses
+      operationId: optionsGetAddresses
+      responses:
+        "200":
+          description: CORS preflight accepted
+    get:
+      tags:
+        - DAO
+      summary: Get class wallet addresses and DAO treasury addresses
+      operationId: getAddresses
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Wallet addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  wallets:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Wallet"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/getDaoInfo:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for getDaoInfo
+      operationId: optionsGetDaoInfo
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO
+        - Blockchain
+      summary: Read DAO token and name information from chain
+      operationId: getDaoInfo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DaoInfoRequest"
+            example:
+              daoAddress: "0x0000000000000000000000000000000000000000"
+      responses:
+        "200":
+          description: DAO info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DaoInfoResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/get-proposal-tx-hashes:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for get-proposal-tx-hashes
+      operationId: optionsGetProposalTxHashes
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO
+      summary: Get transaction hashes for proposal IDs
+      operationId: getProposalTxHashes
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProposalTxHashesRequest"
+            example:
+              daoAddress: "0x0000000000000000000000000000000000000000"
+              proposalIds:
+                - 1
+                - 2
+      responses:
+        "200":
+          description: Proposal transaction hashes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  transactionHashes:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProposalTransactionHash"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/dao-forum/{daoGroupId}/posts:
+    get:
+      tags:
+        - DAO Forum
+      summary: List posts for a DAO forum group
+      operationId: listDaoForumPosts
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+      responses:
+        "200":
+          description: DAO forum posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PostSummary"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - DAO Forum
+      summary: Create a post in a DAO forum group
+      operationId: createDaoForumPost
+      description: >
+        Uses the current Supabase cookie-backed session in the route code.
+        The user must be a member of the DAO group.
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePostRequest"
+            example:
+              post_type_id: 1
+              title: Test post
+              body: Testing a DAO forum post
+              anonymous: false
+              is_pinned: false
+              image_url: null
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: Conflict with existing state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/dao-forum/{daoGroupId}/posts/{postId}:
+    get:
+      tags:
+        - DAO Forum
+      summary: Get one DAO forum post
+      operationId: getDaoForumPost
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: DAO forum post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    patch:
+      tags:
+        - DAO Forum
+      summary: Update one DAO forum post
+      operationId: updateDaoForumPost
+      description: >
+        Uses the current Supabase cookie-backed session in the route code.
+        The route only updates posts authored by the current user.
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePostRequest"
+            example:
+              post_type_id: 1
+              title: Updated post
+              body: Updated post body
+              anonymous: false
+              is_pinned: false
+              image_url: null
+              updated_at: "2026-05-24T00:00:00.000Z"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - DAO Forum
+      summary: Soft delete one DAO forum post
+      operationId: deleteDaoForumPost
+      description: >
+        Uses a Bearer token to authenticate the current user. The route first
+        verifies that the post exists in the DAO group and that the current
+        user is the post author, then soft-deletes comments for the post and
+        soft-deletes the post by setting deleted_at.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Soft-deleted post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/dao-forum/{daoGroupId}/posts/{postId}/comments:
+    options:
+      tags:
+        - DAO Forum
+      summary: CORS preflight for creating DAO forum comments
+      operationId: optionsCreateDaoForumComment
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO Forum
+      summary: Create a comment on a DAO forum post
+      operationId: createDaoForumComment
+      description: >
+        Uses a Bearer token to authenticate the current user. The user must be
+        a member of the DAO group, the post must exist in that DAO group and
+        not be soft-deleted, and any parent comment must exist on the same
+        post and not be soft-deleted. At least one of body or image_url must be
+        provided after trimming whitespace.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCommentRequest"
+            example:
+              body: Testing a DAO forum comment
+              image_url: null
+              parent_comment_id: null
+      responses:
+        "201":
+          description: Created comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateCommentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/member-voted:
+    options:
+      tags:
+        - DAO
+      summary: CORS preflight for member-voted
+      operationId: optionsMemberVoted
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO
+        - Blockchain
+      summary: Check whether a wallet has voted on a proposal
+      operationId: memberVoted
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberVotedRequest"
+            example:
+              id: 1
+              walletAddress: "0x0000000000000000000000000000000000000000"
+              daoAddress: "0x0000000000000000000000000000000000000000"
+      responses:
+        "200":
+          description: Member vote status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  memberVote:
+                    type: boolean
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/learning/modules:
+    options:
+      tags:
+        - Learning
+      summary: CORS preflight for learning modules
+      operationId: optionsLearningModules
+      responses:
+        "200":
+          description: CORS preflight accepted
+    get:
+      tags:
+        - Learning
+      summary: Get learning modules and checkpoint progress
+      operationId: getLearningModules
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - dao
+              - defi
+              - basics
+          description: Optional module category filter.
+      responses:
+        "200":
+          description: Learning modules response
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - Learning
+      summary: Create a learning module
+      operationId: createLearningModule
+      security:
+        - bearerAuth: []
+      description: Requires tutor or admin role. Creating templates without CourseID requires admin.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleRequest"
+            example:
+              Title: Intro to DAOs
+              Description: DAO basics module
+              Category: dao
+              OrderIndex: 0
+              CourseID: INFO101
+      responses:
+        "200":
+          description: Created module
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  module:
+                    $ref: "#/components/schemas/LearningModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    put:
+      tags:
+        - Learning
+      summary: Update a learning module
+      operationId: updateLearningModule
+      security:
+        - bearerAuth: []
+      description: Requires tutor or admin role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleUpdateRequest"
+            example:
+              ModuleID: 11111111-1111-1111-1111-111111111111
+              Title: Updated Intro to DAOs
+              Description: Updated DAO basics module
+              Category: dao
+              OrderIndex: 1
+              CourseID: INFO101
+      responses:
+        "200":
+          description: Updated module
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  module:
+                    $ref: "#/components/schemas/LearningModule"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - Learning
+      summary: Delete a learning module
+      operationId: deleteLearningModule
+      security:
+        - bearerAuth: []
+      description: Requires tutor or admin role.
+      parameters:
+        - name: moduleId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Deleted module result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /api/learning/progress:
+    post:
+      tags:
+        - Learning
+      summary: Get learning progress for the authenticated user
+      operationId: getLearningProgress
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Progress data
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    DaoGroupId:
+      name: daoGroupId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: DAO forum group UUID.
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: DAO forum post UUID.
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Unauthorized or invalid auth token
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: string
+
+    SuccessMessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    AllowedResponse:
+      type: object
+      properties:
+        allowed:
+          type: boolean
+        message:
+          type: string
+
+    CheckUserRequest:
+      type: object
+      required:
+        - email
+        - course
+      properties:
+        email:
+          type: string
+          format: email
+        course:
+          type: string
+
+    RegisterRequest:
+      type: object
+      required:
+        - uuid
+        - course
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        course:
+          type: string
+
+    UserSessionResponse:
+      type: object
+      properties:
+        authenticated:
+          type: boolean
+        registered:
+          type: boolean
+        email:
+          type: string
+          format: email
+        UID:
+          type: string
+          format: uuid
+        walletData:
+          type: array
+          items:
+            $ref: "#/components/schemas/Wallet"
+
+    Wallet:
+      type: object
+      properties:
+        walletAddress:
+          type: string
+        publicAddress:
+          type: string
+        ENS:
+          type: string
+
+    Dao:
+      type: object
+      additionalProperties: true
+      properties:
+        DAOID:
+          type: string
+        Name:
+          type: string
+        DAOTreasury:
+          type: string
+        Members:
+          type: object
+          additionalProperties: true
+        Proposals:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PostSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        post_type_id:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        anonymous:
+          type: boolean
+        is_pinned:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    Post:
+      allOf:
+        - $ref: "#/components/schemas/PostSummary"
+        - type: object
+          properties:
+            dao_group_id:
+              type: string
+              format: uuid
+            body:
+              type: string
+              nullable: true
+            image_url:
+              type: string
+              nullable: true
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    CreatePostRequest:
+      type: object
+      required:
+        - post_type_id
+        - title
+        - body
+        - anonymous
+        - is_pinned
+      properties:
+        post_type_id:
+          type: integer
+        title:
+          type: string
+        body:
+          type: string
+        anonymous:
+          type: boolean
+        is_pinned:
+          type: boolean
+        image_url:
+          type: string
+          nullable: true
+
+    UpdatePostRequest:
+      allOf:
+        - $ref: "#/components/schemas/CreatePostRequest"
+        - type: object
+          properties:
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        post_id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        parent_comment_id:
+          type: string
+          format: uuid
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CreateCommentRequest:
+      type: object
+      description: At least one of body or image_url must be provided.
+      properties:
+        body:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        parent_comment_id:
+          type: string
+          format: uuid
+          nullable: true
+
+    CreateCommentResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        comment:
+          $ref: "#/components/schemas/Comment"
+
+    SummonDaoRequest:
+      type: object
+      required:
+        - daoName
+        - votingTokenName
+        - votingTokenSymbol
+        - members
+        - selectedWallet
+      properties:
+        daoName:
+          type: string
+        votingTokenName:
+          type: string
+        votingTokenSymbol:
+          type: string
+        votingPeriod:
+          type: integer
+        gracePeriod:
+          type: integer
+        quorum:
+          type: number
+        minRetention:
+          type: number
+        sponsorThreshold:
+          type: number
+        newOffering:
+          type: number
+        selectedWallet:
+          type: string
+        members:
+          type: array
+          items:
+            $ref: "#/components/schemas/DaoMember"
+        shamans:
+          type: array
+          items:
+            $ref: "#/components/schemas/DaoShaman"
+
+    DaoMember:
+      type: object
+      properties:
+        address:
+          type: string
+        shares:
+          oneOf:
+            - type: string
+            - type: number
+        loot:
+          oneOf:
+            - type: string
+            - type: number
+
+    DaoShaman:
+      type: object
+      properties:
+        address:
+          type: string
+        permission:
+          type: integer
+
+    DaoInfoRequest:
+      type: object
+      required:
+        - daoAddress
+      properties:
+        daoAddress:
+          type: string
+
+    DaoInfoResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        tokenAddress:
+          type: string
+        nonVotingTokenAddress:
+          type: string
+        chain:
+          type: string
+
+    ProposalTxHashesRequest:
+      type: object
+      required:
+        - daoAddress
+        - proposalIds
+      properties:
+        daoAddress:
+          type: string
+        proposalIds:
+          type: array
+          minItems: 1
+          items:
+            type: integer
+
+    ProposalTransactionHash:
+      type: object
+      properties:
+        proposalId:
+          type: integer
+        transactionHash:
+          type: string
+          nullable: true
+
+    MemberVotedRequest:
+      type: object
+      required:
+        - id
+        - walletAddress
+        - daoAddress
+      properties:
+        id:
+          type: integer
+        walletAddress:
+          type: string
+        daoAddress:
+          type: string
+
+    ModuleRequest:
+      type: object
+      required:
+        - Title
+        - Description
+        - Category
+      properties:
+        Title:
+          type: string
+        Description:
+          type: string
+        Category:
+          type: string
+          enum:
+            - dao
+            - defi
+            - basics
+        OrderIndex:
+          type: integer
+          minimum: 0
+        CourseID:
+          type: string
+          nullable: true
+
+    ModuleUpdateRequest:
+      allOf:
+        - $ref: "#/components/schemas/ModuleRequest"
+        - type: object
+          required:
+            - ModuleID
+          properties:
+            ModuleID:
+              type: string
+              format: uuid
+
+    LearningModule:
+      type: object
+      additionalProperties: true
+      properties:
+        ModuleID:
+          type: string
+          format: uuid
+        Title:
+          type: string
+        Description:
+          type: string
+        Category:
+          type: string
+        OrderIndex:
+          type: integer
+        CourseID:
+          type: string
+          nullable: true
+        CreatedBy:
+          type: string
+          nullable: true
+        CreatedAt:
+          type: string
+          format: date-time
+        UpdatedAt:
+          type: string
+          format: date-time

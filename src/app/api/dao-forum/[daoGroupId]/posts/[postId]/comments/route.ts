@@ -1,36 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-
-interface CommentAuthor {
-  id: string;
-  username: string;
-  FirstName: string;
-  LastName: string;
-}
-
-interface RawComment {
-  id: string;
-  body: string;
-  image_url: string | null;
-  parent_comment_id: string | null;
-  created_at: string;
-  updated_at: string | null;
-  deleted_at: string | null;
-  like_count: number;
-  author: CommentAuthor | null;
-}
-
-interface FormattedComment {
-  id: string;
-  body: string | null;
-  image_url: string | null;
-  author_id: string;
-  username: string;
-  like_count: number;
-  parent_comment_id: string | null;
-  created_at: string;
-  updated_at: string | null;
-}
+import { authenticateUser } from "@/utils/authHelper";
+import { checkDAOMembership } from "@/utils/daoMembership";
+import type {
+  CreateCommentFields,
+  FormattedComment,
+  InsertComment,
+  RawComment,
+} from "@app-types/comments";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,97 +14,164 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+// POST - Create new comment
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ daoGroupId: string; postId: string }> },
+) {
+  const { daoGroupId, postId } = await params;
+
+  if (!postId) {
+    return NextResponse.json(
+      { error: "Post does not exist" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  const auth = await authenticateUser(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const { supabase, user } = auth;
+
+  const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
+  if (!isDaoMember) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 403, headers: corsHeaders },
+    );
+  }
+
+  const { data: parentPost, error: postError } = await supabase
+    .from("posts")
+    .select("deleted_at")
+    .eq("id", postId)
+    .eq("dao_group_id", daoGroupId)
+    .maybeSingle();
+  if (postError || !parentPost || parentPost.deleted_at !== null) {
+    return NextResponse.json(
+      { error: "Post not found" },
+      { status: 404, headers: corsHeaders },
+    );
+  }
+
+  let comment: CreateCommentFields;
+  try {
+    comment = (await req.json()) as CreateCommentFields;
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  const { parent_comment_id, body, image_url } = comment;
+  const parentCommentId =
+    typeof parent_comment_id === "string"
+      ? parent_comment_id.trim() || undefined
+      : undefined;
+  const bodyValue =
+    typeof body === "string" ? body.trim() || undefined : undefined;
+  const imageUrlValue =
+    typeof image_url === "string" ? image_url.trim() || undefined : undefined;
+
+  if (!bodyValue && !imageUrlValue) {
+    return NextResponse.json(
+      { error: "Comment cannot be empty" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (parentCommentId) {
+    const { data: parentComment, error: parentCommentError } = await supabase
+      .from("comments")
+      .select("deleted_at")
+      .eq("id", parentCommentId)
+      .eq("post_id", postId)
+      .maybeSingle();
+
+    if (
+      parentCommentError ||
+      !parentComment ||
+      parentComment.deleted_at !== null
+    ) {
+      return NextResponse.json(
+        { error: "Parent comment not found" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+  }
+
+  const insertComment: InsertComment = {
+    post_id: postId,
+    author_id: user.id,
+    parent_comment_id: parentCommentId,
+    body: bodyValue,
+    image_url: imageUrlValue,
+  };
+
+  const { data: newComment, error: insertError } = await supabase
+    .from("comments")
+    .insert(insertComment)
+    .select()
+    .single();
+
+  if (insertError) {
+    return NextResponse.json(
+      { error: insertError.message },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
+  return NextResponse.json(
+    { success: true, comment: newComment },
+    { status: 201, headers: corsHeaders },
+  );
+}
+
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ daoGroupId: string; postId: string }> }
+  { params }: { params: Promise<{ daoGroupId: string; postId: string }> },
 ) {
-  try {
-    // Extract parameters
-    const { daoGroupId, postId } = await params;
-    const { searchParams } = new URL(req.url);
-    const sort = searchParams.get("sort") || "oldest";
+  const { daoGroupId, postId } = await params;
+  const { searchParams } = new URL(req.url);
+  const sort = searchParams.get("sort") || "oldest";
 
-    // Extract Bearer token from Authorization header
-    const accessToken = req.headers
-      .get("Authorization")
-      ?.replace("Bearer ", "");
+  if (sort !== "oldest" && sort !== "latest" && sort !== "most_likes") {
+    return NextResponse.json(
+      { error: "Invalid sort option" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders }
-      );
-    }
+  const auth = await authenticateUser(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const { supabase, user } = auth;
 
-    // Verify user authentication
-    const supabase = await createClient(accessToken);
-    const {
-      data: { user },
-      error: sessionError,
-    } = await supabase.auth.getUser();
+  const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
+  if (!isDaoMember) {
+    return NextResponse.json(
+      { error: "Unauthorized" },
+      { status: 403, headers: corsHeaders },
+    );
+  }
 
-    if (sessionError || !user) {
-      return NextResponse.json(
-        { error: "Invalid auth token" },
-        { status: 401, headers: corsHeaders }
-      );
-    }
+  const { data: post, error: postError } = await supabase
+    .from("posts")
+    .select("id, deleted_at")
+    .eq("id", postId)
+    .eq("dao_group_id", daoGroupId)
+    .maybeSingle();
 
-    // Verify post exists and belongs to the specified DAO group
-    const { data: post, error: postError } = await supabase
-      .from("posts")
-      .select("id, dao_group_id, deleted_at")
-      .eq("id", postId)
-      .eq("dao_group_id", daoGroupId)
-      .single();
+  if (postError || !post || post.deleted_at !== null) {
+    return NextResponse.json(
+      { error: "Post not found" },
+      { status: 404, headers: corsHeaders },
+    );
+  }
 
-    if (postError || !post) {
-      return NextResponse.json(
-        { error: "Post not found" },
-        { status: 404, headers: corsHeaders }
-      );
-    }
-
-    if (post.deleted_at) {
-      return NextResponse.json(
-        { error: "Post not found" },
-        { status: 404, headers: corsHeaders }
-      );
-    }
-
-    // dao_members.user_id references AllowedUsers(id), not auth user id
-    const { data: allowedUser, error: allowedUserError } = await supabase
-      .from("AllowedUsers")
-      .select("id")
-      .ilike("Email", user.email!)
-      .single();
-
-    if (allowedUserError || !allowedUser) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403, headers: corsHeaders }
-      );
-    }
-
-    const { data: membership, error: membershipError } = await supabase
-      .from("dao_members")
-      .select("user_id")
-      .eq("dao_group_id", daoGroupId)
-      .eq("user_id", allowedUser.id)
-      .single();
-
-    if (membershipError || !membership) {
-      return NextResponse.json(
-        { error: "Forbidden" },
-        { status: 403, headers: corsHeaders }
-      );
-    }
-
-    // Fetch all comments with author data
-    const { data: commentsData, error: commentsError } = await supabase
-      .from("comments")
-      .select(
-        `
+  const { data: commentsData, error: commentsError } = await supabase
+    .from("comments")
+    .select(
+      `
         id,
         body,
         image_url,
@@ -143,83 +186,63 @@ export async function GET(
           FirstName,
           LastName
         )
-      `
-      )
-      .eq("post_id", postId);
+      `,
+    )
+    .eq("post_id", postId);
 
-    if (commentsError) {
-      console.error("Error fetching comments:", commentsError);
-      return NextResponse.json(
-        { error: "Failed to fetch comments" },
-        { status: 500, headers: corsHeaders }
-      );
-    }
-
-    if (!commentsData) {
-      return NextResponse.json([], { headers: corsHeaders });
-    }
-
-    // Cast to the proper type (Supabase joins return complex types)
-    const comments = commentsData as unknown as RawComment[];
-
-    // Build map of parent_id -> active child count for soft-delete logic
-    const activeChildCounts: Record<string, number> = {};
-    comments.forEach((c) => {
-      if (c.parent_comment_id && !c.deleted_at) {
-        activeChildCounts[c.parent_comment_id] =
-          (activeChildCounts[c.parent_comment_id] || 0) + 1;
-      }
-    });
-
-    // Filter and transform comments
-    const filteredComments: FormattedComment[] = comments
-      .filter((c) => {
-        // If not deleted, include it
-        if (!c.deleted_at) return true;
-        // If deleted but has active children, include it
-        return (activeChildCounts[c.id] || 0) > 0;
-      })
-      .map((c) => {
-        return {
-          id: c.id,
-          body: c.deleted_at ? null : c.body,
-          image_url: c.deleted_at ? null : c.image_url,
-          author_id: c.author?.id || "",
-          username: c.author?.username || "",
-          like_count: c.like_count || 0,
-          parent_comment_id: c.parent_comment_id,
-          created_at: c.created_at,
-          updated_at: c.updated_at,
-        };
-      });
-
-    // Apply sorting
-    let sortedComments = filteredComments;
-    if (sort === "latest") {
-      sortedComments = filteredComments.sort(
-        (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    } else if (sort === "most_likes") {
-      sortedComments = filteredComments.sort(
-        (a, b) => b.like_count - a.like_count
-      );
-    } else {
-      // oldest or default
-      sortedComments = filteredComments.sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-    }
-
-    return NextResponse.json(sortedComments, { headers: corsHeaders });
-  } catch (error) {
-    console.error("API error:", error);
+  if (commentsError) {
     return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500, headers: corsHeaders }
+      { error: commentsError.message },
+      { status: 500, headers: corsHeaders },
     );
   }
+
+  if (!commentsData) {
+    return NextResponse.json([], { headers: corsHeaders });
+  }
+
+  const comments = commentsData as unknown as RawComment[];
+
+  const activeChildCounts: Record<string, number> = {};
+  comments.forEach((comment) => {
+    if (comment.parent_comment_id && !comment.deleted_at) {
+      activeChildCounts[comment.parent_comment_id] =
+        (activeChildCounts[comment.parent_comment_id] || 0) + 1;
+    }
+  });
+
+  const filteredComments: FormattedComment[] = comments
+    .filter((comment) => {
+      if (!comment.deleted_at) return true;
+      return (activeChildCounts[comment.id] || 0) > 0;
+    })
+    .map((comment) => ({
+      id: comment.id,
+      body: comment.deleted_at ? null : comment.body,
+      image_url: comment.deleted_at ? null : comment.image_url,
+      author_id: comment.author?.id || "",
+      username: comment.author?.username || "",
+      like_count: comment.like_count || 0,
+      parent_comment_id: comment.parent_comment_id,
+      created_at: comment.created_at,
+      updated_at: comment.updated_at,
+    }));
+
+  const sortedComments = filteredComments.sort((a, b) => {
+    if (sort === "latest") {
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    }
+
+    if (sort === "most_likes") {
+      return b.like_count - a.like_count;
+    }
+
+    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+  });
+
+  return NextResponse.json(sortedComments, { headers: corsHeaders });
 }
 
 export async function OPTIONS() {

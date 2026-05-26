@@ -556,11 +556,57 @@ paths:
     options:
       tags:
         - DAO Forum
-      summary: CORS preflight for creating DAO forum comments
-      operationId: optionsCreateDaoForumComment
+      summary: CORS preflight for DAO forum comments
+      operationId: optionsDaoForumComments
       responses:
         "200":
           description: CORS preflight accepted
+    get:
+      tags:
+        - DAO Forum
+      summary: List comments for a DAO forum post
+      operationId: listDaoForumComments
+      description: >
+        Uses a Bearer token to authenticate the current user. The user must be
+        a member of the DAO group and the post must exist in that DAO group
+        and not be soft-deleted. Deleted comments are hidden unless they have
+        active child comments, in which case their body and image_url are
+        returned as null.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - oldest
+              - latest
+              - most_likes
+            default: oldest
+          description: Sort order for returned comments.
+      responses:
+        "200":
+          description: DAO forum comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommentListItem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
     post:
       tags:
         - DAO Forum
@@ -1150,6 +1196,37 @@ components:
           format: date-time
           nullable: true
         deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CommentListItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        body:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        author_id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        like_count:
+          type: integer
+        parent_comment_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time
           nullable: true

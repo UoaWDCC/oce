@@ -8,7 +8,9 @@ export async function setFavourite(
 ) {
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
   const supabase = await createClient(token);
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +26,11 @@ export async function setFavourite(
     return NextResponse.json({ error: fetchError.message }, { status: 500 });
   }
 
-  if (!message || (message.conversations as unknown as { user_id: string }).user_id !== user.id) {
+  if (
+    !message ||
+    (message.conversations as unknown as { user_id: string }).user_id !==
+      user.id
+  ) {
     return NextResponse.json({ error: "Message not found" }, { status: 404 });
   }
 

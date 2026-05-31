@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import { ChangeEvent, ReactNode, useRef, useState } from "react";
-import { ChatMessageType } from "@/../types/chat";
+import { ChatMessageType } from "@/features/chatbot/types";
 
 interface ChatInputPropsType {
   submitMessage(chatMessage: ChatMessageType): void;

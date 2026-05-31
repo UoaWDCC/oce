@@ -7,8 +7,9 @@ const corsHeaders = {
 };
 
 // POST /api/ai-tutor/chat
-// Saves a message to the messages table for a given conversation.
-// Used by the frontend (role: 'user') and the LLM service (role: 'assistant').
+// Saves a user message to the messages table for a given conversation.
+// The role is forced to 'user' server-side so an authenticated caller cannot
+// forge assistant messages. Saving assistant replies is handled by #24.
 export async function POST(req: Request) {
   try {
     const accessToken = req.headers
@@ -37,18 +38,11 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { conversation_id, content, role } = body;
+    const { conversation_id, content } = body;
 
-    if (!conversation_id || !content || !role) {
+    if (!conversation_id || !content) {
       return Response.json(
-        { error: "conversation_id, content, and role are required" },
-        { status: 400, headers: corsHeaders },
-      );
-    }
-
-    if (role !== "user" && role !== "assistant") {
-      return Response.json(
-        { error: "role must be 'user' or 'assistant'" },
+        { error: "conversation_id and content are required" },
         { status: 400, headers: corsHeaders },
       );
     }
@@ -69,7 +63,7 @@ export async function POST(req: Request) {
 
     const { data: message, error: insertError } = await supabase
       .from("messages")
-      .insert({ conversation_id, role, content })
+      .insert({ conversation_id, role: "user", content })
       .select("*")
       .single();
 

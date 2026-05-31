@@ -106,7 +106,7 @@ export async function middleware(request: NextRequest) {
   const isApiRoute = request.nextUrl.pathname.startsWith("/api");
   const isDevAiTutorBypass =
     process.env.NODE_ENV === "development" &&
-    request.nextUrl.pathname === "/api/ai-tutor/chat" &&
+    request.nextUrl.pathname === "/api/ai-tutor/chat/stream" &&
     request.headers.get("Authorization") === "dev";
   const isMainDomain = MAIN_DOMAINS.includes(host);
 

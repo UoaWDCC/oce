@@ -61,9 +61,6 @@ src/
       mocks.ts
       index.ts
 
-  lib/
-    api/
-
   types/
 ```
 
@@ -165,28 +162,6 @@ src/features/chatbot/
 src/features/chat-forum/
 ```
 
-Suggested structure:
-
-```txt
-features/
-  chatbot/
-    components/
-    providers/
-    hooks/
-    api/
-    mocks.ts
-    types.ts
-    index.ts
-
-  chat-forum/
-    components/
-    hooks/
-    api/
-    mocks.ts
-    types.ts
-    index.ts
-```
-
 Use this folder for:
 
 ```txt
@@ -214,35 +189,6 @@ src/features/chat-forum/api/posts.ts
 src/features/chat-forum/api/comments.ts
 src/features/chat-forum/types.ts
 ```
-
----
-
-### `src/lib/api`
-
-This folder contains shared API request logic.
-
-Examples:
-
-```txt
-src/lib/api/client.ts
-src/lib/api/endpoints.ts
-```
-
-Use this folder for reusable API helpers such as:
-
-```ts
-export async function apiGet<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-
-  if (!res.ok) {
-    throw new Error(`GET request failed: ${url}`);
-  }
-
-  return res.json();
-}
-```
-
-Feature-specific services can then use these helpers.
 
 ---
 
@@ -281,7 +227,7 @@ They should:
 - Receive data through props
 - Render UI
 - Trigger callbacks passed in through props
-- Be easy to preview in Storybook
+- Be easy to preview in the local development preview routes
 - Be reusable where possible
 ```
 
@@ -410,7 +356,6 @@ Use `"use client"` when using:
 - useEffect
 - onClick handlers
 - Form input state
-- Supabase real-time subscriptions
 - Browser APIs
 - Client-side hooks
 ```
@@ -429,80 +374,93 @@ Do not add `"use client"` unnecessarily to every file. Keep server components as
 
 ---
 
-## 6. Storybook Guidelines
+## 6. Development Preview Pages
 
-Storybook is used to build and review UI components independently from the full app.
+Use internal development-only preview routes inside the Next.js app for chatbot
+and chat-forum UI development.
+These routes provide a lightweight place to view feature components with mock
+data while keeping the development workflow close to the real application.
 
-Storybook should mainly be used for presentational components.
-
-Good Storybook candidates:
+Current preview routes:
 
 ```txt
-Button
-Card
-Modal
-LoadingSpinner
-EmptyState
-ErrorMessage
-PostCard
-CommentItem
-LikeButton
-ChatInput
-ChatMessageBubble
-TypingIndicator
+http://localhost:3000/dev/chatbot
+http://localhost:3000/dev/chat-forum
 ```
 
-Avoid writing Storybook stories for components that require heavy API logic, Supabase subscriptions, or full page routing.
+Route files:
+
+```txt
+src/app/dev/chatbot/page.tsx
+src/app/dev/chatbot/ChatbotPreviewClient.tsx
+
+src/app/dev/chat-forum/page.tsx
+src/app/dev/chat-forum/ChatForumPreviewClient.tsx
+```
+
+These pages must stay development-only. Each `/dev/.../page.tsx` should guard
+against production access:
+
+```tsx
+import { notFound } from "next/navigation";
+
+export default function DevPage() {
+  if (process.env.NODE_ENV === "production") {
+    notFound();
+  }
+
+  return <FeaturePreviewClient />;
+}
+```
+
+Use preview pages for:
+
+```txt
+- Viewing presentational components with mock data
+- Checking loading, empty, error, and populated states
+- Reviewing component layout inside the app's real CSS environment
+- Capturing screenshots or short videos for PR review
+```
+
+Avoid adding unrelated legacy components to these routes. The preview pages are
+for new chatbot and chat-forum development only.
 
 ---
 
-### Storybook File Convention
+### Preview Page Workflow
 
-For each reusable component, use this structure:
+When adding or changing a visual component:
 
 ```txt
-PostCard/
-  PostCard.tsx
-  PostCard.stories.tsx
-  index.ts
+1. Build the component inside the relevant feature folder.
+2. Add realistic mock data to the feature's mocks.ts file if needed.
+3. Add or update the relevant /dev preview section.
+4. Run the app locally with npm run dev.
+5. Visit the preview route and check the main UI states.
+6. Attach a screenshot or short screen recording to the PR.
 ```
 
-Example story:
+Example preview section:
 
 ```tsx
-import type { Meta, StoryObj } from "@storybook/react";
-import { PostCard } from "./PostCard";
+import { mockChatMessages } from "@/features/chatbot/mocks";
+import ChatMessage from "@/features/chatbot/components/chatMessage";
+import ChatReply from "@/features/chatbot/components/chatReply";
 
-const meta: Meta<typeof PostCard> = {
-  title: "Chat Forum/PostCard",
-  component: PostCard,
-};
-
-export default meta;
-
-type Story = StoryObj<typeof PostCard>;
-
-export const Default: Story = {
-  args: {
-    title: "How does staking work?",
-    content: "Can someone explain how staking rewards are calculated?",
-    authorName: "Eddie",
-    likeCount: 12,
-    commentCount: 4,
-    hasLiked: false,
-    onLike: () => {},
-    onOpen: () => {},
-  },
-};
-
-export const Liked: Story = {
-  args: {
-    ...Default.args,
-    hasLiked: true,
-    likeCount: 13,
-  },
-};
+export function MessagePreview() {
+  return (
+    <section>
+      <h2>Messages</h2>
+      <ChatMessage>{mockChatMessages[0].message}</ChatMessage>
+      <ChatReply>{mockChatMessages[1].message}</ChatReply>
+    </section>
+  );
+}
 ```
+
+For chat-forum, placeholders may live in the preview route until real feature
+components exist. Once a real component is added, replace the placeholder preview
+with the actual component.
 
 ---
 
@@ -706,7 +664,7 @@ Posts:
 
 Comments:
 - Initially loaded through an HTTP API call
-- Updated live using Supabase real-time subscriptions where required
+- Updated on page reload through HTTP API call
 ```
 
 For post detail pages, the expected flow is:
@@ -714,39 +672,8 @@ For post detail pages, the expected flow is:
 ```txt
 1. Load post details
 2. Load existing comments
-3. Subscribe to new comments for that post
-4. Allow the user to submit a new comment
-5. Update the UI when new comments arrive
-```
-
-Supabase real-time logic should live in a client-side hook or container, not in a presentational component.
-
-Example:
-
-```tsx
-"use client";
-
-useEffect(() => {
-  const channel = supabase
-    .channel(`comments:${postId}`)
-    .on(
-      "postgres_changes",
-      {
-        event: "INSERT",
-        schema: "public",
-        table: "comments",
-        filter: `post_id=eq.${postId}`,
-      },
-      (payload) => {
-        // update comment state
-      },
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [postId]);
+3. Allow the user to submit a new comment
+4. Update the UI when new comments are loaded upon page refresh
 ```
 
 ---
@@ -763,19 +690,6 @@ The chatbot feature should generally follow this pattern:
 5. API returns the assistant response
 6. UI adds the assistant response to the chat
 7. UI handles errors clearly if the request fails
-```
-
-Recommended components:
-
-```txt
-ChatbotProvider
-ChatbotLauncher
-ChatbotWindow
-MessageList
-ChatMessageBubble
-ChatInput
-TypingIndicator
-SuggestedPrompts
 ```
 
 The chatbot presentational components should not know how the AI API works. They should only receive messages, loading states, and callback props.
@@ -911,7 +825,7 @@ Good examples:
 
 ```txt
 Build PostCard component
-Add ChatInput Storybook story
+Add ChatInput to the /dev/chatbot preview page
 Create chatbot API service
 Connect post list page to API
 Add comment subscription hook
@@ -934,14 +848,14 @@ Before requesting review, check:
 ```txt
 - Does the PR link to a GitHub issue?
 - Is the PR focused on one feature/change?
-- Are reusable components added to Storybook?
+- Are visual chatbot or chat-forum components added to the relevant /dev preview page?
 - Are loading, error, and empty states handled?
 - Are TypeScript types updated if API data changed?
 - Are API calls placed in service files or hooks?
 - Are presentational components kept free of API logic?
-- Are screenshots included for UI changes?
+- Are screenshots or short screen recordings included for UI changes?
 - Does the app run locally?
-- Does Storybook run if Storybook components were changed?
+- Does the relevant /dev preview page load locally?
 ```
 
 ---
@@ -966,44 +880,7 @@ fix/chatbot-error-state
 
 ---
 
-## 16. Before Starting a New Ticket
-
-Before starting a frontend ticket, check:
-
-```txt
-1. Which feature does this belong to?
-2. Is this a reusable/common component?
-3. Is this presentational or container logic?
-4. Does a shared type already exist?
-5. Does an API service already exist?
-6. Does this component need a Storybook story?
-7. Are there existing components that should be reused?
-```
-
-If unsure, ask in the team chat before creating a new pattern.
-
----
-
-## 17. Definition of Done
-
-A frontend task is only considered done when:
-
-```txt
-- The UI works for the expected user flow
-- The code follows the folder structure
-- Presentational and container logic are separated
-- API calls are not placed directly inside presentational components
-- Relevant TypeScript types are used
-- Loading, error, and empty states are handled
-- Reusable components have Storybook stories
-- The PR is small enough to review properly
-- Screenshots are included for visual changes
-- The branch has been tested locally
-```
-
----
-
-## 18. Key Rule Summary
+## 16. Key Rule Summary
 
 Follow these rules when in doubt:
 
@@ -1013,7 +890,7 @@ Follow these rules when in doubt:
 - Container components and hooks should handle logic.
 - API calls should go through service files.
 - Shared types should match backend API responses.
-- Storybook should be used for reusable UI components.
+- Use /dev preview pages for chatbot and chat-forum UI review.
 - Keep PRs small and easy to review.
 ```
 

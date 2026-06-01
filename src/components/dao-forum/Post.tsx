@@ -1,7 +1,11 @@
 "use client";
 import React from "react";
 
-const PostCard = () => {
+type PostCardProps = {
+  title: string;
+};
+
+const PostCard = ({ title }: PostCardProps) => {
   return (
     <div className="flex items-start gap-4 rounded-2xl border border-indigo-100 bg-white px-5 py-4 shadow-sm cursor-pointer hover:border-indigo-200 transition-colors">
       <div className="flex flex-col gap-2 min-w-0 flex-1">
@@ -12,6 +16,7 @@ const PostCard = () => {
 
         {/* Title */}
         <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
 
         {/* Author + Timestamp */}

@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
 
     const { data: conversation, error } = await supabase
       .from("conversations")
-      .select("id, user_id, status, created_at")
+      .select("id, user_id, status, title, created_at")
       .eq("user_id", user.id)
       .neq("status", "ended")
       .order("created_at", { ascending: false });
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
     const { data: newConversation, error: postError } = await supabase
       .from("conversations")
       .insert({ user_id: user.id, status: "active" })
-      .select("id, user_id, status, created_at")
+      .select("id, user_id, status, title, created_at")
       .single();
 
     if (postError) {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
+import { authenticateUser } from "@/utils/authHelper";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,40 +9,19 @@ const corsHeaders = {
 
 
 // GET /api/ai-tutor/conversations
-// Gets the active conversation
+// Returns all non-deleted (active) conversations for the authenticated user
 export async function GET(req: NextRequest) {
   try {
-    const accessToken = req.headers
-      .get("Authorization")
-      ?.replace("Bearer ", "");
+    const auth = await authenticateUser(req, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase, user } = auth;
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
-    const supabase = await createClient(accessToken);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Invalid auth token" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
-    const { data: conversation, error } = (await supabase
+    const { data: conversation, error } = await supabase
       .from("conversations")
-      .select("*")
+      .select("id, user_id, status, created_at")
       .eq("user_id", user.id)
-      .eq("status", "active")
-      .maybeSingle());
+      .neq("status", "ended")
+      .order("created_at", { ascending: false });
 
     if (error) {
       return NextResponse.json(
@@ -65,51 +44,18 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/ai-tutor/conversations
-// Creates a new conversation and set previous active conversation to ended
+// Creates a new active conversation for the user
 export async function POST(req: NextRequest) {
   try {
-    const accessToken = req.headers
-      .get("Authorization")
-      ?.replace("Bearer ", "");
+    const auth = await authenticateUser(req, corsHeaders);
+    if (auth.response) return auth.response;
+    const { supabase, user } = auth;
 
-    if (!accessToken) {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
-    const supabase = await createClient(accessToken);
-
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser();
-
-    if (userError || !user) {
-      return NextResponse.json(
-        { error: "Invalid auth token" },
-        { status: 401, headers: corsHeaders },
-      );
-    }
-
-    const { error: updateError } = await supabase
-      .from("conversations")
-      .update({ status: "ended" })
-      .eq("user_id", user.id)
-      .eq("status", "active");
-
-    if (updateError) {
-      return NextResponse.json(
-        { error: updateError.message },
-        { status: 500, headers: corsHeaders },
-      );
-    }
-    const { data: newConversation, error: postError } = (await supabase
+    const { data: newConversation, error: postError } = await supabase
       .from("conversations")
       .insert({ user_id: user.id, status: "active" })
-      .select("*")
-      .single());
+      .select("id, user_id, status, created_at")
+      .single();
 
     if (postError) {
       return NextResponse.json(
@@ -117,6 +63,7 @@ export async function POST(req: NextRequest) {
         { status: 500, headers: corsHeaders },
       );
     }
+
     return NextResponse.json(
       { conversation: newConversation },
       { status: 201, headers: corsHeaders },

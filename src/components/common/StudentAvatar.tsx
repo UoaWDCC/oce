@@ -3,6 +3,11 @@ import type { ReactNode } from "react";
 type StudentAvatarSize = "sm" | "md" | "lg";
 type WalletAddressDisplay = "short" | "full";
 
+export type Timestamp = {
+  label: ReactNode;
+  dateTime: string;
+};
+
 export type StudentAvatarProps = {
   displayName: string;
   walletAddress?: string | null;
@@ -12,8 +17,7 @@ export type StudentAvatarProps = {
   walletAddressDisplay?: WalletAddressDisplay;
   avatarColor?: string;
   badges?: ReactNode;
-  timestamp?: ReactNode;
-  timestampDateTime?: string;
+  timestamp?: Timestamp;
   className?: string;
 };
 
@@ -199,12 +203,9 @@ export default function StudentAvatar({
                 /
               </span>
             )}
-            {timestamp &&
-              (timestampDateTime ? (
-                <time dateTime={timestampDateTime}>{timestamp}</time>
-              ) : (
-                <span>{timestamp}</span>
-              ))}
+            {timestamp && (
+              <time dateTime={timestamp.dateTime}>{timestamp.label}</time>
+            )}
           </div>
         )}
       </div>

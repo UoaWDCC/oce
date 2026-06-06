@@ -1,6 +1,7 @@
 "use client";
 
 import { StudentAvatar } from "@/components/common";
+import { Timestamp } from "@/components/common/StudentAvatar";
 import { ForumComment, ForumPost } from "@/features/chat-forum/types";
 import type { ReactNode } from "react";
 
@@ -72,6 +73,13 @@ const previewAuthors: Record<
   },
 };
 
+function createTimestamp(value: string): Timestamp {
+  return {
+    label: formatDate(value),
+    dateTime: value,
+  };
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en", {
     month: "short",
@@ -105,8 +113,7 @@ function PlaceholderPostCard({
         displayName={author.displayName}
         profileImageUrl={author.profileImageUrl}
         size="sm"
-        timestamp={formatDate(post.createdAt)}
-        timestampDateTime={post.createdAt}
+        timestamp={createTimestamp(post.createdAt)}
         walletAddress={post.authorId}
       />
       <h3 className="mt-3 text-lg font-semibold text-slate-950">
@@ -132,8 +139,7 @@ function PlaceholderCommentCard({ comment }: { comment: ForumComment }) {
         displayName={author.displayName}
         profileImageUrl={author.profileImageUrl}
         size="sm"
-        timestamp={formatDate(comment.createdAt)}
-        timestampDateTime={comment.createdAt}
+        timestamp={createTimestamp(comment.createdAt)}
         walletAddress={comment.authorId}
       />
       <p className="mt-2 text-sm leading-6 text-slate-700">{comment.body}</p>
@@ -184,7 +190,6 @@ export default function ChatForumPreviewClient() {
                 avatarColor="#7c3aed"
                 displayName="Jordan S."
                 size="lg"
-                timestamp="3 hrs ago"
                 walletAddress="0x8f120B15a672A97C86aC1E3D910B8512b8a14a90"
               />
             </div>
@@ -193,7 +198,6 @@ export default function ChatForumPreviewClient() {
                 displayName="Mia Chen"
                 profileImageUrl="/images/jayden-hunt.png"
                 size="md"
-                timestamp="45 min ago"
                 walletAddress="0x41ca932f71DAb2870E9d118492e5d33F7c8691e3"
               />
             </div>

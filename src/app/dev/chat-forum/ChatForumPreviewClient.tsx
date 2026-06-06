@@ -251,18 +251,21 @@ export default function ChatForumPreviewClient() {
             commentCount={firstPostComments.length}
           />
           <div className="grid gap-3 pl-4 md:pl-8">
-            {firstPostComments.map((comment) => (
-              <CommentCard
-                key={comment.id}
-                username={comment.authorId}
-                timestamp={formatDate(comment.createdAt)}
-                body={comment.body}
-                likeCount={0}
-                isLiked={false}
-                onLike={() => console.log(`Liked comment ${comment.id}`)}
-                onReply={() => console.log(`Reply to comment ${comment.id}`)}
-              />
-            ))}
+            {firstPostComments.map((comment) => {
+              const author = getPreviewAuthor(comment.authorId);
+              return (
+                <CommentCard
+                  key={comment.id}
+                  username={author.displayName}
+                  timestamp={formatDate(comment.createdAt)}
+                  body={comment.body}
+                  likeCount={0}
+                  isLiked={false}
+                  onLike={() => console.log(`Liked comment ${comment.id}`)}
+                  onReply={() => console.log(`Reply to comment ${comment.id}`)}
+                />
+              );
+            })}
           </div>
         </section>
 

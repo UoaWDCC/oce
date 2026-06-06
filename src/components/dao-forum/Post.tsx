@@ -5,17 +5,19 @@ import { PostType } from "@app-types/post_types";
 
 type PostCardProps = {
   title: string;
-  type?: PostType;
+  types?: PostType[];
 };
 
-const PostCard = ({ title, type }: PostCardProps) => {
+const PostCard = ({ title, types }: PostCardProps) => {
   return (
     <div className="flex items-start gap-4 rounded-2xl border border-indigo-100 bg-white px-5 py-4 shadow-sm cursor-pointer hover:border-indigo-200 transition-colors">
       <div className="flex flex-col gap-2 min-w-0 flex-1">
 
         {/* Tags */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <Tag type={type}/>
+          {types?.map((type) => (
+            <Tag key={type} type={type} />  // one Tag per type
+          ))}
         </div>
 
         {/* Title */}
@@ -25,7 +27,6 @@ const PostCard = ({ title, type }: PostCardProps) => {
 
         {/* Author + Timestamp */}
         <div className="flex items-center gap-2">
-          
         </div>
 
       </div>

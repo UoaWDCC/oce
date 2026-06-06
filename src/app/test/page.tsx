@@ -1,8 +1,8 @@
 "use client";
-import ChatButton from "@/components/chatbot/chatButton";
+import ChatButton from "@/features/chatbot/components/chatButton";
 import { ReactNode } from "react";
-import { ChatModalProvider } from "@/context/ChatBoxModalProvider";
-import ChatSection from "@/components/chatbot/chatSection";
+import { ChatModalProvider } from "@/features/chatbot/providers/ChatBoxModalProvider";
+import ChatSection from "@/features/chatbot/components/chatSection";
 
 export default function Test(): ReactNode {
   return (

@@ -4,6 +4,7 @@ import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
 import { ForumComment, ForumPost } from "@/features/chat-forum/types";
 import type { ReactNode } from "react";
+import CommentCard from "@/components/dao-forum/CommentCard";
 
 const previewPosts: ForumPost[] = [
   {
@@ -251,7 +252,16 @@ export default function ChatForumPreviewClient() {
           />
           <div className="grid gap-3 pl-4 md:pl-8">
             {firstPostComments.map((comment) => (
-              <PlaceholderCommentCard key={comment.id} comment={comment} />
+              <CommentCard
+                key={comment.id}
+                username={comment.authorId}
+                timestamp={formatDate(comment.createdAt)}
+                body={comment.body}
+                likeCount={0}
+                isLiked={false}
+                onLike={() => console.log(`Liked comment ${comment.id}`)}
+                onReply={() => console.log(`Reply to comment ${comment.id}`)}
+              />
             ))}
           </div>
         </section>

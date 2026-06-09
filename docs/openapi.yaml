@@ -731,6 +731,79 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
+  /api/comments/{commentId}/like:
+    options:
+      tags:
+        - DAO Forum
+      summary: CORS preflight for comment like
+      operationId: optionsCommentLike
+      responses:
+        "200":
+          description: CORS preflight accepted
+    post:
+      tags:
+        - DAO Forum
+      summary: Like a comment
+      operationId: likeComment
+      description: >
+        Uses a Bearer token to authenticate the current user. The comment must
+        exist and not be soft-deleted. If the user has already liked the
+        comment, returns 409 Conflict.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "201":
+          description: Like created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  like:
+                    $ref: "#/components/schemas/CommentLike"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: User has already liked this comment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    delete:
+      tags:
+        - DAO Forum
+      summary: Unlike a comment
+      operationId: unlikeComment
+      description: >
+        Uses a Bearer token to authenticate the current user. The comment must
+        exist and not be soft-deleted. If the user has not liked the comment,
+        returns 404.
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CommentId"
+      responses:
+        "200":
+          description: Like removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
   /api/member-voted:
     options:
@@ -1259,6 +1332,8 @@ components:
           type: string
           format: date-time
           nullable: true
+        is_liked:
+          type: boolean
 
     CreateCommentRequest:
       type: object
@@ -1305,6 +1380,19 @@ components:
       properties:
         comment:
           $ref: "#/components/schemas/Comment"
+
+    CommentLike:
+      type: object
+      properties:
+        comment_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
 
     SummonDaoRequest:
       type: object

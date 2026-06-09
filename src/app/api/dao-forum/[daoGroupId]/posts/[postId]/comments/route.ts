@@ -200,7 +200,7 @@ export async function GET(
 
   const { data: likeCounts, error: likeCountsError } = await supabase
     .from("comment_likes")
-    .select("comment_id")
+    .select("comment_id, user_id")
     .in("comment_id", commentIds);
 
   if (likeCountsError) {
@@ -219,6 +219,11 @@ export async function GET(
   likeCounts?.forEach((lc) => {
     likeCountMap[lc.comment_id] = (likeCountMap[lc.comment_id] || 0) + 1;
   });
+  const likedByUser = new Set(
+    likeCounts
+      ?.filter((lc) => lc.user_id === user.id)
+      .map((lc) => lc.comment_id),
+  );
 
   const activeChildCounts: Record<string, number> = {};
   comments.forEach((comment) => {
@@ -240,6 +245,7 @@ export async function GET(
       author_id: comment.author?.id || "",
       username: comment.author?.username || "",
       like_count: likeCountMap[comment.id] || 0,
+      is_liked: likedByUser.has(comment.id),
       parent_comment_id: comment.parent_comment_id,
       created_at: comment.created_at,
       updated_at: comment.updated_at,

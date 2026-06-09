@@ -9,21 +9,22 @@ const corsHeaders = {
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: Promise<{ commentId: string}> }) {
+  { params }: { params: Promise<{ commentId: string }> },
+) {
   const { commentId } = await params;
-  
-   if (!commentId) {
+
+  if (!commentId) {
     return NextResponse.json(
-      {error: "Comment does not exist"},
-      {status: 400, headers: corsHeaders},
+      { error: "Comment does not exist" },
+      { status: 400, headers: corsHeaders },
     );
   }
 
   const auth = await authenticateUser(req, corsHeaders);
   if (auth.response) return auth.response;
-  const {supabase, user} = auth;
+  const { supabase, user } = auth;
 
-   const {data: comment, error: commentError} = await supabase
+  const { data: comment, error: commentError } = await supabase
     .from("comments")
     .select("deleted_at")
     .eq("id", commentId)
@@ -31,12 +32,12 @@ export async function POST(
 
   if (commentError || !comment || comment.deleted_at !== null) {
     return NextResponse.json(
-      {error: "Comment not found"},
-      {status: 404, headers: corsHeaders},
+      { error: "Comment not found" },
+      { status: 404, headers: corsHeaders },
     );
   }
 
-  const {data: existingLike, error: likeError} = await supabase
+  const { data: existingLike, error: likeError } = await supabase
     .from("comment_likes")
     .select("*")
     .eq("comment_id", commentId)
@@ -45,19 +46,19 @@ export async function POST(
 
   if (likeError) {
     return NextResponse.json(
-      {error: likeError.message},
-      {status: 500, headers: corsHeaders},
+      { error: likeError.message },
+      { status: 500, headers: corsHeaders },
     );
   }
 
   if (existingLike) {
     return NextResponse.json(
-      {error: "You have already liked this comment"},
-      {status: 409, headers: corsHeaders},
+      { error: "You have already liked this comment" },
+      { status: 409, headers: corsHeaders },
     );
   }
 
-  const {data, error} = await supabase
+  const { data, error } = await supabase
     .from("comment_likes")
     .insert({
       comment_id: commentId,
@@ -68,12 +69,85 @@ export async function POST(
 
   if (error) {
     return NextResponse.json(
-      {error: error.message},
-      {status: 500, headers: corsHeaders},
+      { error: error.message },
+      { status: 500, headers: corsHeaders },
     );
   }
-  
-  return NextResponse.json({like: data}, {status: 201, headers: corsHeaders});
+
+  return NextResponse.json(
+    { like: data },
+    { status: 201, headers: corsHeaders },
+  );
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ commentId: string }> },
+) {
+  const { commentId } = await params;
+
+  if (!commentId) {
+    return NextResponse.json(
+      { error: "Comment does not exist" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  const auth = await authenticateUser(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const { supabase, user } = auth;
+
+  const { data: comment, error: commentError } = await supabase
+    .from("comments")
+    .select("deleted_at")
+    .eq("id", commentId)
+    .maybeSingle();
+
+  if (commentError || !comment || comment.deleted_at !== null) {
+    return NextResponse.json(
+      { error: "Comment not found" },
+      { status: 404, headers: corsHeaders },
+    );
+  }
+
+  const { data: existingLike, error: likeError } = await supabase
+    .from("comment_likes")
+    .select("*")
+    .eq("comment_id", commentId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (likeError) {
+    return NextResponse.json(
+      { error: likeError.message },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
+  if (!existingLike) {
+    return NextResponse.json(
+      { error: "You have not liked this comment" },
+      { status: 404, headers: corsHeaders },
+    );
+  }
+
+  const { error } = await supabase
+    .from("comment_likes")
+    .delete()
+    .eq("comment_id", commentId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
+  return NextResponse.json(
+    { message: "Like removed" },
+    { status: 200, headers: corsHeaders },
+  );
 }
 
 export async function OPTIONS() {

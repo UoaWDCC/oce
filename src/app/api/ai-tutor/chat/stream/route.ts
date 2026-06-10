@@ -41,10 +41,7 @@ export async function POST(req: NextRequest) {
   try {
     firstChunk = await iterator.next();
   } catch {
-    return NextResponse.json(
-      { error: "LLM provider error" },
-      { status: 502 },
-    );
+    return NextResponse.json({ error: "LLM provider error" }, { status: 502 });
   }
 
   const encoder = new TextEncoder();

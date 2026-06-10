@@ -13,6 +13,8 @@ export function createLLMProvider(): LLMProvider {
     // TODO: Add new provider cases here as implementations are built
     // e.g. case "google": return new GoogleProvider();
     default:
-      throw new Error(`Unrecognised LLM provider: "${provider}". Did you set LLM_PROVIDER in your .env?`);
+      throw new Error(
+        `Unrecognised LLM provider: "${provider}". Did you set LLM_PROVIDER in your .env?`,
+      );
   }
 }

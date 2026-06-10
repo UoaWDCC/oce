@@ -4,6 +4,8 @@ import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
 import { ForumComment, ForumPost } from "@/features/chat-forum/types";
 import type { ReactNode } from "react";
+import PostCard from "@/components/dao-forum/Post";
+import { POST_TYPE } from "@app-types/post_types";
 
 const previewPosts: ForumPost[] = [
   {
@@ -106,25 +108,16 @@ function PlaceholderPostCard({
   const author = getPreviewAuthor(post.authorId);
 
   return (
-    <article className="rounded-lg border border-dashed border-slate-300 bg-white p-5 shadow-sm">
-      <StudentAvatar
-        avatarColor={author.avatarColor}
-        badges={author.badges}
-        displayName={author.displayName}
-        profileImageUrl={author.profileImageUrl}
-        size="sm"
-        timestamp={createTimestamp(post.createdAt)}
-        walletAddress={post.authorId}
-      />
-      <h3 className="mt-3 text-lg font-semibold text-slate-950">
-        {post.title}
-      </h3>
-      <p className="mt-2 text-sm leading-6 text-slate-700">{post.body}</p>
-      <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
-        <span>{post.daoId}</span>
-        <span>{commentCount} comments</span>
-      </div>
-    </article>
+    <PostCard
+          daoId={post.daoId}
+          title={post.title}
+          types={[POST_TYPE.Discussion]}
+          displayName={author.displayName}
+          walletAddress={post.authorId}
+          profileImageUrl={author.profileImageUrl}
+          createdAt={createTimestamp(post.createdAt)}
+          commentCount={commentCount}
+        />
   );
 }
 

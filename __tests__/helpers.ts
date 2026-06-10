@@ -25,6 +25,12 @@ export const defaultPostBody = {
   image_url: null,
 };
 
+export const defaultCommentBody = {
+  parent_comment_id: null,
+  body: "Comment Body",
+  image_url: "example.png",
+};
+
 // --- Mock Supabase client ---
 
 let mockQueryResult: { data: any; error: any } = { data: [], error: null };

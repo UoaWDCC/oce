@@ -7,7 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-
 // GET /api/ai-tutor/conversations
 // Gets the active conversation
 export async function GET(req: NextRequest) {
@@ -37,12 +36,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const { data: conversation, error } = (await supabase
+    const { data: conversation, error } = await supabase
       .from("conversations")
       .select("*")
       .eq("user_id", user.id)
       .eq("status", "active")
-      .maybeSingle());
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json(
@@ -105,11 +104,11 @@ export async function POST(req: NextRequest) {
         { status: 500, headers: corsHeaders },
       );
     }
-    const { data: newConversation, error: postError } = (await supabase
+    const { data: newConversation, error: postError } = await supabase
       .from("conversations")
       .insert({ user_id: user.id, status: "active" })
       .select("*")
-      .single());
+      .single();
 
     if (postError) {
       return NextResponse.json(

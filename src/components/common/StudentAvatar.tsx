@@ -117,7 +117,6 @@ export default function StudentAvatar({
   avatarColor,
   badges,
   timestamp,
-  timestampDateTime,
   className,
 }: StudentAvatarProps) {
   const sizeClasses = SIZE_CLASSES[size];

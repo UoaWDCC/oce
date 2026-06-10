@@ -2,9 +2,7 @@ import { defineConfig } from "vitest/config";
 import path from "path";
 
 export default defineConfig({
-  test: {
-    // we'll add more config as needed
-  },
+  test: {},
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

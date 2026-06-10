@@ -70,7 +70,6 @@ const mockParams = { params: Promise.resolve({ daoGroupId: "dao-1" }) };
 describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: auth succeeds
     mockQueryResult = { data: [], error: null };
     resetMockSupabase();
     vi.mocked(authenticateUser).mockResolvedValue({
@@ -93,7 +92,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
   });
 
   it("returns 401 when not authenticated", async () => {
-    // Override: auth fails
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
@@ -126,7 +124,6 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       user: mockUser as any,
       accessToken: "fake-token",
     });
-    // Default: user is a DAO member
     vi.mocked(checkDAOMembership).mockResolvedValue(true);
   });
 
@@ -389,14 +386,12 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   });
 
   it("returns 500 when supabase update fails", async () => {
-    // Query 1: post found, correct author
     mockSupabase.single.mockImplementation(() =>
       Promise.resolve({
         data: { id: "post-1", author_id: "test-user" },
         error: null,
       }),
     );
-    // Query 2: update fails
     mockSupabase.maybeSingle.mockImplementation(() =>
       Promise.resolve({
         data: null,
@@ -426,8 +421,6 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   });
 
   it("deletes a post successfully", async () => {
-    // Query 1: find the post, confirm author
-    // Query 3: soft-delete the post
     mockSupabase.single
       .mockResolvedValueOnce({
         data: { id: "post-1", author_id: "test-user" },
@@ -483,5 +476,50 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     const res = await DELETE(req, mockParamsWithPostId);
 
     expect(res.status).toBe(404);
+  });
+
+  it("returns 500 when soft-deleting comments fails", async () => {
+    // Query 1: find the post and confirm author
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "test-user" },
+      error: null,
+    });
+    // .eq() calls 1 & 2 are for post lookup
+    // .eq() call 3 is the terminal call for comments soft-delete - should return error
+    mockSupabase.eq
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce(
+        Promise.resolve({
+          data: null,
+          error: { message: "Comments delete failed" },
+        }),
+      );
+
+    const req = createMockRequest("DELETE");
+    const res = await DELETE(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe("Comments delete failed");
+  });
+
+  it("returns 500 when soft-deleting post fails", async () => {
+    // Query 1: find the post, confirm author
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "test-user" },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Post delete failed" },
+    });
+
+    const req = createMockRequest("DELETE");
+    const res = await DELETE(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe("Post delete failed");
   });
 });

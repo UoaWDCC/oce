@@ -1,7 +1,12 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser } from "@/utils/authHelper";
-import { checkDAOMembership } from "@/utils/daoMembership";
+import { NextResponse } from "next/server";
+import {
+  defaultPostBody,
+  mockSupabase,
+  setMockQueryResult,
+  resetAll,
+  createMockRequest,
+} from "./helpers";
 import {
   GET as listGET,
   POST,
@@ -11,6 +16,8 @@ import {
   PATCH,
   DELETE,
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/route";
+import { authenticateUser } from "@/utils/authHelper";
+import { checkDAOMembership } from "@/utils/daoMembership";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -20,68 +27,20 @@ vi.mock("@/utils/daoMembership", () => ({
   checkDAOMembership: vi.fn(),
 }));
 
-const mockUser = { id: "test-user", email: "test@example.com" };
-let mockQueryResult: { data: any; error: any } = { data: [], error: null };
-
-const mockSupabase = {
-  from: vi.fn().mockReturnThis(),
-  select: vi.fn().mockReturnThis(),
-  eq: vi.fn().mockReturnThis(),
-  order: vi.fn(() => Promise.resolve(mockQueryResult)),
-  insert: vi.fn().mockReturnThis(),
-  update: vi.fn().mockReturnThis(),
-  single: vi.fn(() => Promise.resolve(mockQueryResult)),
-  maybeSingle: vi.fn(() => Promise.resolve(mockQueryResult)),
-};
-
-function resetMockSupabase() {
-  mockSupabase.from.mockReturnThis();
-  mockSupabase.select.mockReturnThis();
-  mockSupabase.eq.mockReturnThis();
-  mockSupabase.insert.mockReturnThis();
-  mockSupabase.update.mockReturnThis();
-  mockSupabase.order.mockImplementation(() => Promise.resolve(mockQueryResult));
-  mockSupabase.single.mockImplementation(() =>
-    Promise.resolve(mockQueryResult),
-  );
-  mockSupabase.maybeSingle.mockImplementation(() =>
-    Promise.resolve(mockQueryResult),
-  );
-}
-
 const mockParamsWithPostId = {
   params: Promise.resolve({ daoGroupId: "dao-1", postId: "post-1" }),
 };
-
-function createMockRequest(method: string, body?: object): NextRequest {
-  const url = "http://localhost/api/dao-forum/dao-1/posts";
-  const options: RequestInit = {
-    method,
-    headers: { Authorization: "Bearer fake-token" },
-  };
-  if (body) {
-    options.body = JSON.stringify(body);
-  }
-  return new NextRequest(url, options);
-}
 
 const mockParams = { params: Promise.resolve({ daoGroupId: "dao-1" }) };
 
 describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockQueryResult = { data: [], error: null };
-    resetMockSupabase();
-    vi.mocked(authenticateUser).mockResolvedValue({
-      supabase: mockSupabase as any,
-      user: mockUser as any,
-      accessToken: "fake-token",
-    });
+    resetAll();
   });
 
   it("returns posts on success", async () => {
     const fakePosts = [{ id: "post-1", title: "Hello" }];
-    mockQueryResult = { data: fakePosts, error: null };
+    setMockQueryResult({ data: fakePosts, error: null });
 
     const req = createMockRequest("GET");
     const res = await listGET(req, mockParams);
@@ -103,7 +62,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
   });
 
   it("returns 500 when supabase errors", async () => {
-    mockQueryResult = { data: null, error: { message: "DB error" } };
+    setMockQueryResult({ data: null, error: { message: "DB error" } });
 
     const req = createMockRequest("GET");
     const res = await listGET(req, mockParams);
@@ -116,20 +75,12 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
 
 describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockQueryResult = { data: [], error: null };
-    resetMockSupabase();
-    vi.mocked(authenticateUser).mockResolvedValue({
-      supabase: mockSupabase as any,
-      user: mockUser as any,
-      accessToken: "fake-token",
-    });
-    vi.mocked(checkDAOMembership).mockResolvedValue(true);
+    resetAll();
   });
 
   it("creates a post successfully", async () => {
     const newPost = { id: "post-new", title: "New Post" };
-    mockQueryResult = { data: newPost, error: null };
+    setMockQueryResult({ data: newPost, error: null });
 
     const req = createMockRequest("POST", {
       title: "New Post",
@@ -165,14 +116,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
     });
 
-    const req = createMockRequest("POST", {
-      title: "Post",
-      body: "Content",
-      post_type_id: 1,
-      anonymous: false,
-      is_pinned: false,
-      image_url: null,
-    });
+    const req = createMockRequest("POST", defaultPostBody);
     const res = await POST(req, mockParams);
 
     expect(res.status).toBe(401);
@@ -181,33 +125,19 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
   it("returns 403 when user is not a DAO member", async () => {
     vi.mocked(checkDAOMembership).mockResolvedValue(false);
 
-    const req = createMockRequest("POST", {
-      title: "Post",
-      body: "Content",
-      post_type_id: 1,
-      anonymous: false,
-      is_pinned: false,
-      image_url: null,
-    });
+    const req = createMockRequest("POST", defaultPostBody);
     const res = await POST(req, mockParams);
 
     expect(res.status).toBe(403);
   });
 
   it("returns 409 on duplicate conflict", async () => {
-    mockQueryResult = {
+    setMockQueryResult({
       data: null,
       error: { code: "23505", message: "Conflict" },
-    };
-
-    const req = createMockRequest("POST", {
-      title: "Post",
-      body: "Content",
-      post_type_id: 1,
-      anonymous: false,
-      is_pinned: false,
-      image_url: null,
     });
+
+    const req = createMockRequest("POST", defaultPostBody);
     const res = await POST(req, mockParams);
     const json = await res.json();
 
@@ -216,16 +146,9 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
   });
 
   it("returns 500 when supabase insert fails", async () => {
-    mockQueryResult = { data: null, error: { message: "Insert failed" } };
+    setMockQueryResult({ data: null, error: { message: "Insert failed" } });
 
-    const req = createMockRequest("POST", {
-      title: "Post",
-      body: "Content",
-      post_type_id: 1,
-      anonymous: false,
-      is_pinned: false,
-      image_url: null,
-    });
+    const req = createMockRequest("POST", defaultPostBody);
     const res = await POST(req, mockParams);
     const json = await res.json();
 
@@ -236,19 +159,12 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
 
 describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockQueryResult = { data: [], error: null };
-    resetMockSupabase();
-    vi.mocked(authenticateUser).mockResolvedValue({
-      supabase: mockSupabase as any,
-      user: mockUser as any,
-      accessToken: "fake-token",
-    });
+    resetAll();
   });
 
   it("returns a single post on success", async () => {
     const fakePost = { id: "post-1", title: "Hello", author_id: "test-user" };
-    mockQueryResult = { data: fakePost, error: null };
+    setMockQueryResult({ data: fakePost, error: null });
 
     const req = createMockRequest("GET");
     const res = await singleGET(req, mockParamsWithPostId);
@@ -270,7 +186,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   });
 
   it("returns 404 when post not found", async () => {
-    mockQueryResult = { data: null, error: null };
+    setMockQueryResult({ data: null, error: null });
 
     const req = createMockRequest("GET");
     const res = await singleGET(req, mockParamsWithPostId);
@@ -281,7 +197,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   });
 
   it("returns 500 when supabase errors", async () => {
-    mockQueryResult = { data: null, error: { message: "DB error" } };
+    setMockQueryResult({ data: null, error: { message: "DB error" } });
 
     const req = createMockRequest("GET");
     const res = await singleGET(req, mockParamsWithPostId);
@@ -294,14 +210,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
 describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockQueryResult = { data: null, error: null };
-    resetMockSupabase();
-    vi.mocked(authenticateUser).mockResolvedValue({
-      supabase: mockSupabase as any,
-      user: mockUser as any,
-      accessToken: "fake-token",
-    });
+    resetAll();
   });
 
   const validBody = {
@@ -410,14 +319,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
 describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockQueryResult = { data: null, error: null };
-    resetMockSupabase();
-    vi.mocked(authenticateUser).mockResolvedValue({
-      supabase: mockSupabase as any,
-      user: mockUser as any,
-      accessToken: "fake-token",
-    });
+    resetAll();
   });
 
   it("deletes a post successfully", async () => {

@@ -1,0 +1,86 @@
+import { vi } from "vitest";
+import { NextRequest } from "next/server";
+
+import { authenticateUser } from "@/utils/authHelper";
+import { checkDAOMembership } from "@/utils/daoMembership";
+
+vi.mock("@/utils/authHelper", () => ({
+  authenticateUser: vi.fn(),
+}));
+
+vi.mock("@/utils/daoMembership", () => ({
+  checkDAOMembership: vi.fn(),
+}));
+
+// --- Mock data ---
+
+export const mockUser = { id: "test-user", email: "test@example.com" };
+
+export const defaultPostBody = {
+  title: "Post",
+  body: "Content",
+  post_type_id: 1,
+  anonymous: false,
+  is_pinned: false,
+  image_url: null,
+};
+
+// --- Mock Supabase client ---
+
+let mockQueryResult: { data: any; error: any } = { data: [], error: null };
+
+export const mockSupabase = {
+  from: vi.fn().mockReturnThis(),
+  select: vi.fn().mockReturnThis(),
+  eq: vi.fn().mockReturnThis(),
+  order: vi.fn(() => Promise.resolve(mockQueryResult)),
+  insert: vi.fn().mockReturnThis(),
+  update: vi.fn().mockReturnThis(),
+  single: vi.fn(() => Promise.resolve(mockQueryResult)),
+  maybeSingle: vi.fn(() => Promise.resolve(mockQueryResult)),
+};
+
+export function setMockQueryResult(result: { data: any; error: any }) {
+  mockQueryResult = result;
+}
+
+export function resetMockSupabase() {
+  mockSupabase.from.mockReturnThis();
+  mockSupabase.select.mockReturnThis();
+  mockSupabase.eq.mockReturnThis();
+  mockSupabase.insert.mockReturnThis();
+  mockSupabase.update.mockReturnThis();
+  mockSupabase.order.mockImplementation(() => Promise.resolve(mockQueryResult));
+  mockSupabase.single.mockImplementation(() =>
+    Promise.resolve(mockQueryResult),
+  );
+  mockSupabase.maybeSingle.mockImplementation(() =>
+    Promise.resolve(mockQueryResult),
+  );
+}
+
+// --- Setup & utilities ---
+
+export function resetAll() {
+  vi.clearAllMocks();
+  mockQueryResult = { data: [], error: null };
+  resetMockSupabase();
+  vi.mocked(authenticateUser).mockResolvedValue({
+    supabase: mockSupabase as any,
+    user: mockUser as any,
+    accessToken: "fake-token",
+  });
+  vi.mocked(checkDAOMembership).mockResolvedValue(true);
+}
+
+export function createMockRequest(method: string, body?: object): NextRequest {
+  const url = "http://localhost/api/dao-forum/dao-1/posts";
+  const options: RequestInit = {
+    method,
+    headers: { Authorization: "Bearer fake-token" },
+  };
+  if (body) {
+    options.body = JSON.stringify(body);
+  }
+  return new NextRequest(url, options);
+}

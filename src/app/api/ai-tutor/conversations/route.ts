@@ -7,7 +7,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-
 // GET /api/ai-tutor/conversations
 // Returns all non-deleted (active) conversations for the authenticated user
 export async function GET(req: NextRequest) {

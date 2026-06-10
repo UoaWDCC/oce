@@ -7,6 +7,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+const uuidRegex =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 // PATCH /api/ai-tutor/conversations/:id
 // Ends a conversation by setting its status to "ended"
 export async function PATCH(
@@ -19,6 +22,13 @@ export async function PATCH(
     const { supabase, user } = auth;
 
     const { id } = await params;
+
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json(
+        { error: "Invalid conversation ID" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
 
     const { data: updated, error } = await supabase
       .from("conversations")

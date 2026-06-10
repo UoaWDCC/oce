@@ -406,6 +406,26 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(json.error).toBe("Comments delete failed");
   });
 
+  it("returns 404 when post not found after soft-delete", async () => {
+    // Query 1: find the post, confirm author
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "test-user" },
+      error: null,
+    });
+    // Query 2: post soft-delete returns no data
+    mockSupabase.single.mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    const req = createMockRequest("DELETE");
+    const res = await DELETE(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Post not found or unauthorized");
+  });
+
   it("returns 500 when soft-deleting post fails", async () => {
     // Query 1: find the post, confirm author
     mockSupabase.single.mockResolvedValueOnce({

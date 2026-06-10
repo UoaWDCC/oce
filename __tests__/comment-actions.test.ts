@@ -1,11 +1,15 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { mockSupabase, resetAll, createMockRequest } from "./helpers";
 import { PATCH, DELETE } from "@/app/api/comments/[commentId]/route";
 import { authenticateUser } from "@/utils/authHelper";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
+}));
+
+vi.mock("@/utils/daoMembership", () => ({
+  checkDAOMembership: vi.fn(),
 }));
 
 const mockParams = {
@@ -109,6 +113,18 @@ describe("PATCH /api/comments/[commentId]", () => {
     expect(json.error).toBe("No update fields provided");
   });
 
+  it("returns 400 when request body is invalid JSON", async () => {
+    const req = new NextRequest("http://localhost/api/comments/comment-1", {
+      method: "PATCH",
+      body: "not json",
+      headers: { Authorization: "Bearer fake-token" },
+    });
+    const res = await PATCH(req, mockParams);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+  });
+
   it("returns 404 when comment not found", async () => {
     mockSupabase.maybeSingle.mockResolvedValueOnce({
       data: null,
@@ -170,6 +186,22 @@ describe("PATCH /api/comments/[commentId]", () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({ data: existingComment, error: null })
       .mockResolvedValueOnce({ data: null, error: null });
+
+    const req = createMockRequest("PATCH", { body: "Updated" });
+    const res = await PATCH(req, mockParams);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Post not found");
+  });
+
+  it("returns 404 when parent post is soft-deleted", async () => {
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: existingComment, error: null })
+      .mockResolvedValueOnce({
+        data: { ...existingPost, deleted_at: "2026-06-01" },
+        error: null,
+      });
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
@@ -279,6 +311,22 @@ describe("DELETE /api/comments/[commentId]", () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({ data: existingComment, error: null })
       .mockResolvedValueOnce({ data: null, error: null });
+
+    const req = createMockRequest("DELETE");
+    const res = await DELETE(req, mockParams);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Post not found");
+  });
+
+  it("returns 404 when parent post is soft-deleted", async () => {
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: existingComment, error: null })
+      .mockResolvedValueOnce({
+        data: { ...existingPost, deleted_at: "2026-06-01" },
+        error: null,
+      });
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);

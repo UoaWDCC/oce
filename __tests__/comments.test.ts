@@ -87,6 +87,44 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 when parent comment is soft-deleted", async () => {
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: { deleted_at: null }, error: null })
+      .mockResolvedValueOnce({
+        data: { deleted_at: "2026-06-01" },
+        error: null,
+      });
+
+    const req = createMockRequest("POST", {
+      parent_comment_id: "deleted-comment",
+      body: "Content",
+      image_url: "example.png",
+    });
+    const res = await POST(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Parent comment not found");
+  });
+
+  it("returns 400 when request body is invalid JSON", async () => {
+    mockSupabase.maybeSingle.mockImplementation(() =>
+      Promise.resolve({ data: { deleted_at: null }, error: null }),
+    );
+    const req = new NextRequest(
+      "http://localhost/api/dao-forum/dao-1/posts/post-1/comments",
+      {
+        method: "POST",
+        body: "not json",
+        headers: { Authorization: "Bearer fake-token" },
+      },
+    );
+    const res = await POST(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -110,6 +148,19 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
   it("returns 404 when post is not found", async () => {
     mockSupabase.maybeSingle.mockImplementation(() =>
       Promise.resolve({ data: null, error: null }),
+    );
+
+    const req = createMockRequest("POST", defaultCommentBody);
+    const res = await POST(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Post not found");
+  });
+
+  it("returns 404 when post is soft-deleted", async () => {
+    mockSupabase.maybeSingle.mockImplementation(() =>
+      Promise.resolve({ data: { deleted_at: "2026-06-01" }, error: null }),
     );
 
     const req = createMockRequest("POST", defaultCommentBody);
@@ -228,18 +279,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json).toHaveLength(2);
     expect(json[0].id).toBe("c1");
     expect(json[1].id).toBe("c2");
-  });
-
-  it("returns 400 when sort option is invalid", async () => {
-    const req = new NextRequest(
-      "http://localhost/api/dao-forum/dao-1/posts/post-1/comments?sort=invalid",
-      { method: "GET", headers: { Authorization: "Bearer fake-token" } },
-    );
-    const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
-
-    expect(res.status).toBe(400);
-    expect(json.error).toBe("Invalid sort option");
   });
 
   it("returns 200 with comments sorted by latest", async () => {
@@ -366,6 +405,18 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json[1].id).toBe("c1");
   });
 
+  it("returns 400 when sort option is invalid", async () => {
+    const req = new NextRequest(
+      "http://localhost/api/dao-forum/dao-1/posts/post-1/comments?sort=invalid",
+      { method: "GET", headers: { Authorization: "Bearer fake-token" } },
+    );
+    const res = await GET(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Invalid sort option");
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -399,6 +450,19 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json.error).toBe("Post not found");
   });
 
+  it("returns 404 when post is soft-deleted", async () => {
+    mockSupabase.maybeSingle.mockImplementation(() =>
+      Promise.resolve({ data: { deleted_at: "2026-06-01" }, error: null }),
+    );
+
+    const req = createMockRequest("GET");
+    const res = await GET(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Post not found");
+  });
+
   it("returns 500 when comment query fails", async () => {
     mockSupabase.maybeSingle.mockImplementation(() =>
       Promise.resolve({
@@ -422,5 +486,103 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Comment query failed");
+  });
+
+  it("returns 200 with deleted comments filtered out when no active children", async () => {
+    mockSupabase.maybeSingle.mockImplementation(() =>
+      Promise.resolve({
+        data: { deleted_at: null },
+        error: null,
+      }),
+    );
+    const fakeComment = [
+      {
+        id: "c1",
+        body: "no active children",
+        image_url: null,
+        parent_comment_id: null,
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-01T00:00:00Z",
+        deleted_at: "2026-06-01",
+        like_count: 5,
+        author: {
+          id: "user-1",
+          username: "alice",
+          FirstName: "Alice",
+          LastName: "A",
+        },
+      },
+    ];
+    mockSupabase.eq
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce({ data: fakeComment, error: null });
+
+    const req = createMockRequest("GET");
+    const res = await GET(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json).toEqual([]);
+  });
+
+  it("returns 200 with deleted parent kept but nullified when it has active children", async () => {
+    mockSupabase.maybeSingle.mockImplementation(() =>
+      Promise.resolve({
+        data: { deleted_at: null },
+        error: null,
+      }),
+    );
+    const fakeComments = [
+      {
+        id: "c1",
+        body: "deleted parent with active children",
+        image_url: null,
+        parent_comment_id: null,
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-01T00:00:00Z",
+        deleted_at: "2026-06-01",
+        like_count: 5,
+        author: {
+          id: "user-1",
+          username: "alice",
+          FirstName: "Alice",
+          LastName: "A",
+        },
+      },
+      {
+        id: "c2",
+        body: "active child",
+        image_url: null,
+        parent_comment_id: "c1",
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: "2026-06-01T00:00:00Z",
+        deleted_at: null,
+        like_count: 5,
+        author: {
+          id: "user-1",
+          username: "bob",
+          FirstName: "Bob",
+          LastName: "B",
+        },
+      },
+    ];
+    mockSupabase.eq
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce({
+        data: fakeComments,
+        error: null,
+      });
+
+    const req = createMockRequest("GET");
+    const res = await GET(req, mockParamsWithPostId);
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json).toHaveLength(2);
+    expect(json[0].body).toBeNull();
+    expect(json[0].image_url).toBeNull();
+    expect(json[1].body).toBe("active child");
   });
 });

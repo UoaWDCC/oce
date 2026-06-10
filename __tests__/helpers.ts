@@ -4,14 +4,6 @@ import { NextRequest } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
 
-vi.mock("@/utils/authHelper", () => ({
-  authenticateUser: vi.fn(),
-}));
-
-vi.mock("@/utils/daoMembership", () => ({
-  checkDAOMembership: vi.fn(),
-}));
-
 // --- Mock data ---
 
 export const mockUser = { id: "test-user", email: "test@example.com" };
@@ -81,8 +73,11 @@ export function resetAll() {
   vi.mocked(checkDAOMembership).mockResolvedValue(true);
 }
 
-export function createMockRequest(method: string, body?: object): NextRequest {
-  const url = "http://localhost/api/dao-forum/dao-1/posts";
+export function createMockRequest(
+  method: string,
+  body?: object,
+  url = "http://localhost/api/dao-forum/dao-1/posts",
+): NextRequest {
   const options: RequestInit = {
     method,
     headers: { Authorization: "Bearer fake-token" },

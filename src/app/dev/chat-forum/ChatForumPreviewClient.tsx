@@ -6,6 +6,7 @@ import { ForumComment, ForumPost } from "@/features/chat-forum/types";
 import type { ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
 import { POST_TYPE } from "@app-types/post_types";
+import CommentCard from "@/components/dao-forum/CommentCard";
 
 const previewPosts: ForumPost[] = [
   {
@@ -243,9 +244,21 @@ export default function ChatForumPreviewClient() {
             commentCount={firstPostComments.length}
           />
           <div className="grid gap-3 pl-4 md:pl-8">
-            {firstPostComments.map((comment) => (
-              <PlaceholderCommentCard key={comment.id} comment={comment} />
-            ))}
+            {firstPostComments.map((comment) => {
+              const author = getPreviewAuthor(comment.authorId);
+              return (
+                <CommentCard
+                  key={comment.id}
+                  username={author.displayName}
+                  timestamp={formatDate(comment.createdAt)}
+                  body={comment.body}
+                  likeCount={0}
+                  isLiked={false}
+                  onLike={() => console.log(`Liked comment ${comment.id}`)}
+                  onReply={() => console.log(`Reply to comment ${comment.id}`)}
+                />
+              );
+            })}
           </div>
         </section>
 

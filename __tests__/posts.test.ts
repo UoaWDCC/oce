@@ -6,6 +6,7 @@ import {
   setMockQueryResult,
   resetAll,
   createMockRequest,
+  readJson,
 } from "./helpers";
 import {
   GET as listGET,
@@ -44,7 +45,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
 
     const req = createMockRequest("GET");
     const res = await listGET(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<typeof fakePosts>(res);
 
     expect(res.status).toBe(200);
     expect(json).toEqual(fakePosts);
@@ -66,7 +67,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
 
     const req = createMockRequest("GET");
     const res = await listGET(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("DB error");
@@ -91,7 +92,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       image_url: null,
     });
     const res = await POST(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<typeof newPost>(res);
 
     expect(res.status).toBe(201);
     expect(json).toEqual(newPost);
@@ -139,7 +140,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
 
     const req = createMockRequest("POST", defaultPostBody);
     const res = await POST(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(409);
     expect(json.error).toBe("Conflict with existing state");
@@ -150,7 +151,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
 
     const req = createMockRequest("POST", defaultPostBody);
     const res = await POST(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Insert failed");
@@ -168,7 +169,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("GET");
     const res = await singleGET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<typeof fakePost>(res);
 
     expect(res.status).toBe(200);
     expect(json).toEqual(fakePost);
@@ -190,7 +191,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("GET");
     const res = await singleGET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -201,7 +202,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("GET");
     const res = await singleGET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("DB error");
@@ -238,7 +239,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("PATCH", validBody);
     const res = await PATCH(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ title: string }>(res);
 
     expect(res.status).toBe(200);
     expect(json.title).toBe("Updated");
@@ -272,7 +273,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("PATCH", validBody);
     const res = await PATCH(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(403);
     expect(json.error).toBe(
@@ -310,7 +311,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("PATCH", validBody);
     const res = await PATCH(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Update failed");
@@ -335,7 +336,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ deleted_at: string | null }>(res);
 
     expect(res.status).toBe(200);
     expect(json.deleted_at).toBeTruthy();
@@ -360,7 +361,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(403);
     expect(json.error).toBe(
@@ -400,7 +401,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Comments delete failed");
@@ -420,7 +421,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found or unauthorized");
@@ -439,7 +440,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Post delete failed");

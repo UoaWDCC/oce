@@ -1,6 +1,6 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { NextRequest, NextResponse } from "next/server";
-import { mockSupabase, resetAll, createMockRequest } from "./helpers";
+import { mockSupabase, resetAll, createMockRequest, readJson } from "./helpers";
 import { PATCH, DELETE } from "@/app/api/comments/[commentId]/route";
 import { authenticateUser } from "@/utils/authHelper";
 
@@ -32,6 +32,13 @@ const existingPost = {
   deleted_at: null,
 };
 
+type CommentActionResponse = {
+  comment: {
+    body?: string | null;
+    deleted_at?: string | null;
+  };
+};
+
 describe("PATCH /api/comments/[commentId]", () => {
   beforeEach(() => {
     resetAll();
@@ -51,7 +58,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated body" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<CommentActionResponse>(res);
 
     expect(res.status).toBe(200);
     expect(json.comment.body).toBe("Updated body");
@@ -71,7 +78,7 @@ describe("PATCH /api/comments/[commentId]", () => {
   it("returns 400 when body is not a string or null", async () => {
     const req = createMockRequest("PATCH", { body: 123 });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Comment body must be a string or null");
@@ -80,7 +87,7 @@ describe("PATCH /api/comments/[commentId]", () => {
   it("returns 400 when image_url is not a string or null", async () => {
     const req = createMockRequest("PATCH", { image_url: 123 });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Image URL must be a string or null");
@@ -89,7 +96,7 @@ describe("PATCH /api/comments/[commentId]", () => {
   it("returns 400 when body is empty after trim", async () => {
     const req = createMockRequest("PATCH", { body: "   " });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Comment body cannot be empty");
@@ -98,7 +105,7 @@ describe("PATCH /api/comments/[commentId]", () => {
   it("returns 400 when image_url is empty after trim", async () => {
     const req = createMockRequest("PATCH", { image_url: "   " });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Image URL cannot be empty");
@@ -107,7 +114,7 @@ describe("PATCH /api/comments/[commentId]", () => {
   it("returns 400 when no update fields provided", async () => {
     const req = createMockRequest("PATCH", {});
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("No update fields provided");
@@ -120,7 +127,7 @@ describe("PATCH /api/comments/[commentId]", () => {
       headers: { Authorization: "Bearer fake-token" },
     });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
   });
@@ -133,7 +140,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Comment not found");
@@ -147,7 +154,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Comment not found");
@@ -161,7 +168,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(403);
     expect(json.error).toBe("Forbidden");
@@ -176,7 +183,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: null });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Comment cannot be empty");
@@ -189,7 +196,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -205,7 +212,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -222,7 +229,7 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     const req = createMockRequest("PATCH", { body: "Updated" });
     const res = await PATCH(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Update failed");
@@ -248,7 +255,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<CommentActionResponse>(res);
 
     expect(res.status).toBe(200);
     expect(json.comment.deleted_at).toBeTruthy();
@@ -273,7 +280,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Comment not found");
@@ -287,7 +294,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Comment not found");
@@ -301,7 +308,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(403);
     expect(json.error).toBe("Forbidden");
@@ -314,7 +321,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -330,7 +337,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -347,7 +354,7 @@ describe("DELETE /api/comments/[commentId]", () => {
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Delete failed");

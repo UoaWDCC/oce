@@ -78,7 +78,7 @@ export function createMockRequest(
   body?: object,
   url = "http://localhost/api/dao-forum/dao-1/posts",
 ): NextRequest {
-  const options: RequestInit = {
+  const options: ConstructorParameters<typeof NextRequest>[1] = {
     method,
     headers: { Authorization: "Bearer fake-token" },
   };
@@ -86,4 +86,8 @@ export function createMockRequest(
     options.body = JSON.stringify(body);
   }
   return new NextRequest(url, options);
+}
+
+export function readJson<T>(response: Response): Promise<T> {
+  return response.json<T>();
 }

@@ -5,6 +5,7 @@ import {
   mockSupabase,
   resetAll,
   createMockRequest,
+  readJson,
 } from "./helpers";
 import {
   GET,
@@ -12,6 +13,18 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/comments/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+
+type CommentListItem = {
+  id: string;
+  body: string | null;
+  image_url: string | null;
+  author_id: string;
+  username: string;
+  like_count: number;
+  parent_comment_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -46,7 +59,10 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("POST", defaultCommentBody);
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{
+      success: boolean;
+      comment: { id: string };
+    }>(res);
 
     expect(res.status).toBe(201);
     expect(json.success).toBe(true);
@@ -82,7 +98,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       image_url: "example.png",
     });
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
   });
@@ -101,7 +117,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       image_url: "example.png",
     });
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Parent comment not found");
@@ -120,7 +136,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       },
     );
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
   });
@@ -152,7 +168,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("POST", defaultCommentBody);
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -165,7 +181,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("POST", defaultCommentBody);
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -187,7 +203,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("POST", defaultCommentBody);
     const res = await POST(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Comment insert failed");
@@ -213,7 +229,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<CommentListItem[]>(res);
 
     expect(res.status).toBe(200);
     expect(json).toEqual([]);
@@ -273,7 +289,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     // Default sort is "oldest" — c1 should come first
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<CommentListItem[]>(res);
 
     expect(res.status).toBe(200);
     expect(json).toHaveLength(2);
@@ -335,7 +351,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       { method: "GET", headers: { Authorization: "Bearer fake-token" } },
     );
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<CommentListItem[]>(res);
 
     expect(res.status).toBe(200);
     expect(json).toHaveLength(2);
@@ -397,7 +413,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       { method: "GET", headers: { Authorization: "Bearer fake-token" } },
     );
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<CommentListItem[]>(res);
 
     expect(res.status).toBe(200);
     expect(json).toHaveLength(2);
@@ -411,7 +427,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       { method: "GET", headers: { Authorization: "Bearer fake-token" } },
     );
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Invalid sort option");
@@ -444,7 +460,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -457,7 +473,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Post not found");
@@ -482,7 +498,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Comment query failed");
@@ -520,7 +536,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<CommentListItem[]>(res);
 
     expect(res.status).toBe(200);
     expect(json).toEqual([]);
@@ -577,7 +593,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
 
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
-    const json = await res.json();
+    const json = await readJson<CommentListItem[]>(res);
 
     expect(res.status).toBe(200);
     expect(json).toHaveLength(2);

@@ -59,7 +59,7 @@ const SIZE_CLASSES: Record<
     avatar: "h-20 w-20",
     initials: "text-2xl",
     name: "text-3xl",
-    metadata: "text-2xl",
+    metadata: "text-base",
   },
 };
 

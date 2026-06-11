@@ -110,34 +110,16 @@ function PlaceholderPostCard({
 
   return (
     <PostCard
-          daoId={post.daoId}
-          title={post.title}
-          types={[POST_TYPE.Discussion]}
-          displayName={author.displayName}
-          walletAddress={post.authorId}
-          profileImageUrl={author.profileImageUrl}
-          createdAt={createTimestamp(post.createdAt)}
-          commentCount={commentCount}
-        />
-  );
-}
-
-function PlaceholderCommentCard({ comment }: { comment: ForumComment }) {
-  const author = getPreviewAuthor(comment.authorId);
-
-  return (
-    <article className="rounded-lg border border-dashed border-slate-300 bg-white p-4">
-      <StudentAvatar
-        avatarColor={author.avatarColor}
-        badges={author.badges}
-        displayName={author.displayName}
-        profileImageUrl={author.profileImageUrl}
-        size="sm"
-        timestamp={createTimestamp(comment.createdAt)}
-        walletAddress={comment.authorId}
-      />
-      <p className="mt-2 text-sm leading-6 text-slate-700">{comment.body}</p>
-    </article>
+      daoId={post.daoId}
+      title={post.title}
+      types={[POST_TYPE.Discussion]}
+      displayName={author.displayName}
+      walletAddress={post.authorId}
+      profileImageUrl={author.profileImageUrl}
+      createdAt={createTimestamp(post.createdAt)}
+      commentCount={commentCount}
+      onSelect={() => console.log(`Open post ${post.id}`)}
+    />
   );
 }
 
@@ -249,8 +231,12 @@ export default function ChatForumPreviewClient() {
               return (
                 <CommentCard
                   key={comment.id}
-                  username={author.displayName}
-                  timestamp={formatDate(comment.createdAt)}
+                  avatarColor={author.avatarColor}
+                  badges={author.badges}
+                  displayName={author.displayName}
+                  profileImageUrl={author.profileImageUrl}
+                  timestamp={createTimestamp(comment.createdAt)}
+                  walletAddress={comment.authorId}
                   body={comment.body}
                   likeCount={0}
                   isLiked={false}

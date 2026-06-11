@@ -2,12 +2,15 @@
 
 import React from "react";
 import { Heart, Reply, Trash2 } from "lucide-react";
-import StudentAvatar from "@/components/common/StudentAvatar";
+import StudentAvatar, { Timestamp } from "@/components/common/StudentAvatar";
 
-type CommentCardProps = {
-  username: string;
-  userInitials?: string;
-  timestamp: string;
+export type CommentCardProps = {
+  displayName: string;
+  walletAddress?: string | null;
+  profileImageUrl?: string | null;
+  avatarColor?: string;
+  badges?: React.ReactNode;
+  timestamp: Timestamp;
   body: string;
   likeCount?: number;
   isLiked?: boolean;
@@ -17,9 +20,16 @@ type CommentCardProps = {
   className?: string;
 };
 
+function classNames(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 export default function CommentCard({
-  username,
-  userInitials,
+  displayName,
+  walletAddress,
+  profileImageUrl,
+  avatarColor,
+  badges,
   timestamp,
   body,
   likeCount = 0,
@@ -30,26 +40,41 @@ export default function CommentCard({
   className = "",
 }: CommentCardProps) {
   return (
-    <div className={`flex flex-col gap-3 p-4 bg-white border-l-4 border-purple-500 rounded-lg shadow-sm ${className}`}>
-      {/* Header - Avatar, Username, Timestamp */}
+    <article
+      className={classNames(
+        "flex flex-col gap-3 rounded-lg border border-slate-200 border-l-4 border-l-indigo-500 bg-white p-4 shadow-sm",
+        className,
+      )}
+    >
       <StudentAvatar
-        displayName={username}
+        avatarColor={avatarColor}
+        badges={badges}
+        displayName={displayName}
+        profileImageUrl={profileImageUrl}
         size="sm"
-        timestamp={{ label: timestamp, dateTime: timestamp }}
+        timestamp={timestamp}
+        walletAddress={walletAddress}
       />
 
-      {/* Comment Body */}
-      <p className="text-gray-700 mb-3 whitespace-pre-wrap">{body}</p>
+      <p className="mb-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+        {body}
+      </p>
 
-      {/* Action Buttons */}
       <div className="flex items-center gap-4">
         {onLike && (
           <button
+            aria-label={isLiked ? "Unlike comment" : "Like comment"}
+            aria-pressed={isLiked}
+            type="button"
             onClick={onLike}
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-red-600 transition-colors"
+            className="flex items-center gap-1 text-sm font-semibold text-slate-600 transition-colors hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
           >
             <Heart
-              className={`w-5 h-5 ${isLiked ? 'fill-red-600 text-red-600' : ''}`}
+              aria-hidden="true"
+              className={classNames(
+                "h-5 w-5",
+                isLiked && "fill-red-600 text-red-600",
+              )}
             />
             {likeCount > 0 && <span>{likeCount}</span>}
           </button>
@@ -57,23 +82,27 @@ export default function CommentCard({
 
         {onReply && (
           <button
+            aria-label="Reply to comment"
+            type="button"
             onClick={onReply}
-            className="flex items-center gap-1 text-sm text-gray-600 hover:text-purple-600 transition-colors"
+            className="flex items-center gap-1 text-sm font-semibold text-slate-600 transition-colors hover:text-indigo-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
           >
-            <Reply className="w-5 h-5" />
+            <Reply aria-hidden="true" className="h-5 w-5" />
             Reply
           </button>
         )}
 
         {onDelete && (
           <button
+            aria-label="Delete comment"
+            type="button"
             onClick={onDelete}
-            className="flex-shrink-0 text-gray-400 hover:text-red-600 transition-colors"
+            className="shrink-0 text-slate-400 transition-colors hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 aria-hidden="true" className="h-5 w-5" />
           </button>
         )}
       </div>
-    </div>
+    </article>
   );
 }

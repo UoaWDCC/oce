@@ -1,4 +1,5 @@
-import { CommentCardProps, ForumComment, ForumPost } from "./types";
+import { CommentCardProps } from "@/components/dao-forum/CommentCard";
+import { ForumComment, ForumPost } from "./types";
 
 export const mockForumPosts: ForumPost[] = [];
 
@@ -7,31 +8,41 @@ export const mockForumComments: ForumComment[] = [];
 // Mock data for CommentCard preview
 export const mockCommentCardData: CommentCardProps[] = [
   {
-    username: "Alice Chen",
-    userInitials: "AC",
-    timestamp: "2 hours ago",
+    displayName: "Alice Chen",
+    timestamp: {
+      label: "2 hours ago",
+      dateTime: "2026-05-29T10:00:00.000Z",
+    },
     body: "This is a great proposal! I think we should move forward with this approach.",
     likeCount: 5,
     isLiked: false,
   },
   {
-    username: "Bob Martinez",
-    timestamp: "5 hours ago",
+    displayName: "Bob Martinez",
+    timestamp: {
+      label: "5 hours ago",
+      dateTime: "2026-05-29T07:00:00.000Z",
+    },
     body: "I have some concerns about the timeline. Can we discuss this further in the next meeting?",
     likeCount: 3,
     isLiked: true,
   },
   {
-    username: "Charlie Williams",
-    userInitials: "CW",
-    timestamp: "1 day ago",
+    displayName: "Charlie Williams",
+    timestamp: {
+      label: "1 day ago",
+      dateTime: "2026-05-28T12:00:00.000Z",
+    },
     body: "Great work on this! I especially like the detailed breakdown of the implementation steps.",
     likeCount: 12,
     isLiked: false,
   },
   {
-    username: "Diana Lee",
-    timestamp: "2 days ago",
+    displayName: "Diana Lee",
+    timestamp: {
+      label: "2 days ago",
+      dateTime: "2026-05-27T12:00:00.000Z",
+    },
     body: "Can someone explain how this integrates with our existing governance structure?",
     likeCount: 0,
     isLiked: false,

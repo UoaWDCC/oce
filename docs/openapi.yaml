@@ -13,6 +13,7 @@ tags:
   - name: DAO
   - name: DAO Forum
   - name: Learning
+  - name: AI Tutor
   - name: Blockchain
 paths:
   /api/check-user:
@@ -952,6 +953,106 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalServerError"
+
+  /api/ai-tutor/chat/stream:
+    post:
+      tags:
+        - AI Tutor
+      summary: Stream an AI Tutor chat response from Gemini
+      operationId: streamAiTutorChatResponse
+      description: >
+        Streams incremental AI response chunks from
+        /api/ai-tutor/chat/stream using Server-Sent Events. In local
+        development, the route may also accept Authorization: dev when
+        the dev-only bypass is enabled in code.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - messages
+              properties:
+                messages:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: object
+                    required:
+                      - role
+                      - content
+                    properties:
+                      role:
+                        type: string
+                        enum:
+                          - system
+                          - user
+                          - assistant
+                      content:
+                        type: string
+                config:
+                  type: object
+                  additionalProperties: true
+                  properties:
+                    temperature:
+                      type: number
+                      format: float
+                    maxOutputTokens:
+                      type: integer
+                    topP:
+                      type: number
+                      format: float
+                    stopSequences:
+                      type: array
+                      items:
+                        type: string
+            example:
+              messages:
+                - role: system
+                  content: You are a helpful AI tutor for blockchain and DAO learning.
+                - role: user
+                  content: Explain what a DAO is in three concise bullet points.
+              config:
+                temperature: 0.7
+                maxOutputTokens: 512
+                topP: 0.9
+                stopSequences: []
+      responses:
+        "200":
+          description: Server-Sent Events stream of AI response chunks
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: >
+                  Streamed SSE frames. Each response chunk is sent as data:
+                  <text>, and the stream ends with data: [DONE].
+              example: |
+                data: A DAO is a decentralized autonomous organization.
+
+                data: [DONE]
+
+        "400":
+          description: Invalid request body, such as a missing or empty messages array
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: Messages array is required
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: LLM provider failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: LLM provider error
 
 components:
   securitySchemes:

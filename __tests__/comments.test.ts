@@ -369,7 +369,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
         created_at: "2026-06-01T00:00:00Z",
         updated_at: "2026-06-01T00:00:00Z",
         deleted_at: null,
-        like_count: 5,
         author: {
           id: "user-1",
           username: "alice",
@@ -385,7 +384,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
         created_at: "2026-06-02T00:00:00Z",
         updated_at: "2026-06-02T00:00:00Z",
         deleted_at: null,
-        like_count: 10,
         author: {
           id: "user-2",
           username: "bob",
@@ -401,6 +399,16 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
         error: null,
       }),
     );
+    // c1 gets 1 like, c2 gets 3 likes — c2 should sort first
+    mockSupabase.in.mockResolvedValueOnce({
+      data: [
+        { comment_id: "c1", user_id: "user-1" },
+        { comment_id: "c2", user_id: "user-1" },
+        { comment_id: "c2", user_id: "user-2" },
+        { comment_id: "c2", user_id: "user-3" },
+      ],
+      error: null,
+    });
     mockSupabase.eq
       .mockReturnValueOnce(mockSupabase)
       .mockReturnValueOnce(mockSupabase)

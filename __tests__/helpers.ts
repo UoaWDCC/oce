@@ -31,6 +31,7 @@ export const mockSupabase = {
   from: vi.fn().mockReturnThis(),
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
+  in: vi.fn(() => Promise.resolve({ data: [], error: null })),
   order: vi.fn(() => Promise.resolve(mockQueryResult)),
   insert: vi.fn().mockReturnThis(),
   update: vi.fn().mockReturnThis(),
@@ -47,6 +48,9 @@ export function resetMockSupabase() {
   mockSupabase.from.mockReturnThis();
   mockSupabase.select.mockReturnThis();
   mockSupabase.eq.mockReturnThis();
+  mockSupabase.in.mockImplementation(() =>
+    Promise.resolve({ data: [], error: null }),
+  );
   mockSupabase.insert.mockReturnThis();
   mockSupabase.update.mockReturnThis();
   mockSupabase.delete.mockReturnThis();

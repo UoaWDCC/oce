@@ -8,7 +8,7 @@ export default function ChatArea() {
 
   return (
     <div
-      className={`${open ? `` : `hidden`} fixed top-0 left-0 h-full w-full p-0 z-30 bg-white`}
+      className={`${open ? `` : `hidden`} fixed top-0 left-0 h-full w-full p-0 z-100 bg-white`}
     >
       <div className="flex h-full w-full p-5">
         <div className="w-full flex gap-3">

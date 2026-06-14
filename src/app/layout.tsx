@@ -4,6 +4,11 @@ import "./globals.css";
 import { UserProvider } from "../app/(with-navbar)/dao/userContext";
 import ClientNavigation from "@/components/clientNavigation";
 import { headers } from "next/headers";
+import ChatButton from "@/components/chatbot/chatButton";
+import { ChatModalProvider } from "@/context/ChatBoxModalProvider";
+import { authenticateUser } from "@/utils/authHelper";
+import ChatSection from "@/components/chatbot/chatSection";
+import ChatWrapper from "@/components/chatbot/chatWrapper";
 
 const agreya = Alegreya_SC({
   weight: ["400", "500", "700", "800", "900"],
@@ -88,7 +93,6 @@ export async function generateMetadata(): Promise<Metadata> {
     },
   };
 }
-
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -107,6 +111,7 @@ export default async function RootLayout({
         className={`${agreya.variable} ${inter.variable} antialiased bg-white`}
       >
         <UserProvider>
+          <ChatWrapper />
           <div className="relative w-full min-h-screen bg-white text-gray-800">
             <ClientNavigation>{children}</ClientNavigation>
           </div>

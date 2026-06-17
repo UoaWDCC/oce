@@ -30,7 +30,7 @@ export default function TextArea({
         <textarea
           className={`text-sm flex-1 min-w-0 outline-none resize-none min-`}
           style={{
-            height: `${Math.min(textAreaRef.current?.scrollHeight ?? 40, 60)}px`,
+            height: `${Math.min(textAreaRef.current?.scrollHeight ?? 20, 60)}px`,
           }}
           ref={textAreaRef}
           value={inputValue}

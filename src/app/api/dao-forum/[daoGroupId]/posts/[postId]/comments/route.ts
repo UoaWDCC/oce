@@ -179,7 +179,6 @@ export async function GET(
         created_at,
         updated_at,
         deleted_at,
-        like_count,
         author:AllowedUsers!author_id (
           id,
           username,
@@ -197,11 +196,34 @@ export async function GET(
     );
   }
 
+  const commentIds = commentsData?.map((c) => c.id) || [];
+
+  const { data: likeCounts, error: likeCountsError } = await supabase
+    .from("comment_likes")
+    .select("comment_id, user_id")
+    .in("comment_id", commentIds);
+
+  if (likeCountsError) {
+    return NextResponse.json(
+      { error: likeCountsError.message },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
   if (!commentsData) {
     return NextResponse.json([], { headers: corsHeaders });
   }
 
   const comments = commentsData as unknown as RawComment[];
+  const likeCountMap: Record<string, number> = {};
+  likeCounts?.forEach((lc) => {
+    likeCountMap[lc.comment_id] = (likeCountMap[lc.comment_id] || 0) + 1;
+  });
+  const likedByUser = new Set(
+    likeCounts
+      ?.filter((lc) => lc.user_id === user.id)
+      .map((lc) => lc.comment_id),
+  );
 
   const activeChildCounts: Record<string, number> = {};
   comments.forEach((comment) => {
@@ -222,7 +244,8 @@ export async function GET(
       image_url: comment.deleted_at ? null : comment.image_url,
       author_id: comment.author?.id || "",
       username: comment.author?.username || "",
-      like_count: comment.like_count || 0,
+      like_count: likeCountMap[comment.id] || 0,
+      is_liked: likedByUser.has(comment.id),
       parent_comment_id: comment.parent_comment_id,
       created_at: comment.created_at,
       updated_at: comment.updated_at,

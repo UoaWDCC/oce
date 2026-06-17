@@ -1,42 +1,19 @@
 import { useState, useRef, useEffect } from "react";
-import { ChatMessageType } from "@/../types/chat";
+import { ChatMessageType } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
 import ChatInput from "../chatInput";
-import { useChatModal } from "@/context/ChatBoxModalProvider";
+import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
+import { mockChatMessages } from "@/features/chatbot/mocks";
 
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
   //NOTE: the way that message content is passed into the div hasn't been finalised
-  const [messages, setMessages] = useState<ChatMessageType[]>([
-    {
-      type: "user",
-      message: "test",
-    },
-    {
-      type: "bot",
-      message: `
-# Weekly Update
-
-Completed tasks:
-- Finished homepage redesign  
-- Updated mobile navigation  
-- Fixed login bug  
-
-Next steps:
-- User testing on Tuesday  
-- Accessibility review on Thursday  
-
-Notes:  
-The new layout improves readability  
-and creates clearer visual hierarchy.
-`,
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
   const lastMessageRef = useRef<HTMLDivElement>(null);
   function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);

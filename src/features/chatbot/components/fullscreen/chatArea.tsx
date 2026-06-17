@@ -1,5 +1,5 @@
 "use client";
-import { useChatModal } from "@/context/ChatBoxModalProvider";
+import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import ChatFullscreen from "./chatFullscreen";
 import ConversationsList from "./conversationsList";
 

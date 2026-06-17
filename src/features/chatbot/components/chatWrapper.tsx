@@ -1,5 +1,5 @@
 "use client";
-import { ChatModalProvider } from "@/context/ChatBoxModalProvider";
+import { ChatModalProvider } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import ChatSection from "./chatSection";
 import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";

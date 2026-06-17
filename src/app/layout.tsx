@@ -4,11 +4,7 @@ import "./globals.css";
 import { UserProvider } from "../app/(with-navbar)/dao/userContext";
 import ClientNavigation from "@/components/clientNavigation";
 import { headers } from "next/headers";
-import ChatButton from "@/components/chatbot/chatButton";
-import { ChatModalProvider } from "@/context/ChatBoxModalProvider";
-import { authenticateUser } from "@/utils/authHelper";
-import ChatSection from "@/components/chatbot/chatSection";
-import ChatWrapper from "@/components/chatbot/chatWrapper";
+import ChatWrapper from "@/features/chatbot/components/chatWrapper";
 
 const agreya = Alegreya_SC({
   weight: ["400", "500", "700", "800", "900"],

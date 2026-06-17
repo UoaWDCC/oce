@@ -5,7 +5,7 @@ import Image from "next/image";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
-import ChatInput from "../chatInput";
+import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { mockChatMessages } from "@/features/chatbot/mocks";
 
@@ -15,6 +15,7 @@ export default function ChatFullscreen() {
   //NOTE: the way that message content is passed into the div hasn't been finalised
   const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
   const lastMessageRef = useRef<HTMLDivElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);
   }
@@ -88,7 +89,7 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 absolute bottom-5 righ
       </div>
       <div className="bg-transparent w-full bg-none">
         <div className="">
-          <ChatInput submitMessage={submitMessage} />
+          <TextArea submitMessage={submitMessage} textAreaRef={textAreaRef} />
         </div>
       </div>
     </div>

@@ -1,17 +1,16 @@
 "use client";
 import Image from "next/image";
-import { ChangeEvent, ReactNode, RefObject, useEffect, useState } from "react";
+import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { ChatMessageType } from "@/features/chatbot/types";
 
 interface TextAreaPropsType {
   submitMessage(chatMessage: ChatMessageType): void;
-  textAreaRef: RefObject<HTMLTextAreaElement | null>;
 }
 
 export default function TextArea({
   submitMessage,
-  textAreaRef,
 }: TextAreaPropsType): ReactNode {
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [inputValue, setInputValue] = useState<string>("");
   function updateInputValue(e: ChangeEvent<HTMLTextAreaElement>) {
     setInputValue(e.target.value);

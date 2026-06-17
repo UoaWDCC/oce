@@ -15,7 +15,6 @@ export default function ChatFullscreen() {
   //NOTE: the way that message content is passed into the div hasn't been finalised
   const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
   const lastMessageRef = useRef<HTMLDivElement>(null);
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
   function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);
   }
@@ -89,7 +88,7 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 absolute bottom-5 righ
       </div>
       <div className="bg-transparent w-full bg-none">
         <div className="">
-          <TextArea submitMessage={submitMessage} textAreaRef={textAreaRef} />
+          <TextArea submitMessage={submitMessage} />
         </div>
       </div>
     </div>

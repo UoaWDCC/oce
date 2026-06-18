@@ -1,3 +1,5 @@
+import { ReactNode } from "react";
+
 export interface ForumPost {
   id: string;
   daoId: string;
@@ -13,4 +15,13 @@ export interface ForumComment {
   body: string;
   authorId: string;
   createdAt: string;
+}
+
+export interface AuthorProfile {
+  id: string;
+  displayName: string;
+  walletAddress: string | null;
+  profileImageUrl: string | null;
+  avatarColor: string | null;
+  badges: ReactNode;
 }

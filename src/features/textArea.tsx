@@ -40,6 +40,7 @@ export default function TextArea({
               if (e.shiftKey) {
                 return;
               }
+              e.preventDefault();
               setInputValue("");
               submitMessage({
                 type: "user",

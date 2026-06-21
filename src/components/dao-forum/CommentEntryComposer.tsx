@@ -5,7 +5,6 @@ import ForumEntryComposer from "./ForumEntryComposer";
 
 export type CommentSubmitPayload = {
   body: string;
-  imageUrl?: string;
   parentCommentId?: string;
 };
 
@@ -22,10 +21,9 @@ export default function CommentEntryComposer({
   disabled = false,
   className = "",
 }: CommentEntryComposerProps) {
-  const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
+  const handleSubmit = async (data: { body: string }) => {
     await onSubmit({
       body: data.body,
-      imageUrl: data.imageUrl,
       parentCommentId,
     });
   };
@@ -37,6 +35,7 @@ export default function CommentEntryComposer({
       onSubmit={handleSubmit}
       disabled={disabled}
       className={className}
+      showAttachButton={false}
     />
   );
 }

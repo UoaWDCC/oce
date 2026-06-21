@@ -161,21 +161,8 @@ export default function ForumEntryComposer({
         </p>
       )}
 
-      {showAttachButton && !isFullVariant && (
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleImageAttach}
-            disabled={isDisabled}
-            className={classNames(
-              "rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
-              isDisabled && "cursor-not-allowed opacity-50",
-            )}
-            aria-label="Attach image"
-          >
-            <Paperclip className="h-5 w-5" />
-          </button>
-
+      {!isFullVariant && (
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={handleSubmit}

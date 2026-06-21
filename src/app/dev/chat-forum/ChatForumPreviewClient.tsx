@@ -253,10 +253,13 @@ export default function ChatForumPreviewClient() {
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Comment Entry Composer</h2>
           <p className="text-sm text-slate-600">
-            Compact composer for adding comments to forum threads.
+            Compact composer for adding comments to forum threads. Set{" "}
+            <code className="rounded bg-slate-100 px-1">showAttachment</code> to
+            enable media support.
           </p>
           <div className="max-w-2xl">
             <CommentEntryComposer
+              showAttachment
               onSubmit={async (payload) => {
                 console.log("Comment submitted:", payload);
                 await new Promise((resolve) => setTimeout(resolve, 1000));

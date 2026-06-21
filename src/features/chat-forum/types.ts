@@ -14,3 +14,39 @@ export interface ForumComment {
   authorId: string;
   createdAt: string;
 }
+
+export type ForumPostType =
+  | "Announcement"
+  | "Proposal"
+  | "Question"
+  | "Discussion"
+  | "Resource";
+
+export interface ForumPostPreview {
+  id: string;
+  daoId: string;
+  title: string;
+  excerpt: string;
+  authorName: string;
+  authorWallet?: string;
+  createdAt: string;
+  createdAtLabel: string;
+  commentCount: number;
+  likeCount: number;
+  types: ForumPostType[];
+  tags: string[];
+  isPinned?: boolean;
+  isUnread?: boolean;
+}
+
+export interface ForumCommentPreview {
+  id: string;
+  postId: string;
+  authorName: string;
+  authorWallet?: string;
+  body: string;
+  createdAt: string;
+  createdAtLabel: string;
+  likeCount: number;
+  isLiked?: boolean;
+}

@@ -7,6 +7,11 @@ import type { ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
 import { POST_TYPE } from "@app-types/post_types";
 import CommentCard from "@/components/dao-forum/CommentCard";
+import { ForumPanel } from "@/features/chat-forum";
+import {
+  mockForumCommentPreviews,
+  mockForumPostPreviews,
+} from "@/features/chat-forum/mocks";
 
 const previewPosts: ForumPost[] = [
   {
@@ -109,7 +114,6 @@ function PlaceholderPostCard({
   const author = getPreviewAuthor(post.authorId);
 
   return (
-<<<<<<< HEAD
     <PostCard
       daoId={post.daoId}
       title={post.title}
@@ -121,17 +125,6 @@ function PlaceholderPostCard({
       commentCount={commentCount}
       onSelect={() => console.log(`Open post ${post.id}`)}
     />
-=======
-    <article className="rounded-lg border border-dashed border-slate-300 bg-white p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
-        <span>{comment.authorId}</span>
-        <time dateTime={comment.createdAt}>
-          {formatDate(comment.createdAt)}
-        </time>
-      </div>
-      <p className="mt-2 text-sm leading-6 text-slate-700">{comment.body}</p>
-    </article>
->>>>>>> main
   );
 }
 
@@ -169,6 +162,15 @@ export default function ChatForumPreviewClient() {
             are added.
           </p>
         </header>
+
+        <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-slate-50 to-purple-50 p-4 shadow-sm sm:p-6">
+          <ForumPanel
+            comments={mockForumCommentPreviews}
+            daoId="0x333B47F13128A1225A434d9f403A3e850B0B48D"
+            daoName="WDCC DAO"
+            posts={mockForumPostPreviews}
+          />
+        </section>
 
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Student Avatar</h2>

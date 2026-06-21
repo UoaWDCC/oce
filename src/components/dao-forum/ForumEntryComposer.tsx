@@ -98,10 +98,10 @@ export default function ForumEntryComposer({
   return (
     <div
       className={classNames(
-        "flex flex-col gap-2",
+        "flex flex-col gap-3",
         isFullVariant
           ? "rounded-xl bg-white"
-          : "rounded-xl border border-slate-200 bg-slate-50 p-4",
+          : "rounded-lg border border-slate-200 bg-white p-4 shadow-sm",
         className,
       )}
     >

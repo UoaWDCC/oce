@@ -109,6 +109,7 @@ function PlaceholderPostCard({
   const author = getPreviewAuthor(post.authorId);
 
   return (
+<<<<<<< HEAD
     <PostCard
       daoId={post.daoId}
       title={post.title}
@@ -120,6 +121,17 @@ function PlaceholderPostCard({
       commentCount={commentCount}
       onSelect={() => console.log(`Open post ${post.id}`)}
     />
+=======
+    <article className="rounded-lg border border-dashed border-slate-300 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-medium text-slate-500">
+        <span>{comment.authorId}</span>
+        <time dateTime={comment.createdAt}>
+          {formatDate(comment.createdAt)}
+        </time>
+      </div>
+      <p className="mt-2 text-sm leading-6 text-slate-700">{comment.body}</p>
+    </article>
+>>>>>>> main
   );
 }
 

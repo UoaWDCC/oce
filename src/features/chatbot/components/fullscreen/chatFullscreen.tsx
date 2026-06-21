@@ -5,7 +5,7 @@ import Image from "next/image";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
-import ChatInput from "../chatInput";
+import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { mockChatMessages } from "@/features/chatbot/mocks";
 
@@ -32,7 +32,7 @@ export default function ChatFullscreen() {
 ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 overflow-hidden z-20 md:w-2/5 lg:w-1/4`} bg-white  shadow-xl
 `}
     >
-      <div className="absolute bottom-15 right-1/2 z-40">
+      <div className="absolute bottom-20 right-1/2 z-40">
         {!isVisible && (
           <ChatDownButton
             scrollDown={() =>
@@ -88,7 +88,7 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 absolute bottom-5 righ
       </div>
       <div className="bg-transparent w-full bg-none">
         <div className="">
-          <ChatInput submitMessage={submitMessage} />
+          <TextArea submitMessage={submitMessage} />
         </div>
       </div>
     </div>

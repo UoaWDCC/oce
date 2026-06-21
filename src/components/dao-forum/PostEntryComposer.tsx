@@ -1,52 +1,49 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, Megaphone, HelpCircle, MessageCircle, Package } from "lucide-react";
+import {
+  X,
+  Megaphone,
+  HelpCircle,
+  MessageCircle,
+  Lightbulb,
+  BookOpen,
+} from "lucide-react";
+import { POST_TYPE, PostType } from "@app-types/post_types";
 import ForumEntryComposer from "./ForumEntryComposer";
 
-const POST_TYPES = [
-  {
-    id: "announcement",
-    label: "Announcement",
+const POST_TYPE_CONFIG: Record<
+  PostType,
+  { icon: typeof Megaphone; bgColor: string }
+> = {
+  [POST_TYPE.Announcement]: {
     icon: Megaphone,
     bgColor: "bg-amber-400",
   },
-  {
-    id: "proposal",
-    label: "Proposal",
-    icon: Package,
-    bgColor: "bg-cyan-400",
+  [POST_TYPE.Proposal]: {
+    icon: Lightbulb,
+    bgColor: "bg-sky-400",
   },
-  {
-    id: "question",
-    label: "Question",
+  [POST_TYPE.Question]: {
     icon: HelpCircle,
-    bgColor: "bg-red-400",
+    bgColor: "bg-rose-400",
   },
-  {
-    id: "general",
-    label: "General",
+  [POST_TYPE.Discussion]: {
     icon: MessageCircle,
-    bgColor: "bg-slate-500",
+    bgColor: "bg-purple-400",
   },
-] as const;
-
-type PostTypeId = (typeof POST_TYPES)[number]["id"];
-
-const DEFAULT_TAGS = [
-  "Smart Contracts",
-  "DeFi",
-  "Governance",
-  "Technical",
-  "Tokenomics",
-  "General",
-];
+  [POST_TYPE.Resource]: {
+    icon: BookOpen,
+    bgColor: "bg-emerald-400",
+  },
+};
 
 export type PostSubmitPayload = {
   title: string;
   body: string;
-  postType: PostTypeId;
-  tags: string[];
+  postType: PostType;
+  anonymous: boolean;
+  isPinned: boolean;
   imageUrl?: string;
 };
 
@@ -55,7 +52,8 @@ export type PostEntryComposerProps = {
   onSubmit: (payload: PostSubmitPayload) => Promise<void>;
   onCancel?: () => void;
   onClose?: () => void;
-  availableTags?: string[];
+  showAnonymousToggle?: boolean;
+  showPinnedToggle?: boolean;
   disabled?: boolean;
   className?: string;
 };
@@ -69,27 +67,16 @@ export default function PostEntryComposer({
   onSubmit,
   onCancel,
   onClose,
-  availableTags = DEFAULT_TAGS,
+  showAnonymousToggle = true,
+  showPinnedToggle = false,
   disabled = false,
   className = "",
 }: PostEntryComposerProps) {
   const [title, setTitle] = useState("");
-  const [postType, setPostType] = useState<PostTypeId>("general");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [postType, setPostType] = useState<PostType>(POST_TYPE.Discussion);
+  const [anonymous, setAnonymous] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
-
-  const handleTagToggle = (tag: string) => {
-    setSelectedTags((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
-    );
-  };
-
-  const handleCreateTag = () => {
-    const newTag = prompt("Enter new tag name:");
-    if (newTag && newTag.trim() && !selectedTags.includes(newTag.trim())) {
-      setSelectedTags((prev) => [...prev, newTag.trim()]);
-    }
-  };
 
   const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
     setTitleError(null);
@@ -103,14 +90,18 @@ export default function PostEntryComposer({
       title: title.trim(),
       body: data.body,
       postType,
-      tags: selectedTags,
+      anonymous,
+      isPinned,
       imageUrl: data.imageUrl,
     });
 
     setTitle("");
-    setPostType("general");
-    setSelectedTags([]);
+    setPostType(POST_TYPE.Discussion);
+    setAnonymous(false);
+    setIsPinned(false);
   };
+
+  const postTypes = Object.values(POST_TYPE);
 
   return (
     <div
@@ -165,18 +156,19 @@ export default function PostEntryComposer({
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
             Post Type
           </label>
-          <div className="grid grid-cols-4 gap-3">
-            {POST_TYPES.map((type) => {
-              const Icon = type.icon;
-              const isSelected = postType === type.id;
+          <div className="grid grid-cols-5 gap-3">
+            {postTypes.map((type) => {
+              const config = POST_TYPE_CONFIG[type];
+              const Icon = config.icon;
+              const isSelected = postType === type;
               return (
                 <button
-                  key={type.id}
+                  key={type}
                   type="button"
-                  onClick={() => setPostType(type.id)}
+                  onClick={() => setPostType(type)}
                   disabled={disabled}
                   className={classNames(
-                    "flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors",
+                    "flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors",
                     isSelected
                       ? "border-violet-500 bg-violet-50"
                       : "border-slate-200 bg-white hover:border-slate-300",
@@ -185,19 +177,19 @@ export default function PostEntryComposer({
                 >
                   <span
                     className={classNames(
-                      "flex h-12 w-12 items-center justify-center rounded-lg",
-                      type.bgColor,
+                      "flex h-10 w-10 items-center justify-center rounded-lg",
+                      config.bgColor,
                     )}
                   >
-                    <Icon className="h-6 w-6 text-white" />
+                    <Icon className="h-5 w-5 text-white" />
                   </span>
                   <span
                     className={classNames(
-                      "text-sm font-medium",
+                      "text-xs font-medium",
                       isSelected ? "text-violet-700" : "text-slate-700",
                     )}
                   >
-                    {type.label}
+                    {type}
                   </span>
                 </button>
               );
@@ -205,44 +197,35 @@ export default function PostEntryComposer({
           </div>
         </div>
 
-        <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Tags
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {availableTags.map((tag) => {
-              const isSelected = selectedTags.includes(tag);
-              return (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => handleTagToggle(tag)}
+        {(showAnonymousToggle || showPinnedToggle) && (
+          <div className="flex flex-wrap gap-4">
+            {showAnonymousToggle && (
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={anonymous}
+                  onChange={(e) => setAnonymous(e.target.checked)}
                   disabled={disabled}
-                  className={classNames(
-                    "rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                    isSelected
-                      ? "border-violet-500 bg-violet-50 text-violet-700"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300",
-                    disabled && "cursor-not-allowed opacity-50",
-                  )}
-                >
-                  {tag}
-                </button>
-              );
-            })}
-            <button
-              type="button"
-              onClick={handleCreateTag}
-              disabled={disabled}
-              className={classNames(
-                "rounded-full border border-dashed border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-500",
-                disabled && "cursor-not-allowed opacity-50",
-              )}
-            >
-              + Create tag
-            </button>
+                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                />
+                Post anonymously
+              </label>
+            )}
+
+            {showPinnedToggle && (
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={isPinned}
+                  onChange={(e) => setIsPinned(e.target.checked)}
+                  disabled={disabled}
+                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+                />
+                Pin post
+              </label>
+            )}
           </div>
-        </div>
+        )}
 
         <ForumEntryComposer
           placeholder="Write your post content here..."

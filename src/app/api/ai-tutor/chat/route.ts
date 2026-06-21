@@ -103,37 +103,35 @@ export async function POST(req: Request) {
       .single();
 
     if (!titledConversation?.title) {
-      void (async () => {
-        try {
-          const provider = createLLMProvider();
-          const title = await provider.complete(
-            [
-              {
-                role: "user",
-                content: `Generate one concise, natural conversation title in sentence case.
+      try {
+        const provider = createLLMProvider();
+        const title = await provider.complete(
+          [
+            {
+              role: "user",
+              content: `Generate one concise, natural conversation title in sentence case.
 Keep it under 10 words.
 Return only the title, with no quotes, bullet points, or explanation.
 
 User message: ${content.trim()}`,
-              },
-            ],
-            {},
-          );
-          const cleanedTitle = title
-            .trim()
-            .replace(/^["']|["']$/g, "")
-            .slice(0, 80);
+            },
+          ],
+          {},
+        );
+        const cleanedTitle = title
+          .trim()
+          .replace(/^["']|["']$/g, "")
+          .slice(0, 80);
 
-          if (!cleanedTitle) return;
-
+        if (cleanedTitle) {
           await supabase
             .from("conversations")
             .update({ title: cleanedTitle })
             .eq("id", conversation_id);
-        } catch (error) {
-          console.warn("AI tutor title generation failed:", error);
         }
-      })();
+      } catch (error) {
+        console.warn("AI tutor title generation failed:", error);
+      }
     }
 
     return Response.json({ message }, { status: 201, headers: corsHeaders });

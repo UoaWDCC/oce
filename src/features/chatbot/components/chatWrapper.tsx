@@ -4,7 +4,7 @@ import ChatSection from "./chatSection";
 import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
+import { JwtPayload, Session, User } from "@supabase/supabase-js";
 
 export default function ChatWrapper() {
   const [user, setUser] = useState<User | null>(null);
@@ -13,16 +13,18 @@ export default function ChatWrapper() {
   useEffect(() => {
     const supabase = createClient();
 
-    async function checkUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session ? session.user : null);
+    });
 
-      setUser(user);
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setUser(session ? session.user : null);
       setLoading(false);
-    }
+    });
 
-    checkUser();
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading || !user) {

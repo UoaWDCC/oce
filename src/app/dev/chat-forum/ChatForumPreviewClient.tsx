@@ -9,6 +9,11 @@ import { POST_TYPE } from "@app-types/post_types";
 import CommentCard from "@/components/dao-forum/CommentCard";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
+import { ForumPanel } from "@/features/chat-forum";
+import {
+  mockForumCommentPreviews,
+  mockForumPostPreviews,
+} from "@/features/chat-forum/mocks";
 
 const previewPosts: ForumPost[] = [
   {
@@ -159,6 +164,15 @@ export default function ChatForumPreviewClient() {
             are added.
           </p>
         </header>
+
+        <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-slate-50 to-purple-50 p-4 shadow-sm sm:p-6">
+          <ForumPanel
+            comments={mockForumCommentPreviews}
+            daoId="0x333B47F13128A1225A434d9f403A3e850B0B48D"
+            daoName="WDCC DAO"
+            posts={mockForumPostPreviews}
+          />
+        </section>
 
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Student Avatar</h2>

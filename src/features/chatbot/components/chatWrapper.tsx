@@ -4,7 +4,7 @@ import ChatSection from "./chatSection";
 import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
-import { JwtPayload, Session, User } from "@supabase/supabase-js";
+import { User } from "@supabase/supabase-js";
 
 export default function ChatWrapper() {
   const [user, setUser] = useState<User | null>(null);

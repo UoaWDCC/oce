@@ -29,7 +29,7 @@ export default function ChatFullscreen() {
   return (
     <div
       className={`${open ? `` : `hidden`} flex flex-col rounded-2xl 
-${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 absolute bottom-5 right-5 max-h-1/2 w-3/5 overflow-hidden z-20 md:w-2/5 lg:w-1/4`} bg-white  shadow-xl
+${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5 max-h-1/2 w-3/5 overflow-hidden z-70 md:w-2/5 lg:w-1/4`} bg-white shadow-xl
 `}
     >
       <div className="absolute bottom-20 right-1/2 z-40">

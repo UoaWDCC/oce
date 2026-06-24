@@ -3,6 +3,7 @@
 @theme inline {
   --font-sans: var(--font-inter);
   --color-dark: var(--dark-bg);
+  --color-message-grey: #f2f2f2;
   --font-serif: var(--font-algreya);
 }
 
@@ -210,4 +211,9 @@ html {
 
 .animate-slide-side {
   animation: slideSideToSide 2s ease-in-out infinite;
+}
+
+/* prevent tailwind from overriding markdown*/
+.markdown > * {
+  all: revert;
 }

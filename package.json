@@ -15,11 +15,13 @@
     "format": "prettier . --write",
     "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "preview": "opennextjs-cloudflare build && wrangler dev",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "test": "vitest"
   },
   "dependencies": {
     "@daohaus/abis": "^0.5.5",
     "@daohaus/contract-utils": "^0.5.5",
+    "@google/genai": "^2.4.0",
     "@metamask/jazzicon": "github:metamask/jazzicon",
     "@namestone/namestone-sdk": "^0.2.15",
     "@radix-ui/react-switch": "^1.2.6",
@@ -43,6 +45,7 @@
     "react": "19.0.1",
     "react-dom": "19.0.1",
     "react-hook-form": "^7.62.0",
+    "react-markdown": "^10.1.0",
     "supabase": "^2.39.2",
     "zod": "^3.25.76"
   },
@@ -61,6 +64,7 @@
     "prettier": "^3.5.3",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vitest": "^4.1.8",
     "wrangler": "^4.4.0"
   }
 }

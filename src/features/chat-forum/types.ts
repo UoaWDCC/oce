@@ -32,7 +32,6 @@ export interface ForumPostPreview {
   createdAt: string;
   createdAtLabel: string;
   commentCount: number;
-  likeCount: number;
   types: ForumPostType[];
   tags: string[];
   isPinned?: boolean;

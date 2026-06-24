@@ -34,7 +34,7 @@ type ForumPanelProps = {
 };
 
 type PostTypeFilter = "All" | ForumPostType;
-type SortOption = "Recent" | "Top Voted" | "Unanswered";
+type SortOption = "Recent" | "Unanswered";
 
 const POST_TYPES: Array<{
   label: PostTypeFilter;
@@ -69,7 +69,7 @@ const POST_TYPES: Array<{
   },
 ];
 
-const SORT_OPTIONS: SortOption[] = ["Recent", "Top Voted", "Unanswered"];
+const SORT_OPTIONS: SortOption[] = ["Recent", "Unanswered"];
 
 function PostPreview({
   post,
@@ -92,20 +92,15 @@ function PostPreview({
         walletAddress={post.authorWallet}
       />
       <p className="mt-3 text-sm leading-6 text-slate-600">{post.excerpt}</p>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          {post.tags.map((tag) => (
-            <span
-              key={tag}
-              className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
-        <span className="text-xs font-semibold text-slate-400">
-          {post.likeCount} votes
-        </span>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {post.tags.map((tag) => (
+          <span
+            key={tag}
+            className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
+          >
+            {tag}
+          </span>
+        ))}
       </div>
     </article>
   );
@@ -147,7 +142,6 @@ export default function ForumPanel({
     });
 
     return [...filtered].sort((left, right) => {
-      if (sort === "Top Voted") return right.likeCount - left.likeCount;
       if (sort === "Unanswered") return left.commentCount - right.commentCount;
       return Date.parse(right.createdAt) - Date.parse(left.createdAt);
     });

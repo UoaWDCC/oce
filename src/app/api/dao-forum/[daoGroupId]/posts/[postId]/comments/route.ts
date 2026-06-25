@@ -122,7 +122,7 @@ export async function POST(
   }
 
   return NextResponse.json(
-    { success: true, comment: newComment },
+    { success: true, comment: newComment as FormattedComment },
     { status: 201, headers: corsHeaders },
   );
 }

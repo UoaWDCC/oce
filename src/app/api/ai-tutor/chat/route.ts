@@ -95,6 +95,11 @@ export async function POST(req: Request) {
       );
     }
 
+    await supabase
+      .from("conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversation_id);
+
     // Check if conversation already has a title
     const { data: titledConversation } = await supabase
       .from("conversations")

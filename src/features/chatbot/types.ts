@@ -8,4 +8,5 @@ export interface Conversation {
   title: string | null;
   status: string;
   created_at: string;
+  updated_at: string;
 }

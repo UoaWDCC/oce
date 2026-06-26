@@ -151,6 +151,30 @@ export default function ChatbotPreviewClient() {
           </div>
         </section>
 
+        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Conversation List States</h2>
+          <div className="flex gap-6">
+            <div className="flex flex-col gap-2 w-48">
+              <p className="text-sm text-slate-500">Loading</p>
+              <div className="rounded-2xl h-80 shadow-xl outline outline-message-grey overflow-y-auto flex flex-col items-center justify-center p-4 gap-2">
+                <p className="text-sm text-slate-500 font-semibold text-center">Loading...</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 w-48">
+              <p className="text-sm text-slate-500">Empty</p>
+              <div className="rounded-2xl h-80 shadow-xl outline outline-message-grey overflow-y-auto flex flex-col items-center justify-center p-4 gap-2">
+                <p className="text-sm text-slate-500 font-semibold text-center">No conversations yet.</p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 w-48">
+              <p className="text-sm text-slate-500">Error</p>
+              <div className="rounded-2xl h-80 shadow-xl outline outline-message-grey overflow-y-auto flex flex-col items-center justify-center p-4 gap-2">
+                <p className="text-sm text-slate-500 font-semibold text-center">Could not load conversations.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="grid gap-4">
           <ChatButtonPreview />
         </section>

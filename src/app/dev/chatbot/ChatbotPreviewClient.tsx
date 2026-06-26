@@ -14,6 +14,7 @@ import {
   ChatModalProvider,
   useChatModal,
 } from "@/features/chatbot/providers/ChatBoxModalProvider";
+import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
 import { ChatMessageType } from "@/features/chatbot/types";
 import TextArea from "@/features/textArea";
 
@@ -133,11 +134,13 @@ export default function ChatbotPreviewClient() {
           <h2 className="text-lg font-semibold">Conversation List</h2>
           <div className="grid gap-4 md:grid-cols-[16rem_1fr]">
             <div className="h-80">
-              <ConversationsList />
+              <ConversationProvider>
+                <ConversationsList />
+              </ConversationProvider>
             </div>
             <div className="space-y-3">
-              <Conversation name="Module planning discussion" />
-              <Conversation name="Proposal summary draft" />
+              <Conversation name="Module planning discussion" isSelected={false} onSelect={() => {}} />
+              <Conversation name="Proposal summary draft" isSelected={true} onSelect={() => {}} />
               <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4">
                 <ChatDownButton scrollDown={() => {}} />
                 <span className="text-sm text-slate-600">

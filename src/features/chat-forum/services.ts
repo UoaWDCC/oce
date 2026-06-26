@@ -18,69 +18,25 @@ async function request(path: string, options: RequestInit = {}, token?: string) 
   return res.status === 204 ? null : res.json();
 }
 
-function normalisePost(p: Post) {
-  return {
-    id: p.id,
-    daoGroupId: p.dao_group_id,
-    authorId: p.author_id,
-    postTypeId: p.post_type_id,
-    title: p.title,
-    body: p.body,
-    anonymous: p.anonymous,
-    isPinned: p.is_pinned,
-    imageUrl: p.image_url,
-    createdAt: p.created_at,
-    deletedAt: p.deleted_at,
-  };
-}
-
-function normalisePostSummary(p: PostSummary) {
-  return {
-    id: p.id,
-    authorId: p.author_id,
-    postTypeId: p.post_type_id,
-    title: p.title,
-    anonymous: p.anonymous,
-    isPinned: p.is_pinned,
-    createdAt: p.created_at,
-    deletedAt: p.deleted_at,
-  };
-}
- 
-function normaliseComment(c: FormattedComment) {
-  return {
-    id: c.id,
-    body: c.body,
-    imageUrl: c.image_url,
-    authorId: c.author_id,
-    username: c.username,
-    likeCount: c.like_count,
-    isLiked: c.is_liked,
-    parentCommentId: c.parent_comment_id,
-    createdAt: c.created_at,
-    updatedAt: c.updated_at,
-  };
-}
-
 // POST ENDPOINTS
 export async function getForumPosts(daoGroupId: string, token?: string) {
   const data = await request(`/dao-groups/${daoGroupId}/posts`, {}, token) as PostSummary[];
-  return data.map(normalisePostSummary);
+  return data;
 }
 
 export async function getOnePost(daoGroupId: string, postId: string, token?: string) {
   const data = await request(`/dao-groups/${daoGroupId}/posts/${postId}`, {}, token) as Post;
-  return normalisePost(data);
+  return data;
 }
 
 export async function createForumPost(daoGroupId: string, postData: CreatePostFields, token?: string) {
   const data = await request(`/dao-groups/${daoGroupId}/posts`, { method: "POST", body: JSON.stringify(postData) }, token) as Post;
-  return normalisePost(data);
+  return data;
 }
 
 export async function updateForumPost(daoGroupId: string, postId: string, postData: UpdatePostFields, token?: string) {
   const data = await request(`/dao-groups/${daoGroupId}/posts/${postId}`, { method: "PATCH", body: JSON.stringify(postData) }, token) as Post;
-  return normalisePost(data);
+  return data;
 }
 
 export async function deleteForumPost(daoGroupId: string, postId: string, token?: string) {
@@ -90,17 +46,17 @@ export async function deleteForumPost(daoGroupId: string, postId: string, token?
 // COMMENT ENDPOINTS
 export async function getPostComments(daoGroupId: string, postId: string, sort = "oldest", token?: string) {
   const data = await request(`/dao-groups/${daoGroupId}/posts/${postId}/comments?sort=${sort}`, {}, token) as FormattedComment[];
-  return data.map(normaliseComment);
+  return data;
 }
 
 export async function createPostComment(daoGroupId: string, postId: string, commentData: CreateCommentFields, token?: string) {
   const data = await request(`/dao-groups/${daoGroupId}/posts/${postId}/comments`, { method: "POST", body: JSON.stringify(commentData) }, token) as { comment: FormattedComment };
-  return normaliseComment(data.comment as FormattedComment);
+  return data.comment;
 }
 
 export async function updateForumComment(commentId: string, commentData: UpdateCommentFields, token?: string) {
   const data = await request(`/comments/${commentId}`, { method: "PATCH", body: JSON.stringify(commentData) }, token) as { comment: FormattedComment };
-  return normaliseComment(data.comment as FormattedComment);
+  return data.comment;
 }
 
 export async function deleteForumComment(commentId: string, token?: string) {

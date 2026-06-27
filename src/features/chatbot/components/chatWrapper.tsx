@@ -5,11 +5,11 @@ import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
+import { ConversationProvider } from "../providers/ConversationProvider";
 
 export default function ChatWrapper() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
   useEffect(() => {
     const supabase = createClient();
 
@@ -34,10 +34,12 @@ export default function ChatWrapper() {
   return (
     <div className="p-5 h-full">
       <ChatModalProvider>
-        <ChatSection />
-        <div className="fixed bottom-3 right-3 z-30">
-          <ChatButton />
-        </div>
+        <ConversationProvider>
+          <ChatSection />
+          <div className="fixed bottom-3 right-3 z-30">
+            <ChatButton />
+          </div>
+        </ConversationProvider>
       </ChatModalProvider>
     </div>
   );

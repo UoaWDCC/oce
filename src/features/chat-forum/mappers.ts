@@ -2,6 +2,7 @@ import { Timestamp } from "@/components/common";
 import { ForumPost, ForumComment, AuthorProfile } from "./types";
 import { PostCardProps } from "@/components/dao-forum/Post";
 import { CommentCardProps } from "@/components/dao-forum/CommentCard";
+import { FormattedComment } from "@app-types/comments";
 
 function toTimeStamp(isoString: string): Timestamp {
   return {
@@ -11,6 +12,19 @@ function toTimeStamp(isoString: string): Timestamp {
       year: "numeric",
     }),
     dateTime: isoString,
+  };
+}
+
+export function mapApiCommentToForumComment(
+  comment: FormattedComment,
+  postId: string,
+): ForumComment {
+  return {
+    id: comment.id,
+    postId: postId,
+    body: comment.body ?? "",
+    authorId: comment.author_id,
+    createdAt: comment.created_at,
   };
 }
 

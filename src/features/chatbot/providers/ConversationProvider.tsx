@@ -13,7 +13,7 @@ import {
 export interface ConversationContextType {
   conversation: CreateConversationResponse | null;
   setConversation: Dispatch<SetStateAction<CreateConversationResponse | null>>;
-  messages: Message[] | null;
+  messages: Message[];
   setMessages: Dispatch<SetStateAction<Message[]>>;
 }
 

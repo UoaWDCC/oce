@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-type ChatMessageRequestBody = {
+export type ChatMessageRequestBody = {
   conversation_id?: unknown;
   content?: unknown;
 };

@@ -1,10 +1,10 @@
 "use client";
 import Image from "next/image";
 import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
-import { ChatMessageType } from "@/features/chatbot/types";
+import { Message } from "@/llm/types/Message";
 
 interface TextAreaPropsType {
-  submitMessage(chatMessage: ChatMessageType): void;
+  submitMessage(chatMessage: Message): void;
 }
 
 export default function TextArea({
@@ -43,8 +43,8 @@ export default function TextArea({
               e.preventDefault();
               setInputValue("");
               submitMessage({
-                type: "user",
-                message: textAreaRef!.current!.value,
+                role: "user",
+                content: textAreaRef!.current!.value,
               });
             }
           }}
@@ -52,7 +52,7 @@ export default function TextArea({
         <button
           className="px-2 shrink-0"
           onClick={() => {
-            submitMessage({ message: inputValue, type: "user" });
+            submitMessage({ content: inputValue, role: "user" });
             setInputValue("");
           }}
         >

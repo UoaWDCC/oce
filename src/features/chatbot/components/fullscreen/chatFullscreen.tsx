@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import { ChatMessageType } from "@/features/chatbot/types";
+import { useRef, useEffect } from "react";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";
@@ -7,18 +6,40 @@ import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
 import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
-import { mockChatMessages } from "@/features/chatbot/mocks";
+import { useConversation } from "../../providers/ConversationProvider";
+import { Message } from "@/llm/types/Message";
+import { createMessage } from "../../services/message.service";
+import { createConversation } from "../../services/conversation.service";
 
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
-  //NOTE: the way that message content is passed into the div hasn't been finalised
-  const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
+  const { messages, setMessages, conversation, setConversation } =
+    useConversation();
   const lastMessageRef = useRef<HTMLDivElement>(null);
-  function submitMessage(chatMessage: ChatMessageType) {
+
+  function submitMessage(chatMessage: Message) {
     setMessages([...messages, chatMessage]);
+    (async () => {
+      if (conversation == null) {
+        createConversation().then(async (newConversation) => {
+          setConversation(newConversation);
+          await createMessage({
+            conversation_id: newConversation.conversation.id,
+            content: chatMessage.content,
+          });
+        });
+      } else {
+        await createMessage({
+          conversation_id: conversation.conversation.id,
+          content: chatMessage.content,
+        });
+      }
+    })();
   }
+
   const isVisible = useOnScreen(lastMessageRef, "-40px");
+
   useEffect(() => {
     lastMessageRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -77,10 +98,10 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
         <div className="relative py-3 pr-2 w-full pl-3">
           <div className="flex flex-col w-full gap-3 pb-3 ">
             {messages.map((message, index) => {
-              if (message.type == "user") {
-                return <ChatMessage key={index}>{message.message}</ChatMessage>;
+              if (message.role == "user") {
+                return <ChatMessage key={index}>{message.content}</ChatMessage>;
               }
-              return <ChatReply key={index}>{message.message}</ChatReply>;
+              return <ChatReply key={index}>{message.content}</ChatReply>;
             })}
           </div>
           <div className="h-3" ref={lastMessageRef}></div>

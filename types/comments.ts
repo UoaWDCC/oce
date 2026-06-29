@@ -32,7 +32,6 @@ export interface RawComment {
   created_at: string;
   updated_at: string | null;
   deleted_at: string | null;
-  like_count: number | null;
   author: CommentAuthor | null;
 }
 
@@ -43,6 +42,7 @@ export interface FormattedComment {
   author_id: string;
   username: string;
   like_count: number;
+  is_liked: boolean;
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;

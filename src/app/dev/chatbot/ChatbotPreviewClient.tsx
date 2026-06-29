@@ -3,7 +3,6 @@
 import { useState } from "react";
 import ChatButton from "@/features/chatbot/components/chatButton";
 import ChatDownButton from "@/features/chatbot/components/chatDownButton";
-import ChatInput from "@/features/chatbot/components/chatInput";
 import ChatMessage from "@/features/chatbot/components/chatMessage";
 import ChatReply from "@/features/chatbot/components/chatReply";
 import ChatSection from "@/features/chatbot/components/chatSection";
@@ -16,6 +15,7 @@ import {
   useChatModal,
 } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { ChatMessageType } from "@/features/chatbot/types";
+import TextArea from "@/features/textArea";
 
 function ChatInputPreview() {
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
@@ -35,7 +35,7 @@ function ChatInputPreview() {
           </div>
         )}
       </div>
-      <ChatInput
+      <TextArea
         submitMessage={(message) => setMessages([...messages, message])}
       />
     </div>

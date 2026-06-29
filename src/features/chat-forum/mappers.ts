@@ -1,19 +1,12 @@
-import { Timestamp } from "@/components/common";
-import { ForumPost, ForumComment, AuthorProfile } from "./types";
-import { PostCardProps } from "@/components/dao-forum/Post";
-import { CommentCardProps } from "@/components/dao-forum/CommentCard";
+import {
+  ForumPost,
+  ForumComment,
+  ForumPostPreview,
+  ForumCommentPreview,
+  ForumPostType,
+  AuthorProfile,
+} from "./types";
 import { FormattedComment } from "@app-types/comments";
-
-function toTimeStamp(isoString: string): Timestamp {
-  return {
-    label: new Date(isoString).toLocaleDateString("en", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    dateTime: isoString,
-  };
-}
 
 export function mapApiCommentToForumComment(
   comment: FormattedComment,
@@ -28,33 +21,53 @@ export function mapApiCommentToForumComment(
   };
 }
 
-export function mapPostToPostCardProps(
+export function mapPostToForumPostPreview(
   post: ForumPost,
   authorProfile: AuthorProfile | null,
   commentCount: number,
-): PostCardProps {
+  types: ForumPostType[],
+  tags: string[],
+  isPinned?: boolean,
+): ForumPostPreview {
   return {
+    id: post.id,
     daoId: post.daoId,
     title: post.title,
-    displayName: authorProfile?.displayName ?? "Anonymous",
-    walletAddress: authorProfile?.walletAddress ?? post.authorId,
-    profileImageUrl: authorProfile?.profileImageUrl ?? null,
-    createdAt: toTimeStamp(post.createdAt),
-    commentCount: commentCount,
+    excerpt: post.body.slice(0, 100),
+    authorName: authorProfile?.displayName ?? "Anonymous",
+    authorWallet: authorProfile?.walletAddress ?? undefined,
+    createdAt: post.createdAt,
+    createdAtLabel: new Date(post.createdAt).toLocaleDateString("en", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    commentCount,
+    types,
+    tags,
+    isPinned,
   };
 }
 
-export function mapCommentToCommentCardProps(
+export function mapCommentToForumCommentPreview(
   comment: ForumComment,
   authorProfile: AuthorProfile | null,
-): CommentCardProps {
+  likeCount: number,
+  isLiked?: boolean,
+): ForumCommentPreview {
   return {
-    displayName: authorProfile?.displayName ?? "Anonymous",
-    walletAddress: authorProfile?.walletAddress ?? comment.authorId,
-    profileImageUrl: authorProfile?.profileImageUrl ?? null,
-    avatarColor: authorProfile?.avatarColor ?? undefined,
-    badges: authorProfile?.badges ?? undefined,
-    timestamp: toTimeStamp(comment.createdAt),
+    id: comment.id,
+    postId: comment.postId,
+    authorName: authorProfile?.displayName ?? "Anonymous",
+    authorWallet: authorProfile?.walletAddress ?? undefined,
     body: comment.body ?? "",
+    createdAt: comment.createdAt,
+    createdAtLabel: new Date(comment.createdAt).toLocaleDateString("en", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    }),
+    likeCount,
+    isLiked,
   };
 }

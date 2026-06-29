@@ -7,6 +7,8 @@ import type { ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
 import { POST_TYPE } from "@app-types/post_types";
 import CommentCard from "@/components/dao-forum/CommentCard";
+import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
+import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
 import { ForumPanel } from "@/features/chat-forum";
 import {
   mockForumCommentPreviews,
@@ -259,6 +261,35 @@ export default function ChatForumPreviewClient() {
                 />
               );
             })}
+          </div>
+        </section>
+
+        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Comment Entry Composer</h2>
+          <CommentEntryComposer
+            showAttachment
+            onSubmit={async (payload) => {
+              console.log("Comment submitted:", payload);
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+            }}
+          />
+        </section>
+
+        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Post Entry Composer</h2>
+          <p className="text-sm text-slate-600">
+            Full composer for creating new forum posts with title, type, and
+            tags.
+          </p>
+          <div className="max-w-2xl">
+            <PostEntryComposer
+              daoName="WDCC DAO"
+              onSubmit={async (payload) => {
+                console.log("Post submitted:", payload);
+                await new Promise((resolve) => setTimeout(resolve, 1000));
+              }}
+              onCancel={() => console.log("Cancelled")}
+            />
           </div>
         </section>
 

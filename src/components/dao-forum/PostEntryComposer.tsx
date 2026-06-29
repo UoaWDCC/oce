@@ -156,7 +156,7 @@ export default function PostEntryComposer({
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
             Post Type
           </label>
-          <div className="grid grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {postTypes.map((type) => {
               const config = POST_TYPE_CONFIG[type];
               const Icon = config.icon;
@@ -165,6 +165,7 @@ export default function PostEntryComposer({
                 <button
                   key={type}
                   type="button"
+                  aria-pressed={isSelected}
                   onClick={() => setPostType(type)}
                   disabled={disabled}
                   className={classNames(

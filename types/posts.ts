@@ -13,15 +13,31 @@ export interface Post {
   deleted_at: string | null;
 }
 
-export interface PostSummary {
+export interface PostListItem {
   id: string;
+  dao_group_id: string;
   author_id: string;
   post_type_id: number;
   title: string | null;
+  body: string | null;
   anonymous: boolean;
   is_pinned: boolean;
+  image_url: string | null;
   created_at: string;
-  deleted_at: string | null;
+  updated_at: string | null;
+  comment_count: number;
+  author: {
+    id: string;
+    username: string | null;
+    FirstName: string | null;
+    LastName: string | null;
+    Name: string | null;
+  } | null;
+  post_type: {
+    type_id: number;
+    post_type: string;
+  } | null;
+  tags: string[];
 }
 
 export interface CreatePostFields {

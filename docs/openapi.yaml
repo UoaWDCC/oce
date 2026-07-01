@@ -414,7 +414,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PostSummary"
+                  $ref: "#/components/schemas/PostListItem"
         "500":
           $ref: "#/components/responses/InternalServerError"
     post:
@@ -1291,10 +1291,13 @@ components:
             type: object
             additionalProperties: true
 
-    PostSummary:
+    PostListItem:
       type: object
       properties:
         id:
+          type: string
+          format: uuid
+        dao_group_id:
           type: string
           format: uuid
         author_id:
@@ -1305,36 +1308,95 @@ components:
         title:
           type: string
           nullable: true
+        body:
+          type: string
+          nullable: true
         anonymous:
           type: boolean
         is_pinned:
           type: boolean
+        image_url:
+          type: string
+          nullable: true
         created_at:
           type: string
           format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        comment_count:
+          type: integer
+        author:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+              nullable: true
+            FirstName:
+              type: string
+              nullable: true
+            LastName:
+              type: string
+              nullable: true
+            Name:
+              type: string
+              nullable: true
+        post_type:
+          type: object
+          nullable: true
+          properties:
+            type_id:
+              type: integer
+            post_type:
+              type: string
+        tags:
+          type: array
+          items:
+            type: string
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        dao_group_id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        post_type_id:
+          type: integer
+        title:
+          type: string
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        anonymous:
+          type: boolean
+        is_pinned:
+          type: boolean
+        image_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
         deleted_at:
           type: string
           format: date-time
           nullable: true
-
-    Post:
-      allOf:
-        - $ref: "#/components/schemas/PostSummary"
-        - type: object
-          properties:
-            dao_group_id:
-              type: string
-              format: uuid
-            body:
-              type: string
-              nullable: true
-            image_url:
-              type: string
-              nullable: true
-            updated_at:
-              type: string
-              format: date-time
-              nullable: true
 
     CreatePostRequest:
       type: object

@@ -13,6 +13,17 @@ export interface Post {
   deleted_at: string | null;
 }
 
+export interface PostSummary {
+  id: string;
+  author_id: string;
+  post_type_id: number;
+  title: string | null;
+  anonymous: boolean;
+  is_pinned: boolean;
+  created_at: string;
+  deleted_at: string | null;
+}
+
 export interface CreatePostFields {
   post_type_id: number;
   title: string;

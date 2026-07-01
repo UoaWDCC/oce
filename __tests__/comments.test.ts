@@ -13,18 +13,7 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/comments/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-
-type CommentListItem = {
-  id: string;
-  body: string | null;
-  image_url: string | null;
-  author_id: string;
-  username: string;
-  like_count: number;
-  parent_comment_id: string | null;
-  created_at: string;
-  updated_at: string;
-};
+import type { CommentListItem } from "@app-types/comments";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),

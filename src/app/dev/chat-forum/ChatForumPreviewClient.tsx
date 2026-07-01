@@ -2,7 +2,6 @@
 
 import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
-import { ForumComment, ForumPost } from "@/features/chat-forum/types";
 import type { ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
 import { POST_TYPE } from "@app-types/post_types";
@@ -15,7 +14,24 @@ import {
   mockForumPostPreviews,
 } from "@/features/chat-forum/mocks";
 
-const previewPosts: ForumPost[] = [
+type PreviewPost = {
+  id: string;
+  daoId: string;
+  title: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+};
+
+type PreviewComment = {
+  id: string;
+  postId: string;
+  body: string;
+  authorId: string;
+  createdAt: string;
+};
+
+const previewPosts: PreviewPost[] = [
   {
     id: "post-1",
     daoId: "dao-education",
@@ -34,7 +50,7 @@ const previewPosts: ForumPost[] = [
   },
 ];
 
-const previewComments: ForumComment[] = [
+const previewComments: PreviewComment[] = [
   {
     id: "comment-1",
     postId: "post-1",
@@ -110,7 +126,7 @@ function PlaceholderPostCard({
   post,
   commentCount,
 }: {
-  post: ForumPost;
+  post: PreviewPost;
   commentCount: number;
 }) {
   const author = getPreviewAuthor(post.authorId);

@@ -1,6 +1,6 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import type { CreatePostFields } from "../../../../../../types/posts";
+import type { PostSummary, CreatePostFields } from "@app-types/posts";
 import { NextRequest, NextResponse } from "next/server";
 
 const corsHeaders = {
@@ -32,7 +32,7 @@ export async function GET(
       { status: 500, headers: corsHeaders },
     );
   }
-  return NextResponse.json(data, { headers: corsHeaders });
+  return NextResponse.json(data as PostSummary[], { headers: corsHeaders });
 }
 
 export async function POST(

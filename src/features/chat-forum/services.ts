@@ -24,15 +24,6 @@ async function request(path: string, options: RequestInit = {}, token?: string) 
   }
 }
 
-function validateJSON(payload: string) {
-  try {
-	payload = JSON.stringify(postData);
-  } catch {
-	throw new Error("Invalid post data (400)");
-  }
-  return;
-}
-
 // POST ENDPOINTS
 export async function getForumPosts(daoGroupId: string, token?: string) {
   const data = await request(`/dao-forum/${daoGroupId}/posts`, {}, token) as PostSummary[];

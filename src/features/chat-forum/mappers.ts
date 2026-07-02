@@ -1,73 +1,49 @@
-import {
-  ForumPost,
-  ForumComment,
-  ForumPostPreview,
-  ForumCommentPreview,
-  ForumPostType,
-  AuthorProfile,
-} from "./types";
-import { FormattedComment } from "@app-types/comments";
-
-export function mapApiCommentToForumComment(
-  comment: FormattedComment,
-  postId: string,
-): ForumComment {
-  return {
-    id: comment.id,
-    postId: postId,
-    body: comment.body ?? "",
-    authorId: comment.author_id,
-    createdAt: comment.created_at,
-  };
-}
+import type { PostListItem } from "@app-types/posts";
+import type { CommentListItem } from "@app-types/comments";
+import type { PostType } from "@app-types/post_types";
+import type { ForumPostPreview, ForumCommentPreview } from "./types";
 
 export function mapPostToForumPostPreview(
-  post: ForumPost,
-  authorProfile: AuthorProfile | null,
-  commentCount: number,
-  types: ForumPostType[],
-  tags: string[],
-  isPinned?: boolean,
+  post: PostListItem,
 ): ForumPostPreview {
   return {
     id: post.id,
-    daoId: post.daoId,
-    title: post.title,
-    excerpt: post.body.slice(0, 100),
-    authorName: authorProfile?.displayName ?? "Anonymous",
-    authorWallet: authorProfile?.walletAddress ?? undefined,
-    createdAt: post.createdAt,
-    createdAtLabel: new Date(post.createdAt).toLocaleDateString("en", {
+    daoId: post.dao_group_id,
+    title: post.title ?? "",
+    excerpt: (post.body ?? "").slice(0, 100),
+    authorName: post.author?.Name ?? "Anonymous",
+    authorWallet: undefined,
+    createdAt: post.created_at,
+    createdAtLabel: new Date(post.created_at).toLocaleDateString("en", {
       month: "short",
       day: "numeric",
       year: "numeric",
     }),
-    commentCount,
-    types,
-    tags,
-    isPinned,
+    commentCount: post.comment_count,
+    types: post.post_type ? [post.post_type.post_type as PostType] : [],
+    tags: post.tags,
+    isPinned: post.is_pinned,
+    isUnread: undefined,
   };
 }
 
 export function mapCommentToForumCommentPreview(
-  comment: ForumComment,
-  authorProfile: AuthorProfile | null,
-  likeCount: number,
-  isLiked?: boolean,
+  comment: CommentListItem,
+  postId: string,
 ): ForumCommentPreview {
   return {
     id: comment.id,
-    postId: comment.postId,
-    authorName: authorProfile?.displayName ?? "Anonymous",
-    authorWallet: authorProfile?.walletAddress ?? undefined,
+    postId,
+    authorName: comment.username ?? "Anonymous",
+    authorWallet: undefined,
     body: comment.body ?? "",
-    createdAt: comment.createdAt,
-    createdAtLabel: new Date(comment.createdAt).toLocaleDateString("en", {
+    createdAt: comment.created_at,
+    createdAtLabel: new Date(comment.created_at).toLocaleDateString("en", {
       month: "short",
       day: "numeric",
       year: "numeric",
     }),
-    likeCount,
-    isLiked,
+    likeCount: comment.like_count,
+    isLiked: comment.is_liked,
   };
 }

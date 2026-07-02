@@ -20,10 +20,10 @@ import PostEntryComposer, {
   type PostSubmitPayload,
 } from "@/components/dao-forum/PostEntryComposer";
 import Tag from "@/components/dao-forum/Tag";
+import type { PostType } from "@app-types/post_types";
 import type {
   ForumCommentPreview,
   ForumPostPreview,
-  ForumPostType,
 } from "../types";
 
 type ForumPanelProps = {
@@ -44,7 +44,7 @@ type ForumPanelProps = {
   onReplyToComment?: (commentId: string) => void;
 };
 
-type PostTypeFilter = "All" | ForumPostType;
+type PostTypeFilter = "All" | PostType;
 type SortOption = "Recent" | "Unanswered";
 
 const POST_TYPES: Array<{

@@ -17,6 +17,18 @@ export interface UpdateCommentFields {
   image_url?: string | null;
 }
 
+export interface Comment {
+  id: string;
+  post_id: string;
+  author_id: string;
+  parent_comment_id: string | null;
+  body: string | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string | null;
+  deleted_at: string | null;
+}
+
 export interface CommentAuthor {
   id: string;
   username: string;
@@ -47,3 +59,5 @@ export interface FormattedComment {
   created_at: string;
   updated_at: string | null;
 }
+
+export type CommentListItem = FormattedComment;

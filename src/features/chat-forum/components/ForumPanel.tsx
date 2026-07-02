@@ -12,12 +12,18 @@ import {
   Tag as TagIcon,
 } from "lucide-react";
 import CommentCard from "@/components/dao-forum/CommentCard";
+import CommentEntryComposer, {
+  type CommentSubmitPayload,
+} from "@/components/dao-forum/CommentEntryComposer";
 import PostCard from "@/components/dao-forum/Post";
+import PostEntryComposer, {
+  type PostSubmitPayload,
+} from "@/components/dao-forum/PostEntryComposer";
 import Tag from "@/components/dao-forum/Tag";
+import type { PostType } from "@app-types/post_types";
 import type {
   ForumCommentPreview,
   ForumPostPreview,
-  ForumPostType,
 } from "../types";
 
 type ForumPanelProps = {
@@ -28,12 +34,17 @@ type ForumPanelProps = {
   isLoading?: boolean;
   error?: string | null;
   onCreatePost?: () => void;
+  onSubmitPost?: (payload: PostSubmitPayload) => Promise<void> | void;
   onSelectPost?: (postId: string) => void;
+  onSubmitComment?: (
+    postId: string,
+    payload: CommentSubmitPayload,
+  ) => Promise<void> | void;
   onLikeComment?: (commentId: string) => void;
   onReplyToComment?: (commentId: string) => void;
 };
 
-type PostTypeFilter = "All" | ForumPostType;
+type PostTypeFilter = "All" | PostType;
 type SortOption = "Recent" | "Unanswered";
 
 const POST_TYPES: Array<{
@@ -114,7 +125,9 @@ export default function ForumPanel({
   isLoading = false,
   error = null,
   onCreatePost,
+  onSubmitPost,
   onSelectPost,
+  onSubmitComment,
   onLikeComment,
   onReplyToComment,
 }: ForumPanelProps) {
@@ -163,6 +176,16 @@ export default function ForumPanel({
   const openComposer = () => {
     setIsComposerOpen(true);
     onCreatePost?.();
+  };
+
+  const submitPost = async (payload: PostSubmitPayload) => {
+    await onSubmitPost?.(payload);
+    setIsComposerOpen(false);
+  };
+
+  const submitComment = async (payload: CommentSubmitPayload) => {
+    if (!selectedPost) return;
+    await onSubmitComment?.(selectedPost.id, payload);
   };
 
   return (
@@ -294,62 +317,14 @@ export default function ForumPanel({
           </div>
         )}
         {isComposerOpen && (
-          <section
-            aria-labelledby="new-post-heading"
-            className="mb-6 rounded-2xl border border-purple-200 bg-white p-5 shadow-sm"
-          >
-            <div className="flex items-center justify-between gap-4">
-              <h2
-                id="new-post-heading"
-                className="text-xl font-bold text-slate-950"
-              >
-                Create a post
-              </h2>
-              <button
-                className="text-sm font-bold text-slate-500 hover:text-purple-700"
-                onClick={() => setIsComposerOpen(false)}
-                type="button"
-              >
-                Close
-              </button>
-            </div>
-            <div className="mt-4 grid gap-4">
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Post type
-                <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 font-normal outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100">
-                  {POST_TYPES.filter((type) => type.label !== "All").map(
-                    (type) => (
-                      <option key={type.label}>{type.label}</option>
-                    ),
-                  )}
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Title
-                <input
-                  className="h-11 rounded-xl border border-slate-200 px-3 font-normal outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                  placeholder="What would you like to discuss?"
-                />
-              </label>
-              <label className="grid gap-2 text-sm font-bold text-slate-700">
-                Body
-                <textarea
-                  className="min-h-32 resize-y rounded-xl border border-slate-200 p-3 font-normal outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                  placeholder="Add context for DAO members..."
-                />
-              </label>
-            </div>
-            <button
-              className="mt-4 rounded-full bg-slate-300 px-5 py-2 text-sm font-bold text-white"
-              disabled
-              type="button"
-            >
-              Publish post
-            </button>
-            <p className="mt-2 text-xs text-slate-400">
-              Publishing will be enabled when the create-post API handler is
-              connected.
-            </p>
+          <section className="mb-6" aria-label="Create a post">
+            <PostEntryComposer
+              className="border border-purple-200 shadow-sm"
+              daoName={daoName}
+              onCancel={() => setIsComposerOpen(false)}
+              onClose={() => setIsComposerOpen(false)}
+              onSubmit={submitPost}
+            />
           </section>
         )}
         {isLoading ? (
@@ -474,30 +449,10 @@ export default function ForumPanel({
                     No comments yet. API-loaded comments will render here.
                   </div>
                 )}
-                <div className="mt-4 rounded-xl border border-purple-100 bg-white p-4">
-                  <label
-                    className="text-sm font-bold text-slate-700"
-                    htmlFor="comment-template"
-                  >
-                    Add a comment
-                  </label>
-                  <textarea
-                    id="comment-template"
-                    className="mt-2 min-h-24 w-full resize-y rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-                    placeholder="Share your response..."
-                  />
-                  <button
-                    className="mt-3 rounded-full bg-purple-600 px-5 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
-                    disabled
-                    type="button"
-                  >
-                    Post comment
-                  </button>
-                  <p className="mt-2 text-xs text-slate-400">
-                    Submission will be enabled when the comment API handler is
-                    connected.
-                  </p>
-                </div>
+                <CommentEntryComposer
+                  className="mt-4 border-purple-100"
+                  onSubmit={submitComment}
+                />
               </section>
             )}
           </>

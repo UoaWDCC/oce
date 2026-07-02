@@ -1,37 +1,4 @@
-import { ReactNode } from "react";
-
-export interface ForumPost {
-  id: string;
-  daoId: string;
-  title: string;
-  body: string;
-  authorId: string;
-  createdAt: string;
-}
-
-export interface ForumComment {
-  id: string;
-  postId: string;
-  body: string;
-  authorId: string;
-  createdAt: string;
-}
-
-export interface AuthorProfile {
-  id: string;
-  displayName: string;
-  walletAddress: string | null;
-  profileImageUrl: string | null;
-  avatarColor: string | null;
-  badges: ReactNode;
-}
-
-export type ForumPostType =
-  | "Announcement"
-  | "Proposal"
-  | "Question"
-  | "Discussion"
-  | "Resource";
+import type { PostType } from "@app-types/post_types";
 
 export interface ForumPostPreview {
   id: string;
@@ -43,7 +10,7 @@ export interface ForumPostPreview {
   createdAt: string;
   createdAtLabel: string;
   commentCount: number;
-  types: ForumPostType[];
+  types: PostType[];
   tags: string[];
   isPinned?: boolean;
   isUnread?: boolean;

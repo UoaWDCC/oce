@@ -1,7 +1,20 @@
-import { CreateCommentFields, FormattedComment, UpdateCommentFields } from "@app-types/comments";
-import { Post, CreatePostFields, PostSummary, UpdatePostFields } from "@app-types/posts";
+import {
+  CreateCommentFields,
+  FormattedComment,
+  UpdateCommentFields,
+} from "@app-types/comments";
+import {
+  Post,
+  CreatePostFields,
+  PostListItem,
+  UpdatePostFields,
+} from "@app-types/posts";
 
-async function request(path: string, options: RequestInit = {}, token?: string) {
+async function request(
+  path: string,
+  options: RequestInit = {},
+  token?: string,
+) {
   const res = await fetch(`/api${path}`, {
     ...options,
     headers: {
@@ -26,54 +39,117 @@ async function request(path: string, options: RequestInit = {}, token?: string) 
 
 // POST ENDPOINTS
 export async function getForumPosts(daoGroupId: string, token?: string) {
-  const data = await request(`/dao-forum/${daoGroupId}/posts`, {}, token) as PostSummary[];
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts`,
+    {},
+    token,
+  )) as PostListItem[];
   return data;
 }
 
-export async function getOnePost(daoGroupId: string, postId: string, token?: string) {
-  const data = await request(`/dao-forum/${daoGroupId}/posts/${postId}`, {}, token) as Post;
+export async function getOnePost(
+  daoGroupId: string,
+  postId: string,
+  token?: string,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}`,
+    {},
+    token,
+  )) as Post;
   return data;
 }
 
-export async function createForumPost(daoGroupId: string, postData: CreatePostFields, token?: string) {
+export async function createForumPost(
+  daoGroupId: string,
+  postData: CreatePostFields,
+  token?: string,
+) {
   let payload: string;
   try {
-	payload = JSON.stringify(postData);
+    payload = JSON.stringify(postData);
   } catch {
-	throw new Error("Invalid post data (400)");
+    throw new Error("Invalid post data (400)");
   }
-  const data = await request(`/dao-forum/${daoGroupId}/posts`, { method: "POST", body: payload }, token) as Post;
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts`,
+    { method: "POST", body: payload },
+    token,
+  )) as Post;
   return data;
 }
 
-export async function updateForumPost(daoGroupId: string, postId: string, postData: UpdatePostFields, token?: string) {
+export async function updateForumPost(
+  daoGroupId: string,
+  postId: string,
+  postData: UpdatePostFields,
+  token?: string,
+) {
   let payload: string;
   try {
-	payload = JSON.stringify(postData);
+    payload = JSON.stringify(postData);
   } catch {
-	throw new Error("Invalid post data (400)");
+    throw new Error("Invalid post data (400)");
   }
-  const data = await request(`/dao-forum/${daoGroupId}/posts/${postId}`, { method: "PATCH", body: payload }, token) as Post;
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}`,
+    { method: "PATCH", body: payload },
+    token,
+  )) as Post;
   return data;
 }
 
-export async function deleteForumPost(daoGroupId: string, postId: string, token?: string) {
-  await request(`/dao-forum/${daoGroupId}/posts/${postId}`, { method: "DELETE" }, token);
+export async function deleteForumPost(
+  daoGroupId: string,
+  postId: string,
+  token?: string,
+) {
+  await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}`,
+    { method: "DELETE" },
+    token,
+  );
 }
 
 // COMMENT ENDPOINTS
-export async function getPostComments(daoGroupId: string, postId: string, sort = "oldest", token?: string) {
-  const data = await request(`/dao-forum/${daoGroupId}/posts/${postId}/comments?sort=${sort}`, {}, token) as FormattedComment[];
+export async function getPostComments(
+  daoGroupId: string,
+  postId: string,
+  sort = "oldest",
+  token?: string,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}/comments?sort=${sort}`,
+    {},
+    token,
+  )) as FormattedComment[];
   return data;
 }
 
-export async function createPostComment(daoGroupId: string, postId: string, commentData: CreateCommentFields, token?: string) {
-  const data = await request(`/dao-forum/${daoGroupId}/posts/${postId}/comments`, { method: "POST", body: JSON.stringify(commentData) }, token) as { comment: FormattedComment };
+export async function createPostComment(
+  daoGroupId: string,
+  postId: string,
+  commentData: CreateCommentFields,
+  token?: string,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}/comments`,
+    { method: "POST", body: JSON.stringify(commentData) },
+    token,
+  )) as { comment: FormattedComment };
   return data.comment;
 }
 
-export async function updateForumComment(commentId: string, commentData: UpdateCommentFields, token?: string) {
-  const data = await request(`/comments/${commentId}`, { method: "PATCH", body: JSON.stringify(commentData) }, token) as { comment: FormattedComment };
+export async function updateForumComment(
+  commentId: string,
+  commentData: UpdateCommentFields,
+  token?: string,
+) {
+  const data = (await request(
+    `/comments/${commentId}`,
+    { method: "PATCH", body: JSON.stringify(commentData) },
+    token,
+  )) as { comment: FormattedComment };
   return data.comment;
 }
 

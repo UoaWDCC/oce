@@ -36,7 +36,9 @@ function ChatInputPreview() {
         )}
       </div>
       <TextArea
-        submitMessage={(message) => setMessages([...messages, message])}
+        submitMessage={(message) =>
+          setMessages([...messages, { message, type: "user" }])
+        }
       />
     </div>
   );

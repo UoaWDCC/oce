@@ -2,25 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import type { LLMConfig } from "@/llm/types/LLMConfig";
 import type { Message } from "@/llm/types/Message";
-import { authenticateRequest } from "@/utils/authHelper";
+import { authenticateRequest, getAdminClient } from "@/utils/authHelper";
 
 interface ChatRequestBody {
   messages?: Message[];
   config?: LLMConfig;
+  conversation_id?: unknown;
 }
 
+// Streams the LLM reply, then saves it as an assistant message once the
+// stream completes. Partial replies from failed or cancelled streams are
+// never saved.
 export async function POST(req: NextRequest) {
-  if (
-    !(
-      process.env.NODE_ENV === "development" &&
-      req.headers.get("Authorization") === "dev"
-    )
-  ) {
+  const isDevBypass =
+    process.env.NODE_ENV === "development" &&
+    req.headers.get("Authorization") === "dev";
+
+  let userId: string | null = null;
+
+  if (!isDevBypass) {
     const auth = await authenticateRequest(req);
 
     if (!auth) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    userId = auth.uid;
   }
 
   const body = (await req.json()) as ChatRequestBody;
@@ -30,6 +37,35 @@ export async function POST(req: NextRequest) {
       { error: "Messages array is required" },
       { status: 400 },
     );
+  }
+
+  const conversationId =
+    typeof body.conversation_id === "string" &&
+    body.conversation_id.trim() !== ""
+      ? body.conversation_id
+      : null;
+
+  if (userId) {
+    if (!conversationId) {
+      return NextResponse.json(
+        { error: "conversation_id is required" },
+        { status: 400 },
+      );
+    }
+
+    const { data: conversation } = await getAdminClient()
+      .from("conversations")
+      .select("id")
+      .eq("id", conversationId)
+      .eq("user_id", userId)
+      .single();
+
+    if (!conversation) {
+      return NextResponse.json(
+        { error: "Conversation not found" },
+        { status: 404 },
+      );
+    }
   }
 
   const provider = createLLMProvider();
@@ -45,10 +81,20 @@ export async function POST(req: NextRequest) {
   }
 
   const encoder = new TextEncoder();
+  let clientCancelled = false;
+
+  req.signal.addEventListener("abort", () => {
+    clientCancelled = true;
+    iterator.return?.();
+  });
+
   const responseStream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let fullResponse = "";
+
       try {
         if (!firstChunk.done) {
+          fullResponse += firstChunk.value;
           controller.enqueue(encoder.encode(`data: ${firstChunk.value}\n\n`));
         }
 
@@ -59,7 +105,35 @@ export async function POST(req: NextRequest) {
             break;
           }
 
+          fullResponse += chunk.value;
           controller.enqueue(encoder.encode(`data: ${chunk.value}\n\n`));
+        }
+
+        // Reached after a clean finish, but a client cancel also ends the
+        // loop cleanly, so the flag is needed to avoid saving partial replies.
+        if (
+          !clientCancelled &&
+          userId &&
+          conversationId &&
+          fullResponse.trim() !== ""
+        ) {
+          const { data: saved, error: insertError } = await getAdminClient()
+            .from("messages")
+            .insert({
+              conversation_id: conversationId,
+              role: "assistant",
+              content: fullResponse,
+            })
+            .select("id")
+            .single();
+
+          if (insertError) {
+            console.error("Failed to save assistant message:", insertError);
+          } else if (saved) {
+            controller.enqueue(
+              encoder.encode(`data: [MESSAGE_ID]${saved.id}\n\n`),
+            );
+          }
         }
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -67,6 +141,10 @@ export async function POST(req: NextRequest) {
       } catch {
         controller.error(new Error("LLM provider error"));
       }
+    },
+    cancel() {
+      clientCancelled = true;
+      iterator.return?.();
     },
   });
 

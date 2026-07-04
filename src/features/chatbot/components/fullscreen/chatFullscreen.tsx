@@ -80,7 +80,15 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
               if (message.type == "user") {
                 return <ChatMessage key={index}>{message.message}</ChatMessage>;
               }
-              return <ChatReply key={index}>{message.message}</ChatReply>;
+              return (
+                <ChatReply
+                  key={index}
+                  messageId={message.id}
+                  initialFavourited={message.favourited}
+                >
+                  {message.message}
+                </ChatReply>
+              );
             })}
           </div>
           <div className="h-3" ref={lastMessageRef}></div>

@@ -17,6 +17,7 @@ import {
 import TextArea from "@/features/textArea";
 import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
 import { Message } from "@/llm/types/Message";
+import ErrorMessage from "@/features/chatbot/components/errorMessage";
 
 function ChatInputPreview() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -106,6 +107,14 @@ function OpenFullscreenChat() {
   );
 }
 
+function ErrorPreview() {
+  return (
+    <>
+      <ErrorMessage message={"Test error."} />
+    </>
+  );
+}
+
 export default function ChatbotPreviewClient() {
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-8 text-slate-950">
@@ -138,7 +147,9 @@ export default function ChatbotPreviewClient() {
           <h2 className="text-lg font-semibold">Conversation List</h2>
           <div className="grid gap-4 md:grid-cols-[16rem_1fr]">
             <div className="h-80">
-              <ConversationsList />
+              <ConversationProvider>
+                <ConversationsList />
+              </ConversationProvider>
             </div>
             <div className="space-y-3">
               <Conversation name="Module planning discussion" />
@@ -160,6 +171,11 @@ export default function ChatbotPreviewClient() {
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Fullscreen Chat</h2>
           <FullscreenPreview />
+        </section>
+
+        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Error</h2>
+          <ErrorPreview />
         </section>
       </div>
     </main>

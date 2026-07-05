@@ -14,11 +14,12 @@ import {
   ChatModalProvider,
   useChatModal,
 } from "@/features/chatbot/providers/ChatBoxModalProvider";
-import { ChatMessageType } from "@/features/chatbot/types";
 import TextArea from "@/features/textArea";
+import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
+import { Message } from "@/llm/types/Message";
 
 function ChatInputPreview() {
-  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
 
   return (
     <div className="overflow-hidden rounded-lg border border-slate-200 bg-white pt-4 shadow-sm">
@@ -28,8 +29,8 @@ function ChatInputPreview() {
         ) : (
           <div className="space-y-2">
             {messages.map((message, index) => (
-              <ChatMessage key={`${message.message}-${index}`}>
-                {message.message}
+              <ChatMessage key={`${message.content}-${index}`}>
+                {message.content}
               </ChatMessage>
             ))}
           </div>
@@ -45,20 +46,22 @@ function ChatInputPreview() {
 function ChatButtonPreview() {
   return (
     <ChatModalProvider>
-      <div className="relative min-h-96 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              Chat widget
-            </h2>
-            <p className="text-sm text-slate-600">
-              Click the chatbot button to open the existing floating UI.
-            </p>
+      <ConversationProvider>
+        <div className="relative min-h-96 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">
+                Chat widget
+              </h2>
+              <p className="text-sm text-slate-600">
+                Click the chatbot button to open the existing floating UI.
+              </p>
+            </div>
+            <ChatButton />
           </div>
-          <ChatButton />
+          <ChatSection />
         </div>
-        <ChatSection />
-      </div>
+      </ConversationProvider>
     </ChatModalProvider>
   );
 }
@@ -66,9 +69,11 @@ function ChatButtonPreview() {
 function FullscreenPreview() {
   return (
     <ChatModalProvider>
-      <div className="relative h-[620px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-        <OpenFullscreenChat />
-      </div>
+      <ConversationProvider>
+        <div className="relative h-[620px] overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <OpenFullscreenChat />
+        </div>
+      </ConversationProvider>
     </ChatModalProvider>
   );
 }

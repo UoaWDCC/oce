@@ -23,11 +23,11 @@ export async function createMessage({
     }),
   });
 
-  const result: Message = await response.json();
+  const result = await response.json();
 
-  //TODO: there is no default error component, so if this does result in an error, it is not displayed appropriately into the frontend.
+  if (!response.ok) {
+    throw new Error("Failed to create new message");
+  }
 
-  console.log(result);
-
-  return result;
+  return result as Message;
 }

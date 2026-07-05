@@ -80,11 +80,11 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
             }
           />
         )}
-        {/* TODO: check if this is displaying properly */}
-        {error !== undefined && <ErrorMessage message={error} />}
       </div>
+
       <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
         <p className="font-bold text-white text-lg">AI Tutor</p>
+
         <div className="flex-1 gap-2 flex justify-end">
           <button
             onClick={() => {
@@ -115,6 +115,11 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
           </button>
         </div>
       </div>
+
+      <div className="z-10 flex w-full justify-center relative p-5">
+        {error !== undefined && <ErrorMessage message={error} />}
+      </div>
+
       <div className="min-h-0 pt-3 flex-1 overflow-y-scroll h-full w-full">
         <div className="relative py-3 pr-2 w-full pl-3">
           <div className="flex flex-col w-full gap-3 pb-3 ">

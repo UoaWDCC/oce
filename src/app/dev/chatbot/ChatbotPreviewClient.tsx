@@ -15,7 +15,10 @@ import {
   useChatModal,
 } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import TextArea from "@/features/textArea";
-import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
+import {
+  ConversationProvider,
+  useConversation,
+} from "@/features/chatbot/providers/ConversationProvider";
 import { Message } from "@/llm/types/Message";
 import ErrorMessage from "@/features/chatbot/components/errorMessage";
 
@@ -83,24 +86,35 @@ function OpenFullscreenChat() {
   const [ready, setReady] = useState(false);
   const { open, openZoomChatBox, toggleOpen, toggleOpenZoomChatBox } =
     useChatModal();
+  const { setError } = useConversation();
 
   return (
     <>
       {!ready && (
-        <button
-          className="m-5 rounded-lg bg-[#5e00b2] px-4 py-2 text-sm font-semibold text-white"
-          onClick={() => {
-            if (!open) {
-              toggleOpen();
-            }
-            if (!openZoomChatBox) {
-              toggleOpenZoomChatBox();
-            }
-            setReady(true);
-          }}
-        >
-          Open fullscreen chat preview
-        </button>
+        <>
+          <button
+            className="m-5 rounded-lg bg-[#5e00b2] px-4 py-2 text-sm font-semibold text-white"
+            onClick={() => {
+              if (!open) {
+                toggleOpen();
+              }
+              if (!openZoomChatBox) {
+                toggleOpenZoomChatBox();
+              }
+              setReady(true);
+            }}
+          >
+            Open fullscreen chat preview
+          </button>
+          <button
+            className="rounded-lg px-4 py-2 text-sm font-semibold text-white bg-red-400"
+            onClick={() => {
+              setError("Test error message");
+            }}
+          >
+            Trigger Error
+          </button>
+        </>
       )}
       {ready && <ChatFullscreen />}
     </>

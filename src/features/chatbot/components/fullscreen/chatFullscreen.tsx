@@ -18,8 +18,10 @@ export default function ChatFullscreen() {
   const {
     messages,
     setMessages,
-    conversation,
-    setConversation,
+    activeConversation,
+    setActiveConversation,
+    conversations,
+    setConversations,
     setError,
     error,
   } = useConversation();
@@ -29,9 +31,10 @@ export default function ChatFullscreen() {
     setMessages([...messages, chatMessage]);
     (async () => {
       try {
-        if (conversation == null) {
+        if (activeConversation == null) {
           createConversation().then(async (newConversation) => {
-            setConversation(newConversation);
+            setActiveConversation(newConversation);
+            setConversations([...conversations, newConversation]);
             await createMessage({
               conversation_id: newConversation.conversation.id,
               content: chatMessage.content,
@@ -39,7 +42,7 @@ export default function ChatFullscreen() {
           });
         } else {
           await createMessage({
-            conversation_id: conversation.conversation.id,
+            conversation_id: activeConversation.conversation.id,
             content: chatMessage.content,
           });
         }

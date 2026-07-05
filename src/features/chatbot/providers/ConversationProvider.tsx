@@ -11,12 +11,16 @@ import {
 } from "react";
 
 export interface ConversationContextType {
-  conversation: CreateConversationResponse | null;
-  setConversation: Dispatch<SetStateAction<CreateConversationResponse | null>>;
+  conversations: CreateConversationResponse[];
+  setConversations: Dispatch<SetStateAction<CreateConversationResponse[]>>;
+  activeConversation: CreateConversationResponse | null;
+  setActiveConversation: Dispatch<
+    SetStateAction<CreateConversationResponse | null>
+  >;
   messages: Message[];
   setMessages: Dispatch<SetStateAction<Message[]>>;
-  error: undefined | string;
-  setError: Dispatch<SetStateAction<undefined | string>>;
+  error: string | undefined;
+  setError: Dispatch<SetStateAction<string | undefined>>;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(
@@ -24,7 +28,10 @@ const ConversationContext = createContext<ConversationContextType | undefined>(
 );
 
 export function ConversationProvider({ children }: { children: ReactNode }) {
-  const [conversation, setConversation] =
+  const [conversations, setConversations] = useState<
+    CreateConversationResponse[]
+  >([]);
+  const [activeConversation, setActiveConversation] =
     useState<CreateConversationResponse | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<undefined | string>(undefined);
@@ -32,8 +39,10 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   return (
     <ConversationContext.Provider
       value={{
-        conversation,
-        setConversation,
+        conversations,
+        setConversations,
+        activeConversation,
+        setActiveConversation,
         messages,
         setMessages,
         error,

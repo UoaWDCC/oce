@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";
@@ -10,30 +10,46 @@ import { useConversation } from "../../providers/ConversationProvider";
 import { Message } from "@/llm/types/Message";
 import { createMessage } from "../../services/message.service";
 import { createConversation } from "../../services/conversation.service";
+import ErrorMessage from "../errorMessage";
 
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
-  const { messages, setMessages, conversation, setConversation } =
-    useConversation();
+  const {
+    messages,
+    setMessages,
+    conversation,
+    setConversation,
+    setError,
+    error,
+  } = useConversation();
   const lastMessageRef = useRef<HTMLDivElement>(null);
 
   function submitMessage(chatMessage: Message) {
     setMessages([...messages, chatMessage]);
     (async () => {
-      if (conversation == null) {
-        createConversation().then(async (newConversation) => {
-          setConversation(newConversation);
+      try {
+        if (conversation == null) {
+          createConversation().then(async (newConversation) => {
+            setConversation(newConversation);
+            await createMessage({
+              conversation_id: newConversation.conversation.id,
+              content: chatMessage.content,
+            });
+          });
+        } else {
           await createMessage({
-            conversation_id: newConversation.conversation.id,
+            conversation_id: conversation.conversation.id,
             content: chatMessage.content,
           });
-        });
-      } else {
-        await createMessage({
-          conversation_id: conversation.conversation.id,
-          content: chatMessage.content,
-        });
+        }
+        setError(undefined);
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Something went wrong!");
+        }
       }
     })();
   }
@@ -61,6 +77,8 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
             }
           />
         )}
+        {/* TODO: check if this is displaying properly */}
+        {error !== undefined && <ErrorMessage message={error} />}
       </div>
       <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
         <p className="font-bold text-white text-lg">AI Tutor</p>

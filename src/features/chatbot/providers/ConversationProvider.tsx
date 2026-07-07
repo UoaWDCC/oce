@@ -1,26 +1,16 @@
 "use client";
-import { Message } from "@/llm/types/Message";
-import { CreateConversationResponse } from "@app-types/conversations";
-import {
-  createContext,
-  useContext,
-  useState,
-  ReactNode,
-  Dispatch,
-  SetStateAction,
-} from "react";
 
-export interface ConversationContextType {
-  conversations: CreateConversationResponse[];
-  setConversations: Dispatch<SetStateAction<CreateConversationResponse[]>>;
-  activeConversation: CreateConversationResponse | null;
-  setActiveConversation: Dispatch<
-    SetStateAction<CreateConversationResponse | null>
-  >;
-  messages: Message[];
-  setMessages: Dispatch<SetStateAction<Message[]>>;
+import { createContext, useContext, useState, ReactNode } from "react";
+
+interface ConversationContextType {
+  selectedConversationId: string | null;
+  setSelectedConversationId: (id: string | null) => void;
+  conversationListVersion: number;
+  refreshConversationList: () => void;
+  messageResetVersion: number;
+  clearCurrentMessages: () => void;
   error: string | undefined;
-  setError: Dispatch<SetStateAction<string | undefined>>;
+  setError: (error: string | undefined) => void;
 }
 
 const ConversationContext = createContext<ConversationContextType | undefined>(
@@ -28,23 +18,24 @@ const ConversationContext = createContext<ConversationContextType | undefined>(
 );
 
 export function ConversationProvider({ children }: { children: ReactNode }) {
-  const [conversations, setConversations] = useState<
-    CreateConversationResponse[]
-  >([]);
-  const [activeConversation, setActiveConversation] =
-    useState<CreateConversationResponse | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [error, setError] = useState<undefined | string>(undefined);
+  const [selectedConversationId, setSelectedConversationId] = useState<
+    string | null
+  >(null);
+  const [conversationListVersion, setConversationListVersion] = useState(0);
+  const [messageResetVersion, setMessageResetVersion] = useState(0);
+  const [error, setError] = useState<string | undefined>(undefined);
 
   return (
     <ConversationContext.Provider
       value={{
-        conversations,
-        setConversations,
-        activeConversation,
-        setActiveConversation,
-        messages,
-        setMessages,
+        selectedConversationId,
+        setSelectedConversationId,
+        conversationListVersion,
+        refreshConversationList: () =>
+          setConversationListVersion((version) => version + 1),
+        messageResetVersion,
+        clearCurrentMessages: () =>
+          setMessageResetVersion((version) => version + 1),
         error,
         setError,
       }}

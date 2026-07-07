@@ -7,7 +7,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-export type ChatMessageRequestBody = {
+type ChatMessageRequestBody = {
   conversation_id?: unknown;
   content?: unknown;
 };
@@ -94,6 +94,11 @@ export async function POST(req: Request) {
         { status: 500, headers: corsHeaders },
       );
     }
+
+    await supabase
+      .from("conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversation_id);
 
     // Check if conversation already has a title
     const { data: titledConversation } = await supabase

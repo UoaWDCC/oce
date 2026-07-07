@@ -1,11 +1,11 @@
 "use client";
 import { ChatModalProvider } from "@/features/chatbot/providers/ChatBoxModalProvider";
+import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
 import ChatSection from "./chatSection";
 import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
-import { ConversationProvider } from "../providers/ConversationProvider";
 
 export default function ChatWrapper() {
   const [user, setUser] = useState<User | null>(null);

@@ -1,4 +1,7 @@
+"use client";
+
 import { useRef, useEffect, useState } from "react";
+import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";
@@ -7,57 +10,80 @@ import ChatDownButton from "../chatDownButton";
 import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { useConversation } from "../../providers/ConversationProvider";
-import { Message } from "@/llm/types/Message";
-import { createMessage } from "../../services/message.service";
-import { createConversation } from "../../services/conversation.service";
+import { createConversation, saveUserMessage } from "@/features/chatbot/api";
 import ErrorMessage from "../errorMessage";
+
+function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
+  return {
+    type: message.role === "user" ? "user" : "bot",
+    message: message.content,
+  };
+}
 
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
   const {
-    messages,
-    setMessages,
-    activeConversation,
-    setActiveConversation,
-    conversations,
-    setConversations,
-    setError,
+    selectedConversationId,
+    setSelectedConversationId,
+    refreshConversationList,
+    messageResetVersion,
     error,
+    setError,
   } = useConversation();
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [isSavingMessage, setIsSavingMessage] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
+  const isSavingMessageRef = useRef(false);
 
-  function submitMessage(chatMessage: Message) {
-    setMessages([...messages, chatMessage]);
-    (async () => {
-      try {
-        if (activeConversation == null) {
-          createConversation().then(async (newConversation) => {
-            setActiveConversation(newConversation);
-            setConversations([...conversations, newConversation]);
-            await createMessage({
-              conversation_id: newConversation.conversation.id,
-              content: chatMessage.content,
-            });
-          });
-        } else {
-          await createMessage({
-            conversation_id: activeConversation.conversation.id,
-            content: chatMessage.content,
-          });
-        }
-        setError(undefined);
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Something went wrong!");
-        }
+  async function submitMessage(content: string) {
+    if (isSavingMessageRef.current) {
+      return;
+    }
+
+    isSavingMessageRef.current = true;
+    setIsSavingMessage(true);
+    setSaveError(null);
+    setError(undefined);
+
+    try {
+      let conversationId = selectedConversationId;
+
+      if (!conversationId) {
+        const newConversation = await createConversation();
+        conversationId = newConversation.id;
+        setSelectedConversationId(conversationId);
+        refreshConversationList();
       }
-    })();
+
+      const savedMessage = await saveUserMessage(conversationId, content);
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        mapTutorMessageToChatMessage(savedMessage),
+      ]);
+      refreshConversationList();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Message could not be saved. Please try again.";
+      setSaveError(message);
+      setError(message);
+      throw error;
+    } finally {
+      isSavingMessageRef.current = false;
+      setIsSavingMessage(false);
+    }
   }
 
   const isVisible = useOnScreen(lastMessageRef, "-40px");
+
+  useEffect(() => {
+    setMessages([]);
+    setSaveError(null);
+    setError(undefined);
+  }, [messageResetVersion, setError]);
 
   useEffect(() => {
     lastMessageRef.current?.scrollIntoView({
@@ -124,10 +150,10 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
         <div className="relative py-3 pr-2 w-full pl-3">
           <div className="flex flex-col w-full gap-3 pb-3 ">
             {messages.map((message, index) => {
-              if (message.role == "user") {
-                return <ChatMessage key={index}>{message.content}</ChatMessage>;
+              if (message.type === "user") {
+                return <ChatMessage key={index}>{message.message}</ChatMessage>;
               }
-              return <ChatReply key={index}>{message.content}</ChatReply>;
+              return <ChatReply key={index}>{message.message}</ChatReply>;
             })}
           </div>
           <div className="h-3" ref={lastMessageRef}></div>
@@ -135,7 +161,11 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
       </div>
       <div className="bg-transparent w-full bg-none">
         <div className="">
-          <TextArea submitMessage={submitMessage} />
+          <TextArea
+            submitMessage={submitMessage}
+            isSubmitting={isSavingMessage}
+            errorMessage={saveError}
+          />
         </div>
       </div>
     </div>

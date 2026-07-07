@@ -17,10 +17,10 @@ export async function GET(req: NextRequest) {
 
     const { data: conversation, error } = await supabase
       .from("conversations")
-      .select("id, user_id, status, title, created_at")
+      .select("id, user_id, status, title, created_at, updated_at")
       .eq("user_id", user.id)
       .neq("status", "ended")
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
     if (error) {
       return NextResponse.json(

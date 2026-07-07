@@ -1,13 +1,20 @@
 interface ConversationPropsType {
   name: string;
+  isSelected: boolean;
+  onSelect: () => void;
 }
-export default function Conversation({ name }: ConversationPropsType) {
+export default function Conversation({
+  name,
+  isSelected,
+  onSelect,
+}: ConversationPropsType) {
   return (
     <button
-      className="flex outline outline-message-grey hover:bg-message-grey rounded-2xl w-full p-2 text-sm font-bold"
-      onClick={() => {}}
+      className={`flex min-w-0 outline outline-message-grey rounded-2xl w-full p-2 text-sm font-bold ${isSelected ? "bg-message-grey" : "hover:bg-message-grey"}`}
+      onClick={onSelect}
+      title={name}
     >
-      {name}
+      <span className="truncate">{name}</span>
     </button>
   );
 }

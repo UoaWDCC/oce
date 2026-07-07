@@ -14,6 +14,10 @@ export async function getConversations(): Promise<Conversation[]> {
     throw new Error("Failed to fetch conversations");
   }
 
-  const data = (await res.json()) as { conversation: Conversation[] };
-  return data.conversation;
+  const data = (await res.json()) as { conversation?: unknown };
+  if (!Array.isArray(data.conversation)) {
+    throw new Error("Invalid conversations response");
+  }
+
+  return data.conversation as Conversation[];
 }

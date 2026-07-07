@@ -1,5 +1,6 @@
 "use client";
 import { ChatModalProvider } from "@/features/chatbot/providers/ChatBoxModalProvider";
+import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
 import ChatSection from "./chatSection";
 import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";
@@ -34,10 +35,12 @@ export default function ChatWrapper() {
   return (
     <div className="p-5 h-full">
       <ChatModalProvider>
-        <ChatSection />
-        <div className="fixed bottom-3 right-3 z-30">
-          <ChatButton />
-        </div>
+        <ConversationProvider>
+          <ChatSection />
+          <div className="fixed bottom-3 right-3 z-30">
+            <ChatButton />
+          </div>
+        </ConversationProvider>
       </ChatModalProvider>
     </div>
   );

@@ -14,6 +14,7 @@ import {
   ChatModalProvider,
   useChatModal,
 } from "@/features/chatbot/providers/ChatBoxModalProvider";
+import { ConversationProvider } from "@/features/chatbot/providers/ConversationProvider";
 import { ChatMessageType } from "@/features/chatbot/types";
 import TextArea from "@/features/textArea";
 
@@ -44,22 +45,24 @@ function ChatInputPreview() {
 
 function ChatButtonPreview() {
   return (
-    <ChatModalProvider>
-      <div className="relative min-h-96 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-        <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              Chat widget
-            </h2>
-            <p className="text-sm text-slate-600">
-              Click the chatbot button to open the existing floating UI.
-            </p>
+    <ConversationProvider>
+      <ChatModalProvider>
+        <div className="relative min-h-96 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+          <div className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">
+                Chat widget
+              </h2>
+              <p className="text-sm text-slate-600">
+                Click the chatbot button to open the existing floating UI.
+              </p>
+            </div>
+            <ChatButton />
           </div>
-          <ChatButton />
+          <ChatSection />
         </div>
-        <ChatSection />
-      </div>
-    </ChatModalProvider>
+      </ChatModalProvider>
+    </ConversationProvider>
   );
 }
 
@@ -133,16 +136,56 @@ export default function ChatbotPreviewClient() {
           <h2 className="text-lg font-semibold">Conversation List</h2>
           <div className="grid gap-4 md:grid-cols-[16rem_1fr]">
             <div className="h-80">
-              <ConversationsList />
+              <ConversationProvider>
+                <ConversationsList />
+              </ConversationProvider>
             </div>
             <div className="space-y-3">
-              <Conversation name="Module planning discussion" />
-              <Conversation name="Proposal summary draft" />
+              <Conversation
+                name="Module planning discussion"
+                isSelected={false}
+                onSelect={() => {}}
+              />
+              <Conversation
+                name="Proposal summary draft"
+                isSelected={true}
+                onSelect={() => {}}
+              />
               <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4">
                 <ChatDownButton scrollDown={() => {}} />
                 <span className="text-sm text-slate-600">
                   Standalone scroll button
                 </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Conversation List States</h2>
+          <div className="flex gap-6">
+            <div className="flex flex-col gap-2 w-48">
+              <p className="text-sm text-slate-500">Loading</p>
+              <div className="rounded-2xl h-80 shadow-xl outline outline-message-grey overflow-y-auto flex flex-col items-center justify-center p-4 gap-2">
+                <p className="text-sm text-slate-500 font-semibold text-center">
+                  Loading...
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 w-48">
+              <p className="text-sm text-slate-500">Empty</p>
+              <div className="rounded-2xl h-80 shadow-xl outline outline-message-grey overflow-y-auto flex flex-col items-center justify-center p-4 gap-2">
+                <p className="text-sm text-slate-500 font-semibold text-center">
+                  No conversations yet.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 w-48">
+              <p className="text-sm text-slate-500">Error</p>
+              <div className="rounded-2xl h-80 shadow-xl outline outline-message-grey overflow-y-auto flex flex-col items-center justify-center p-4 gap-2">
+                <p className="text-sm text-slate-500 font-semibold text-center">
+                  Could not load conversations.
+                </p>
               </div>
             </div>
           </div>

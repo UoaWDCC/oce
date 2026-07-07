@@ -10,6 +10,7 @@ import ChatFullscreen from "@/features/chatbot/components/fullscreen/chatFullscr
 import Conversation from "@/features/chatbot/components/fullscreen/conversation";
 import ConversationsList from "@/features/chatbot/components/fullscreen/conversationsList";
 import { mockChatMessages } from "@/features/chatbot/mocks";
+import TutorRequestPreview from "@/features/tutorRequest/components/tutorRequestPreview";
 import {
   ChatModalProvider,
   useChatModal,
@@ -127,6 +128,11 @@ export default function ChatbotPreviewClient() {
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Input</h2>
           <ChatInputPreview />
+        </section>
+
+        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">Tutor Request</h2>
+          <TutorRequestPreview />
         </section>
 
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

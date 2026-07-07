@@ -33,9 +33,9 @@ export function usePendingTutorRequest(
       });
       if (!res.ok) return;
 
-      const data = (await res.json().catch(() => null)) as
-        | { tutor_requests?: TutorRequest[] }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        tutor_requests?: TutorRequest[];
+      } | null;
 
       const pending = (data?.tutor_requests ?? []).some(
         (r) =>

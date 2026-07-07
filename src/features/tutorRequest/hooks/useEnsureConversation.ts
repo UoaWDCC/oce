@@ -41,9 +41,9 @@ export function useEnsureConversation(): UseEnsureConversation {
       });
       if (!res.ok) return null;
 
-      const data = (await res.json().catch(() => null)) as
-        | { conversation?: Conversation }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        conversation?: Conversation;
+      } | null;
       const id = data?.conversation?.id ?? null;
       setConversationId(id);
       return id;

@@ -56,9 +56,10 @@ export function useTutorRequest(): UseTutorRequest {
         }),
       });
 
-      const data = (await res.json().catch(() => null)) as
-        | { tutor_request?: TutorRequest; error?: string }
-        | null;
+      const data = (await res.json().catch(() => null)) as {
+        tutor_request?: TutorRequest;
+        error?: string;
+      } | null;
 
       if (!res.ok) {
         setStatus("error");

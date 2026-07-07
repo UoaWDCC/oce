@@ -129,11 +129,11 @@ export default function ChatbotPreviewClient() {
           <h2 className="text-lg font-semibold">Input</h2>
           <ChatInputPreview />
         </section>
-        
+
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Tutor Request</h2>
           <TutorRequestPreview />
-          </section>
+        </section>
 
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Conversation List</h2>

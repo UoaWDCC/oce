@@ -57,7 +57,9 @@ export default function ChatReply({
           </button>
         </div>
         {showTutorAction && (
-          <TutorRequestMessageAction conversationId={conversationId as string} />
+          <TutorRequestMessageAction
+            conversationId={conversationId as string}
+          />
         )}
       </div>
     </div>

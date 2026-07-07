@@ -28,7 +28,9 @@ export default function TutorRequestPreview() {
             </p>
             <div className="rounded-2xl bg-white p-3 outline-2 outline-[#e9d5ff]">
               <ChatReply isLast conversationId={conversationId.trim()}>
-                {"Here is the AI tutor's answer. If this wasn't enough, you can ask a real tutor below."}
+                {
+                  "Here is the AI tutor's answer. If this wasn't enough, you can ask a real tutor below."
+                }
               </ChatReply>
             </div>
           </div>

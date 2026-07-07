@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getConversations } from "../api/conversations";
 import { Conversation } from "@/features/chatbot/types";
 
-export function useConversations() {
+export function useConversations(refreshVersion = 0) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -33,7 +33,7 @@ export function useConversations() {
     return () => {
       ignore = true;
     };
-  }, []);
+  }, [refreshVersion]);
 
   return { conversations, isLoading, error };
 }

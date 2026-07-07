@@ -1,4 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+"use client";
+
+import { useRef, useEffect, useState } from "react";
 import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
@@ -7,11 +9,9 @@ import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
 import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
-import { mockChatMessages } from "@/features/chatbot/mocks";
-import {
-  createConversation,
-  saveUserMessage,
-} from "@/features/chatbot/api";
+import { useConversation } from "../../providers/ConversationProvider";
+import { createConversation, saveUserMessage } from "@/features/chatbot/api";
+import ErrorMessage from "../errorMessage";
 
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
   return {
@@ -23,15 +23,20 @@ function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
-  //NOTE: the way that message content is passed into the div hasn't been finalised
-  const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
-  const [activeConversationId, setActiveConversationId] = useState<
-    string | null
-  >(null);
+  const {
+    selectedConversationId,
+    setSelectedConversationId,
+    refreshConversationList,
+    messageResetVersion,
+    error,
+    setError,
+  } = useConversation();
+  const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const isSavingMessageRef = useRef(false);
+
   async function submitMessage(content: string) {
     if (isSavingMessageRef.current) {
       return;
@@ -40,30 +45,46 @@ export default function ChatFullscreen() {
     isSavingMessageRef.current = true;
     setIsSavingMessage(true);
     setSaveError(null);
+    setError(undefined);
 
     try {
-      const conversationId =
-        activeConversationId ?? (await createConversation()).id;
-      setActiveConversationId(conversationId);
+      let conversationId = selectedConversationId;
+
+      if (!conversationId) {
+        const newConversation = await createConversation();
+        conversationId = newConversation.id;
+        setSelectedConversationId(conversationId);
+        refreshConversationList();
+      }
 
       const savedMessage = await saveUserMessage(conversationId, content);
       setMessages((currentMessages) => [
         ...currentMessages,
         mapTutorMessageToChatMessage(savedMessage),
       ]);
+      refreshConversationList();
     } catch (error) {
-      setSaveError(
+      const message =
         error instanceof Error
           ? error.message
-          : "Message could not be saved. Please try again.",
-      );
+          : "Message could not be saved. Please try again.";
+      setSaveError(message);
+      setError(message);
       throw error;
     } finally {
       isSavingMessageRef.current = false;
       setIsSavingMessage(false);
     }
   }
+
   const isVisible = useOnScreen(lastMessageRef, "-40px");
+
+  useEffect(() => {
+    setMessages([]);
+    setSaveError(null);
+    setError(undefined);
+  }, [messageResetVersion, setError]);
+
   useEffect(() => {
     lastMessageRef.current?.scrollIntoView({
       behavior: "smooth",
@@ -86,8 +107,10 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
           />
         )}
       </div>
+
       <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
         <p className="font-bold text-white text-lg">AI Tutor</p>
+
         <div className="flex-1 gap-2 flex justify-end">
           <button
             onClick={() => {
@@ -118,11 +141,16 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
           </button>
         </div>
       </div>
+
+      <div className="z-10 flex w-full justify-center relative p-5">
+        {error !== undefined && <ErrorMessage message={error} />}
+      </div>
+
       <div className="min-h-0 pt-3 flex-1 overflow-y-scroll h-full w-full">
         <div className="relative py-3 pr-2 w-full pl-3">
           <div className="flex flex-col w-full gap-3 pb-3 ">
             {messages.map((message, index) => {
-              if (message.type == "user") {
+              if (message.type === "user") {
                 return <ChatMessage key={index}>{message.message}</ChatMessage>;
               }
               return <ChatReply key={index}>{message.message}</ChatReply>;

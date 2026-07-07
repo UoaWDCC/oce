@@ -1,6 +1,6 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import type { CreatePostFields, PostListItem } from "@app-types/posts";
+import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 
 const corsHeaders = {
@@ -11,7 +11,7 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "tags" | "author" | "post_type"
+  "comment_count" | "tags" | "author"
 > & {
   author:
     | {
@@ -27,16 +27,6 @@ type RawPostListItem = Omit<
         FirstName: string | null;
         LastName: string | null;
         Name: string | null;
-      }[]
-    | null;
-  post_type:
-    | {
-        type_id: number;
-        post_type: string;
-      }
-    | {
-        type_id: number;
-        post_type: string;
       }[]
     | null;
   post_tags:
@@ -70,7 +60,7 @@ function formatPostListItem(
     id: post.id,
     dao_group_id: post.dao_group_id,
     author_id: post.author_id,
-    post_type_id: post.post_type_id,
+    post_type: post.post_type,
     title: post.title,
     body: post.body,
     anonymous: post.anonymous,
@@ -80,7 +70,6 @@ function formatPostListItem(
     updated_at: post.updated_at,
     comment_count: commentCounts[post.id] ?? 0,
     author: post.anonymous ? null : firstOrNull(post.author),
-    post_type: firstOrNull(post.post_type),
     tags:
       post.post_tags
         ?.flatMap((postTag) => {
@@ -108,7 +97,7 @@ export async function GET(
         id,
         dao_group_id,
         author_id,
-        post_type_id,
+        post_type,
         title,
         body,
         anonymous,
@@ -122,10 +111,6 @@ export async function GET(
           FirstName,
           LastName,
           Name
-        ),
-        post_type:post_types!posts_new_type_fk (
-          type_id,
-          post_type
         ),
         post_tags (
           tag:tags!post_tags_new_tag_fk (
@@ -185,7 +170,7 @@ export async function POST(
 
   const body = (await request.json()) as CreatePostFields;
 
-  if (!body.title || !body.body || !body.post_type_id || !daoGroupId) {
+  if (!body.title || !body.body || !body.post_type || !daoGroupId) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400, headers: corsHeaders },
@@ -203,7 +188,7 @@ export async function POST(
   const { data, error } = await supabase
     .from("posts")
     .insert({
-      post_type_id: body.post_type_id,
+      post_type: body.post_type,
       title: body.title,
       body: body.body,
       anonymous: body.anonymous,

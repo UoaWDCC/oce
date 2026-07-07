@@ -12,19 +12,17 @@ import {
   Tag as TagIcon,
 } from "lucide-react";
 import CommentCard from "@/components/dao-forum/CommentCard";
-import CommentEntryComposer, {
-  type CommentSubmitPayload,
-} from "@/components/dao-forum/CommentEntryComposer";
+import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostCard from "@/components/dao-forum/Post";
-import PostEntryComposer, {
-  type PostSubmitPayload,
-} from "@/components/dao-forum/PostEntryComposer";
+import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
 import Tag from "@/components/dao-forum/Tag";
-import type { PostType } from "@app-types/post_types";
 import type {
+  CommentSubmitPayload,
   ForumCommentPreview,
   ForumPostPreview,
-} from "../types";
+  PostSubmitPayload,
+  PostType,
+} from "@app-types/dao-forum";
 
 type ForumPanelProps = {
   daoId: string;

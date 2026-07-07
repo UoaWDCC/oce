@@ -9,7 +9,11 @@ import {
   Lightbulb,
   BookOpen,
 } from "lucide-react";
-import { POST_TYPE, PostType } from "@app-types/post_types";
+import {
+  POST_TYPE,
+  type PostSubmitPayload,
+  type PostType,
+} from "@app-types/dao-forum";
 import ForumEntryComposer from "./ForumEntryComposer";
 
 const POST_TYPE_CONFIG: Record<
@@ -36,15 +40,6 @@ const POST_TYPE_CONFIG: Record<
     icon: BookOpen,
     bgColor: "bg-emerald-400",
   },
-};
-
-export type PostSubmitPayload = {
-  title: string;
-  body: string;
-  postType: PostType;
-  anonymous: boolean;
-  isPinned: boolean;
-  imageUrl?: string;
 };
 
 export type PostEntryComposerProps = {

@@ -1,14 +1,12 @@
-import {
+import type {
   CreateCommentFields,
   FormattedComment,
-  UpdateCommentFields,
-} from "@app-types/comments";
-import {
   Post,
   CreatePostFields,
   PostListItem,
+  UpdateCommentFields,
   UpdatePostFields,
-} from "@app-types/posts";
+} from "@app-types/dao-forum";
 
 async function request(
   path: string,

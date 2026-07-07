@@ -11,7 +11,7 @@ export const mockUser = { id: "test-user", email: "test@example.com" };
 export const defaultPostBody = {
   title: "Post",
   body: "Content",
-  post_type_id: 1,
+  post_type: "Announcement",
   anonymous: false,
   is_pinned: false,
   image_url: null,

@@ -10,14 +10,28 @@ import ChatDownButton from "../chatDownButton";
 import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { useConversation } from "../../providers/ConversationProvider";
-import { createConversation, saveUserMessage } from "@/features/chatbot/api";
+import {
+  createConversation,
+  saveUserMessage,
+  streamAssistantMessage,
+} from "@/features/chatbot/api";
 import ErrorMessage from "../errorMessage";
+import type { Message } from "@/llm/types/Message";
 
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
   return {
     type: message.role === "user" ? "user" : "bot",
     message: message.content,
+    id: message.id,
+    favourited: message.is_favourite,
   };
+}
+
+function mapChatMessagesToLLMMessages(messages: ChatMessageType[]): Message[] {
+  return messages.map((message) => ({
+    role: message.type === "user" ? "user" : "assistant",
+    content: message.message,
+  }));
 }
 
 export default function ChatFullscreen() {
@@ -58,11 +72,66 @@ export default function ChatFullscreen() {
       }
 
       const savedMessage = await saveUserMessage(conversationId, content);
+      const userMessage = mapTutorMessageToChatMessage(savedMessage);
+      const assistantMessage: ChatMessageType = {
+        type: "bot",
+        message: "",
+        favourited: false,
+      };
+
+      const messagesForStream = [...messages, userMessage];
+
       setMessages((currentMessages) => [
         ...currentMessages,
-        mapTutorMessageToChatMessage(savedMessage),
+        userMessage,
+        assistantMessage,
       ]);
       refreshConversationList();
+
+      await streamAssistantMessage(
+        conversationId,
+        mapChatMessagesToLLMMessages(messagesForStream),
+        {
+          onText: (text) => {
+            setMessages((currentMessages) => {
+              const nextMessages = [...currentMessages];
+              const assistantIndex = nextMessages.length - 1;
+              const currentAssistant = nextMessages[assistantIndex];
+
+              if (!currentAssistant || currentAssistant.type !== "bot") {
+                return currentMessages;
+              }
+
+              nextMessages[assistantIndex] = {
+                ...currentAssistant,
+                message: `${currentAssistant.message}${text}`,
+              };
+
+              return nextMessages;
+            });
+          },
+          onMessageId: (id) => {
+            setMessages((currentMessages) => {
+              const nextMessages = [...currentMessages];
+              const assistantIndex = nextMessages.length - 1;
+              const currentAssistant = nextMessages[assistantIndex];
+
+              if (!currentAssistant || currentAssistant.type !== "bot") {
+                return currentMessages;
+              }
+
+              nextMessages[assistantIndex] = {
+                ...currentAssistant,
+                id,
+                favourited: false,
+              };
+
+              return nextMessages;
+            });
+            refreshConversationList();
+          },
+        },
+      );
     } catch (error) {
       const message =
         error instanceof Error

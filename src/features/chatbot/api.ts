@@ -1,5 +1,6 @@
 import { createClient } from "@/utils/supabase/client";
 import type { Conversation, TutorMessage } from "@/features/chatbot/types";
+import type { Message } from "@/llm/types/Message";
 
 async function getAccessToken() {
   const supabase = createClient();
@@ -52,4 +53,79 @@ export async function saveUserMessage(
   });
   const data = (await response.json()) as { message: TutorMessage };
   return data.message;
+}
+
+interface StreamAssistantMessageHandlers {
+  onText: (text: string) => void;
+  onMessageId: (id: string) => void;
+}
+
+function parseStreamPayload(
+  payload: string,
+  handlers: StreamAssistantMessageHandlers,
+) {
+  for (const line of payload.split("\n")) {
+    if (!line.startsWith("data:")) {
+      continue;
+    }
+
+    const data = line.slice("data:".length).trimStart();
+
+    if (data === "[DONE]") {
+      continue;
+    }
+
+    if (data.startsWith("[MESSAGE_ID]")) {
+      const messageId = data.slice("[MESSAGE_ID]".length).trim();
+
+      if (messageId) {
+        handlers.onMessageId(messageId);
+      }
+
+      continue;
+    }
+
+    handlers.onText(data);
+  }
+}
+
+export async function streamAssistantMessage(
+  conversationId: string,
+  messages: Message[],
+  handlers: StreamAssistantMessageHandlers,
+) {
+  const response = await apiFetch("/api/ai-tutor/chat/stream", {
+    method: "POST",
+    body: JSON.stringify({ conversation_id: conversationId, messages }),
+  });
+
+  if (!response.body) {
+    throw new Error("AI Tutor stream did not return a response body.");
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { value, done } = await reader.read();
+
+    if (done) {
+      break;
+    }
+
+    buffer += decoder.decode(value, { stream: true });
+    const events = buffer.split("\n\n");
+    buffer = events.pop() ?? "";
+
+    for (const event of events) {
+      parseStreamPayload(event, handlers);
+    }
+  }
+
+  buffer += decoder.decode();
+
+  if (buffer) {
+    parseStreamPayload(buffer, handlers);
+  }
 }

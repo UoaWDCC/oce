@@ -12,6 +12,7 @@ import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider"
 import { useConversation } from "../../providers/ConversationProvider";
 import {
   createConversation,
+  getConversationMessages,
   saveUserMessage,
   streamAssistantMessage,
 } from "@/features/chatbot/api";
@@ -148,11 +149,47 @@ export default function ChatFullscreen() {
 
   const isVisible = useOnScreen(lastMessageRef, "-40px");
 
+  // Loads persisted history when the user selects/switches conversation.
+  // Keyed on messageResetVersion, which is bumped on every selection, so
+  // re-selecting the same conversation still reloads. The isSavingMessage
+  // guard skips the reload that fires when submitMessage creates a new
+  // conversation mid-send, which would clobber the optimistic messages.
   useEffect(() => {
+    if (isSavingMessageRef.current) {
+      return;
+    }
+
+    let ignore = false;
+
     setMessages([]);
     setSaveError(null);
     setError(undefined);
-  }, [messageResetVersion, setError]);
+
+    if (!selectedConversationId) {
+      return;
+    }
+
+    async function loadMessages(conversationId: string) {
+      try {
+        const history = await getConversationMessages(conversationId);
+        if (ignore) return;
+        setMessages(history.map(mapTutorMessageToChatMessage));
+      } catch (err) {
+        if (ignore) return;
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Messages could not be loaded. Please try again.",
+        );
+      }
+    }
+
+    loadMessages(selectedConversationId);
+
+    return () => {
+      ignore = true;
+    };
+  }, [messageResetVersion, selectedConversationId, setError]);
 
   useEffect(() => {
     lastMessageRef.current?.scrollIntoView({

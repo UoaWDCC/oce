@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { ChatMessageType } from "@/features/chatbot/types";
+import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
 import Image from "next/image";
 import ChatMessage from "../chatMessage";
@@ -8,15 +8,60 @@ import ChatDownButton from "../chatDownButton";
 import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { mockChatMessages } from "@/features/chatbot/mocks";
+import {
+  createConversation,
+  saveUserMessage,
+} from "@/features/chatbot/api";
+
+function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
+  return {
+    type: message.role === "user" ? "user" : "bot",
+    message: message.content,
+  };
+}
 
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
   //NOTE: the way that message content is passed into the div hasn't been finalised
   const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
+  const [activeConversationId, setActiveConversationId] = useState<
+    string | null
+  >(null);
+  const [isSavingMessage, setIsSavingMessage] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
-  function submitMessage(chatMessage: ChatMessageType) {
-    setMessages([...messages, chatMessage]);
+  const isSavingMessageRef = useRef(false);
+  async function submitMessage(content: string) {
+    if (isSavingMessageRef.current) {
+      return;
+    }
+
+    isSavingMessageRef.current = true;
+    setIsSavingMessage(true);
+    setSaveError(null);
+
+    try {
+      const conversationId =
+        activeConversationId ?? (await createConversation()).id;
+      setActiveConversationId(conversationId);
+
+      const savedMessage = await saveUserMessage(conversationId, content);
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        mapTutorMessageToChatMessage(savedMessage),
+      ]);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error
+          ? error.message
+          : "Message could not be saved. Please try again.",
+      );
+      throw error;
+    } finally {
+      isSavingMessageRef.current = false;
+      setIsSavingMessage(false);
+    }
   }
   const isVisible = useOnScreen(lastMessageRef, "-40px");
   useEffect(() => {
@@ -88,7 +133,11 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
       </div>
       <div className="bg-transparent w-full bg-none">
         <div className="">
-          <TextArea submitMessage={submitMessage} />
+          <TextArea
+            submitMessage={submitMessage}
+            isSubmitting={isSavingMessage}
+            errorMessage={saveError}
+          />
         </div>
       </div>
     </div>

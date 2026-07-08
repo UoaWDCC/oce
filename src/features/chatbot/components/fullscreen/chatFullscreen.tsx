@@ -35,6 +35,39 @@ function mapChatMessagesToLLMMessages(messages: ChatMessageType[]): Message[] {
   }));
 }
 
+// Lightweight "thinking" indicator shown while persisted history is loading.
+function HistoryLoadingState() {
+  return (
+    <div className="flex w-full justify-center py-6">
+      <div
+        className="flex items-center gap-2 text-sm font-semibold text-slate-500"
+        role="status"
+        aria-label="Loading messages"
+      >
+        <span
+          className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+          style={{ animationDelay: "-0.3s" }}
+        />
+        <span
+          className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+          style={{ animationDelay: "-0.15s" }}
+        />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
+      </div>
+    </div>
+  );
+}
+
+// Shown when the selected conversation has no persisted messages yet.
+function EmptyConversationState() {
+  return (
+    <div className="flex w-full flex-col items-center justify-center gap-1 py-10 text-center">
+      <p className="text-sm font-semibold text-slate-500">No messages yet</p>
+      <p className="text-sm text-slate-400">Ask a question to get started.</p>
+    </div>
+  );
+}
+
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
@@ -47,6 +80,7 @@ export default function ChatFullscreen() {
     setError,
   } = useConversation();
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
@@ -161,13 +195,18 @@ export default function ChatFullscreen() {
 
     let ignore = false;
 
+    // Clear immediately so a stale conversation's messages/errors are never
+    // shown while the next one loads (or if its load fails).
     setMessages([]);
     setSaveError(null);
     setError(undefined);
 
     if (!selectedConversationId) {
+      setIsLoadingHistory(false);
       return;
     }
+
+    setIsLoadingHistory(true);
 
     async function loadMessages(conversationId: string) {
       try {
@@ -181,6 +220,12 @@ export default function ChatFullscreen() {
             ? err.message
             : "Messages could not be loaded. Please try again.",
         );
+      } finally {
+        // The ignore guard means a superseded load never flips the spinner
+        // off for the conversation that replaced it.
+        if (!ignore) {
+          setIsLoadingHistory(false);
+        }
       }
     }
 
@@ -255,20 +300,28 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
       <div className="min-h-0 pt-3 flex-1 overflow-y-scroll h-full w-full">
         <div className="relative py-3 pr-2 w-full pl-3">
           <div className="flex flex-col w-full gap-3 pb-3 ">
-            {messages.map((message, index) => {
-              if (message.type === "user") {
-                return <ChatMessage key={index}>{message.message}</ChatMessage>;
-              }
-              return (
-                <ChatReply
-                  key={index}
-                  messageId={message.id}
-                  initialFavourited={message.favourited}
-                >
-                  {message.message}
-                </ChatReply>
-              );
-            })}
+            {isLoadingHistory ? (
+              <HistoryLoadingState />
+            ) : messages.length === 0 && error === undefined ? (
+              <EmptyConversationState />
+            ) : (
+              messages.map((message, index) => {
+                if (message.type === "user") {
+                  return (
+                    <ChatMessage key={index}>{message.message}</ChatMessage>
+                  );
+                }
+                return (
+                  <ChatReply
+                    key={index}
+                    messageId={message.id}
+                    initialFavourited={message.favourited}
+                  >
+                    {message.message}
+                  </ChatReply>
+                );
+              })
+            )}
           </div>
           <div className="h-3" ref={lastMessageRef}></div>
         </div>

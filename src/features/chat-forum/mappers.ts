@@ -6,6 +6,7 @@ import type {
   PostListItem,
   PostSubmitPayload,
   PostType,
+  UpdatePostFields,
 } from "@app-types/dao-forum";
 
 export function mapPostSubmitPayloadToCreatePostFields(
@@ -18,6 +19,21 @@ export function mapPostSubmitPayloadToCreatePostFields(
     anonymous: payload.anonymous,
     is_pinned: payload.isPinned,
     image_url: payload.imageUrl ?? null,
+  };
+}
+
+export function mapPostSubmitPayloadToUpdatePostFields(
+  payload: PostSubmitPayload,
+): UpdatePostFields {
+  return {
+    post_type: payload.postType,
+    title: payload.title,
+    body: payload.body,
+    anonymous: payload.anonymous,
+    is_pinned: payload.isPinned,
+    image_url: payload.imageUrl ?? null,
+    // The updated_at field is set to null as the DB will handle the timestamp.
+    updated_at: null,
   };
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef} from "react";
 import { deleteForumPost } from "../services";
 
 export interface UseDeleteDaoForumPostResult {
@@ -14,6 +14,7 @@ export function useDeleteDaoForumPost(
 ): UseDeleteDaoForumPostResult {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const deletePost = useCallback(async (): Promise<boolean> => {
     if (!daoGroupId || !postId) {
@@ -25,10 +26,11 @@ export function useDeleteDaoForumPost(
       return false;
     }
 
-    if (isSubmitting) {
+    if (isSubmittingRef.current) {
       return false;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -40,8 +42,9 @@ export function useDeleteDaoForumPost(
       return false;
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
-  }, [daoGroupId, postId, token, isSubmitting]);
+  }, [daoGroupId, postId, token]);
 
   return { deletePost, isSubmitting, error };
 }

@@ -6,7 +6,7 @@ import type {
   FormattedComment,
   InsertComment,
   RawComment,
-} from "@app-types/comments";
+} from "@app-types/dao-forum";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

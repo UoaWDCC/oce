@@ -8,6 +8,7 @@ import ChatDownButton from "../chatDownButton";
 import TextArea from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { mockChatMessages } from "@/features/chatbot/mocks";
+import { useEnsureConversation } from "@/features/tutorRequest/hooks/useEnsureConversation";
 
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
@@ -15,6 +16,25 @@ export default function ChatFullscreen() {
   //NOTE: the way that message content is passed into the div hasn't been finalised
   const [messages, setMessages] = useState<ChatMessageType[]>(mockChatMessages);
   const lastMessageRef = useRef<HTMLDivElement>(null);
+
+  // Bridge: ensure a real conversation exists so the tutor request feature
+  // has a valid conversation_id. Full conversation lifecycle (history,
+  // selection) remains owned by the chat team.
+  const { conversationId, ensure } = useEnsureConversation();
+
+  // Index of the last bot reply, so only it shows the tutor action.
+  const lastBotIndex = messages.reduce(
+    (last, m, i) => (m.type === "bot" ? i : last),
+    -1,
+  );
+
+  useEffect(() => {
+    if (open) {
+      ensure();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   function submitMessage(chatMessage: ChatMessageType) {
     setMessages([...messages, chatMessage]);
   }
@@ -80,7 +100,15 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
               if (message.type == "user") {
                 return <ChatMessage key={index}>{message.message}</ChatMessage>;
               }
-              return <ChatReply key={index}>{message.message}</ChatReply>;
+              return (
+                <ChatReply
+                  key={index}
+                  isLast={index === lastBotIndex}
+                  conversationId={conversationId}
+                >
+                  {message.message}
+                </ChatReply>
+              );
             })}
           </div>
           <div className="h-3" ref={lastMessageRef}></div>

@@ -4,7 +4,7 @@ import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
 import type { ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
-import { POST_TYPE } from "@app-types/post_types";
+import { POST_TYPE } from "@app-types/dao-forum";
 import CommentCard from "@/components/dao-forum/CommentCard";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";

@@ -13,7 +13,7 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/comments/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import type { CommentListItem } from "@app-types/comments";
+import type { CommentListItem } from "@app-types/dao-forum";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),

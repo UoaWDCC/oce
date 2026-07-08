@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
-import type { UpdateCommentFields } from "@app-types/comments";
+import type { UpdateCommentFields } from "@app-types/dao-forum";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",

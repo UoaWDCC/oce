@@ -1,5 +1,5 @@
 import React from "react";
-import { POST_TYPE, PostType } from "@app-types/post_types";
+import { POST_TYPE, type PostType } from "@app-types/dao-forum";
 
 const POST_TYPE_STYLES: Record<PostType, string> = {
   [POST_TYPE.Announcement]:

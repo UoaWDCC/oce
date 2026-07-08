@@ -4,7 +4,7 @@ import Link from "next/link";
 import React from "react";
 import Tag from "./Tag";
 import StudentAvatar, { Timestamp } from "../common/StudentAvatar";
-import { PostType } from "@app-types/post_types";
+import type { PostType } from "@app-types/dao-forum";
 
 export type PostCardProps = {
   daoId: string;

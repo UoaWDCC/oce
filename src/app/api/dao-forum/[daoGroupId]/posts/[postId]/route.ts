@@ -1,5 +1,5 @@
 import { authenticateUser } from "@/utils/authHelper";
-import type { Post, UpdatePostFields } from "@app-types/posts";
+import type { Post, UpdatePostFields } from "@app-types/dao-forum";
 import { NextResponse } from "next/server";
 
 const corsHeaders = {
@@ -56,7 +56,7 @@ export async function PATCH(
   if (
     !body.title ||
     !body.body ||
-    !body.post_type_id ||
+    !body.post_type ||
     body.anonymous === undefined ||
     body.is_pinned === undefined
   ) {
@@ -90,7 +90,7 @@ export async function PATCH(
   const { data, error } = await supabase
     .from("posts")
     .update({
-      post_type_id: body.post_type_id,
+      post_type: body.post_type,
       title: body.title,
       body: body.body,
       anonymous: body.anonymous,

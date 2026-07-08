@@ -1,5 +1,8 @@
 import { CommentCardProps } from "@/components/dao-forum/CommentCard";
-import { ForumCommentPreview, ForumPostPreview } from "./types";
+import type {
+  ForumCommentPreview,
+  ForumPostPreview,
+} from "@app-types/dao-forum";
 
 export const mockForumPostPreviews: ForumPostPreview[] = [
   {

@@ -1,13 +1,8 @@
 "use client";
 
 import React from "react";
+import type { CommentSubmitPayload } from "@app-types/dao-forum";
 import ForumEntryComposer from "./ForumEntryComposer";
-
-export type CommentSubmitPayload = {
-  body: string;
-  imageUrl?: string;
-  parentCommentId?: string;
-};
 
 export type CommentEntryComposerProps = {
   parentCommentId?: string;

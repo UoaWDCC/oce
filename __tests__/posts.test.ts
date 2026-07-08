@@ -19,7 +19,7 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import type { PostListItem } from "@app-types/posts";
+import type { PostListItem } from "@app-types/dao-forum";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -46,7 +46,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         id: "post-1",
         dao_group_id: "dao-1",
         author_id: "author-1",
-        post_type_id: 1,
+        post_type: "Announcement",
         title: "Hello",
         body: "Post body",
         anonymous: false,
@@ -60,10 +60,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           FirstName: "Alice",
           LastName: "A",
           Name: "Alice A",
-        },
-        post_type: {
-          type_id: 1,
-          post_type: "Announcement",
         },
         post_tags: [
           { tag: { name: "Governance" } },
@@ -87,7 +83,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         id: "post-1",
         dao_group_id: "dao-1",
         author_id: "author-1",
-        post_type_id: 1,
+        post_type: "Announcement",
         title: "Hello",
         body: "Post body",
         anonymous: false,
@@ -103,10 +99,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           LastName: "A",
           Name: "Alice A",
         },
-        post_type: {
-          type_id: 1,
-          post_type: "Announcement",
-        },
         tags: ["Governance", "Technical"],
       },
     ]);
@@ -120,7 +112,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           id: "post-1",
           dao_group_id: "dao-1",
           author_id: "author-1",
-          post_type_id: 1,
+          post_type: "Announcement",
           title: "Anonymous post",
           body: "Post body",
           anonymous: true,
@@ -135,7 +127,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
             LastName: "A",
             Name: "Alice A",
           },
-          post_type: null,
           post_tags: [],
         },
       ],
@@ -179,7 +170,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           id: "post-1",
           dao_group_id: "dao-1",
           author_id: "author-1",
-          post_type_id: 1,
+          post_type: "Announcement",
           title: "Hello",
           body: "Post body",
           anonymous: false,
@@ -188,7 +179,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           created_at: "2026-06-01T00:00:00Z",
           updated_at: null,
           author: null,
-          post_type: null,
           post_tags: [],
         },
       ],
@@ -220,7 +210,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     const req = createMockRequest("POST", {
       title: "New Post",
       body: "Content",
-      post_type_id: 1,
+      post_type: "Announcement",
       anonymous: false,
       is_pinned: false,
       image_url: null,
@@ -236,7 +226,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     const req = createMockRequest("POST", {
       title: "",
       body: "",
-      post_type_id: 0,
+      post_type: "",
       anonymous: false,
       is_pinned: false,
       image_url: null,
@@ -351,7 +341,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   const validBody = {
     title: "Updated",
     body: "Updated body",
-    post_type_id: 1,
+    post_type: "Announcement",
     anonymous: false,
     is_pinned: false,
     image_url: null,

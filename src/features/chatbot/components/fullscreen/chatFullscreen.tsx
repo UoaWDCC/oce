@@ -214,11 +214,10 @@ export default function ChatFullscreen() {
         },
       );
 
-      // Reconcile the streamed reply with persisted data so the final message
-      // carries the authoritative id/is_favourite for favourites & tutor-request
-      // flows. Best-effort: the streamed text + id from onMessageId already give
-      // a working reply if this refetch fails. Skipped if the user switched
-      // conversations mid-stream so we don't overwrite their current view.
+      // Reconcile the streamed reply with persisted data so it carries the
+      // authoritative id/is_favourite for favourites & tutor-request flows.
+      // Best-effort — the streamed text + onMessageId id already work if this
+      // fails. Skipped after a mid-stream switch so we don't overwrite the new view.
       if (selectedConversationIdRef.current === conversationId) {
         try {
           const persisted = await getConversationMessages(conversationId);
@@ -231,10 +230,9 @@ export default function ChatFullscreen() {
       }
     } catch (error) {
       // Only surface the failure if the user is still on the conversation that
-      // was streaming. If they switched away, a failed or cancelled background
-      // stream must not display its error in — or write to — the now-selected
-      // conversation. streamingConversationIdRef still holds the target here
-      // (it is cleared in finally, which runs after this block).
+      // was streaming; a stream that failed after they switched away must not
+      // show its error in the now-selected conversation. (streamingConversationIdRef
+      // still holds the target here — it is cleared in finally, which runs after.)
       if (
         selectedConversationIdRef.current === streamingConversationIdRef.current
       ) {
@@ -248,9 +246,10 @@ export default function ChatFullscreen() {
         throw error;
       }
 
-      // Switched away: swallow so the current conversation stays clean and the
-      // input clears. The stream still finishes server-side and persists, so
-      // returning to the original conversation will show the saved reply.
+      // This stream failed/cancelled after the user switched away. Swallow the
+      // error so the now-selected conversation stays clean and the input clears;
+      // the failed reply may not have persisted, which is acceptable. (A stream
+      // that completes after a switch is handled by the try above and is saved.)
       console.error(
         "AI Tutor stream failed for a background conversation:",
         error,
@@ -259,10 +258,9 @@ export default function ChatFullscreen() {
       const streamedConversationId = streamingConversationIdRef.current;
       streamingConversationIdRef.current = null;
 
-      // Drop the temporary assistant bubble if no useful content streamed in
-      // (e.g. the stream errored before the first chunk), so the UI is never
-      // left showing a stuck, empty "thinking" reply. Only touch the view if
-      // the user is still on the conversation that was streaming.
+      // Drop the temporary assistant bubble if nothing useful streamed in (e.g.
+      // the stream errored before the first chunk), so the UI isn't stuck showing
+      // an empty "thinking" reply. Only touch the view if still on this conversation.
       if (selectedConversationIdRef.current === streamedConversationId) {
         setMessages((currentMessages) => {
           const lastMessage = currentMessages[currentMessages.length - 1];
@@ -283,12 +281,10 @@ export default function ChatFullscreen() {
 
   const isVisible = useOnScreen(lastMessageRef, "-40px");
 
-  // Loads persisted history when the user selects/switches conversation.
-  // Keyed on messageResetVersion, which is bumped on every selection, so
-  // re-selecting the same conversation still reloads. While a stream is in
-  // flight we skip reloading only the conversation being streamed (which would
-  // clobber its optimistic messages) — switching to a *different* conversation
-  // still loads its history normally.
+  // Loads persisted history when the user selects/switches conversation. Keyed
+  // on messageResetVersion (bumped on every selection) so re-selecting reloads.
+  // While a stream is in flight we skip reloading only the conversation being
+  // streamed (which would clobber its optimistic messages); others load normally.
   useEffect(() => {
     if (
       isSavingMessageRef.current &&
@@ -415,10 +411,10 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
                     <ChatMessage key={index}>{message.message}</ChatMessage>
                   );
                 }
-                // Assistant bubble with no content yet = awaiting the first
+                // An assistant bubble with no content yet is awaiting its first
                 // streamed chunk, so show the thinking indicator. Persisted
-                // assistant messages always have content, so this only ever
-                // applies to the in-flight streaming reply.
+                // assistant messages always have content, so this only applies
+                // to the in-flight streaming reply.
                 if (message.message.trim() === "") {
                   return <AssistantThinkingState key={index} />;
                 }

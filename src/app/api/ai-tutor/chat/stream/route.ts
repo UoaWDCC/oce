@@ -92,11 +92,9 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       let fullResponse = "";
 
-      // Text chunks are JSON-encoded so newlines/blank lines inside markdown
-      // survive SSE framing (a raw "\n\n" inside a chunk would otherwise be
-      // read as an event boundary by the client). The [MESSAGE_ID]/[DONE]
-      // sentinels stay bare tokens, which never collide with a quoted JSON
-      // string.
+      // Text chunks are JSON-encoded so newlines/blank lines survive SSE framing
+      // (a raw "\n\n" in a chunk would otherwise read as an event boundary). The
+      // [MESSAGE_ID]/[DONE] sentinels stay bare tokens, distinct from quoted JSON.
       try {
         if (!firstChunk.done) {
           fullResponse += firstChunk.value;
@@ -148,10 +146,9 @@ export async function POST(req: NextRequest) {
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
       } catch (error) {
-        // A client that stopped reading (e.g. the user switched conversations
-        // and the browser tore down the fetch) surfaces here as a failed
-        // enqueue / aborted iterator. That is expected cancellation, not a
-        // provider failure, so close quietly instead of emitting a noisy 500.
+        // A client that stopped reading (e.g. user switched conversations)
+        // surfaces here as a failed enqueue / aborted iterator — expected
+        // cancellation, not a provider failure. Close quietly, not a noisy 500.
         if (clientCancelled || req.signal.aborted) {
           try {
             controller.close();

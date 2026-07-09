@@ -105,7 +105,7 @@ function parseStreamPayload(
         text = parsed;
       }
     } catch {
-      // Not JSON — treat as raw text (backwards compatible).
+      // Not JSON — treat as raw text.
     }
 
     handlers.onText(text);

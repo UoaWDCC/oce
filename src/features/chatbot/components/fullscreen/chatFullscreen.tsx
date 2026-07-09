@@ -68,6 +68,30 @@ function EmptyConversationState() {
   );
 }
 
+// Left-aligned "thinking" indicator shown in the reply slot after a user
+// message is sent but before the first streamed assistant chunk arrives.
+function AssistantThinkingState() {
+  return (
+    <div className="px-3">
+      <div
+        className="flex items-center gap-2 py-1"
+        role="status"
+        aria-label="Assistant is thinking"
+      >
+        <span
+          className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+          style={{ animationDelay: "-0.3s" }}
+        />
+        <span
+          className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
+          style={{ animationDelay: "-0.15s" }}
+        />
+        <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
+      </div>
+    </div>
+  );
+}
+
 export default function ChatFullscreen() {
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
@@ -176,6 +200,20 @@ export default function ChatFullscreen() {
       setError(message);
       throw error;
     } finally {
+      // Drop the temporary assistant bubble if no useful content streamed in
+      // (e.g. the stream errored before the first chunk), so the UI is never
+      // left showing a stuck, empty "thinking" reply.
+      setMessages((currentMessages) => {
+        const lastMessage = currentMessages[currentMessages.length - 1];
+        if (
+          lastMessage &&
+          lastMessage.type === "bot" &&
+          lastMessage.message.trim() === ""
+        ) {
+          return currentMessages.slice(0, -1);
+        }
+        return currentMessages;
+      });
       isSavingMessageRef.current = false;
       setIsSavingMessage(false);
     }
@@ -310,6 +348,13 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
                   return (
                     <ChatMessage key={index}>{message.message}</ChatMessage>
                   );
+                }
+                // Assistant bubble with no content yet = awaiting the first
+                // streamed chunk, so show the thinking indicator. Persisted
+                // assistant messages always have content, so this only ever
+                // applies to the in-flight streaming reply.
+                if (message.message.trim() === "") {
+                  return <AssistantThinkingState key={index} />;
                 }
                 return (
                   <ChatReply

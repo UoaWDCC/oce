@@ -95,7 +95,20 @@ function parseStreamPayload(
       continue;
     }
 
-    handlers.onText(data);
+    // Text chunks are JSON-encoded server-side to preserve newlines and
+    // leading whitespace. Fall back to the raw payload so an older,
+    // unencoded stream still renders.
+    let text = data;
+    try {
+      const parsed = JSON.parse(data) as unknown;
+      if (typeof parsed === "string") {
+        text = parsed;
+      }
+    } catch {
+      // Not JSON — treat as raw text (backwards compatible).
+    }
+
+    handlers.onText(text);
   }
 }
 

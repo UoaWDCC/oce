@@ -109,6 +109,15 @@ export default function ChatFullscreen() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const isSavingMessageRef = useRef(false);
+  // Mirrors the currently selected conversation so async stream callbacks can
+  // tell whether the user has switched away since the send started.
+  const selectedConversationIdRef = useRef(selectedConversationId);
+  // The conversation a stream is actively writing into (null when idle).
+  const streamingConversationIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
 
   async function submitMessage(content: string) {
     if (isSavingMessageRef.current) {
@@ -129,6 +138,11 @@ export default function ChatFullscreen() {
         setSelectedConversationId(conversationId);
         refreshConversationList();
       }
+
+      // Record which conversation this stream targets. The history-load effect
+      // skips reloading this id while saving so it doesn't clobber the
+      // optimistic/streamed messages; a switch to a *different* id still loads.
+      streamingConversationIdRef.current = conversationId;
 
       const savedMessage = await saveUserMessage(conversationId, content);
       const userMessage = mapTutorMessageToChatMessage(savedMessage);
@@ -152,6 +166,11 @@ export default function ChatFullscreen() {
         mapChatMessagesToLLMMessages(messagesForStream),
         {
           onText: (text) => {
+            // Ignore chunks if the user has switched to another conversation,
+            // so a background stream never leaks into the current view.
+            if (selectedConversationIdRef.current !== conversationId) {
+              return;
+            }
             setMessages((currentMessages) => {
               const nextMessages = [...currentMessages];
               const assistantIndex = nextMessages.length - 1;
@@ -170,6 +189,9 @@ export default function ChatFullscreen() {
             });
           },
           onMessageId: (id) => {
+            if (selectedConversationIdRef.current !== conversationId) {
+              return;
+            }
             setMessages((currentMessages) => {
               const nextMessages = [...currentMessages];
               const assistantIndex = nextMessages.length - 1;
@@ -191,29 +213,69 @@ export default function ChatFullscreen() {
           },
         },
       );
+
+      // Reconcile the streamed reply with persisted data so the final message
+      // carries the authoritative id/is_favourite for favourites & tutor-request
+      // flows. Best-effort: the streamed text + id from onMessageId already give
+      // a working reply if this refetch fails. Skipped if the user switched
+      // conversations mid-stream so we don't overwrite their current view.
+      if (selectedConversationIdRef.current === conversationId) {
+        try {
+          const persisted = await getConversationMessages(conversationId);
+          if (selectedConversationIdRef.current === conversationId) {
+            setMessages(persisted.map(mapTutorMessageToChatMessage));
+          }
+        } catch {
+          // Keep the streamed reply; it already holds the persisted message id.
+        }
+      }
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Message could not be saved. Please try again.";
-      setSaveError(message);
-      setError(message);
-      throw error;
+      // Only surface the failure if the user is still on the conversation that
+      // was streaming. If they switched away, a failed or cancelled background
+      // stream must not display its error in — or write to — the now-selected
+      // conversation. streamingConversationIdRef still holds the target here
+      // (it is cleared in finally, which runs after this block).
+      if (
+        selectedConversationIdRef.current === streamingConversationIdRef.current
+      ) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Message could not be saved. Please try again.";
+        setSaveError(message);
+        setError(message);
+        // Rethrow so the input keeps/restores the draft for retry (see TextArea).
+        throw error;
+      }
+
+      // Switched away: swallow so the current conversation stays clean and the
+      // input clears. The stream still finishes server-side and persists, so
+      // returning to the original conversation will show the saved reply.
+      console.error(
+        "AI Tutor stream failed for a background conversation:",
+        error,
+      );
     } finally {
+      const streamedConversationId = streamingConversationIdRef.current;
+      streamingConversationIdRef.current = null;
+
       // Drop the temporary assistant bubble if no useful content streamed in
       // (e.g. the stream errored before the first chunk), so the UI is never
-      // left showing a stuck, empty "thinking" reply.
-      setMessages((currentMessages) => {
-        const lastMessage = currentMessages[currentMessages.length - 1];
-        if (
-          lastMessage &&
-          lastMessage.type === "bot" &&
-          lastMessage.message.trim() === ""
-        ) {
-          return currentMessages.slice(0, -1);
-        }
-        return currentMessages;
-      });
+      // left showing a stuck, empty "thinking" reply. Only touch the view if
+      // the user is still on the conversation that was streaming.
+      if (selectedConversationIdRef.current === streamedConversationId) {
+        setMessages((currentMessages) => {
+          const lastMessage = currentMessages[currentMessages.length - 1];
+          if (
+            lastMessage &&
+            lastMessage.type === "bot" &&
+            lastMessage.message.trim() === ""
+          ) {
+            return currentMessages.slice(0, -1);
+          }
+          return currentMessages;
+        });
+      }
       isSavingMessageRef.current = false;
       setIsSavingMessage(false);
     }
@@ -223,11 +285,15 @@ export default function ChatFullscreen() {
 
   // Loads persisted history when the user selects/switches conversation.
   // Keyed on messageResetVersion, which is bumped on every selection, so
-  // re-selecting the same conversation still reloads. The isSavingMessage
-  // guard skips the reload that fires when submitMessage creates a new
-  // conversation mid-send, which would clobber the optimistic messages.
+  // re-selecting the same conversation still reloads. While a stream is in
+  // flight we skip reloading only the conversation being streamed (which would
+  // clobber its optimistic messages) — switching to a *different* conversation
+  // still loads its history normally.
   useEffect(() => {
-    if (isSavingMessageRef.current) {
+    if (
+      isSavingMessageRef.current &&
+      selectedConversationId === streamingConversationIdRef.current
+    ) {
       return;
     }
 

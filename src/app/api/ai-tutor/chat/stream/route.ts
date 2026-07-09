@@ -92,10 +92,17 @@ export async function POST(req: NextRequest) {
     async start(controller) {
       let fullResponse = "";
 
+      // Text chunks are JSON-encoded so newlines/blank lines inside markdown
+      // survive SSE framing (a raw "\n\n" inside a chunk would otherwise be
+      // read as an event boundary by the client). The [MESSAGE_ID]/[DONE]
+      // sentinels stay bare tokens, which never collide with a quoted JSON
+      // string.
       try {
         if (!firstChunk.done) {
           fullResponse += firstChunk.value;
-          controller.enqueue(encoder.encode(`data: ${firstChunk.value}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(firstChunk.value)}\n\n`),
+          );
         }
 
         for (;;) {
@@ -106,7 +113,9 @@ export async function POST(req: NextRequest) {
           }
 
           fullResponse += chunk.value;
-          controller.enqueue(encoder.encode(`data: ${chunk.value}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(chunk.value)}\n\n`),
+          );
         }
 
         // Reached after a clean finish, but a client cancel also ends the
@@ -138,7 +147,23 @@ export async function POST(req: NextRequest) {
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
-      } catch {
+      } catch (error) {
+        // A client that stopped reading (e.g. the user switched conversations
+        // and the browser tore down the fetch) surfaces here as a failed
+        // enqueue / aborted iterator. That is expected cancellation, not a
+        // provider failure, so close quietly instead of emitting a noisy 500.
+        if (clientCancelled || req.signal.aborted) {
+          try {
+            controller.close();
+          } catch {
+            // Controller may already be closed/errored; nothing more to do.
+          }
+          return;
+        }
+
+        // A genuine provider failure while the client is still connected — let
+        // it propagate so the active conversation shows the error.
+        console.error("AI tutor stream failed:", error);
         controller.error(new Error("LLM provider error"));
       }
     },

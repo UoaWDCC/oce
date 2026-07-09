@@ -279,6 +279,15 @@ export default function ChatFullscreen() {
     }
   }
 
+  // Index of the last bot reply, so only it shows the tutor request action.
+  // Note: an in-flight streaming reply is an empty bot bubble rendered as the
+  // thinking indicator (not a ChatReply), so the action only appears once a
+  // completed, persisted reply exists.
+  const lastBotIndex = messages.reduce(
+    (last, m, i) => (m.type === "bot" ? i : last),
+    -1,
+  );
+
   const isVisible = useOnScreen(lastMessageRef, "-40px");
 
   // Loads persisted history when the user selects/switches conversation. Keyed
@@ -423,6 +432,8 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
                     key={index}
                     messageId={message.id}
                     initialFavourited={message.favourited}
+                    isLast={index === lastBotIndex}
+                    conversationId={selectedConversationId}
                   >
                     {message.message}
                   </ChatReply>

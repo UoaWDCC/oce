@@ -6,7 +6,7 @@ import type {
   FormattedComment,
   InsertComment,
   RawComment,
-} from "@app-types/comments";
+} from "@app-types/dao-forum";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -111,7 +111,23 @@ export async function POST(
   const { data: newComment, error: insertError } = await supabase
     .from("comments")
     .insert(insertComment)
-    .select()
+    .select(
+      `
+        id,
+        body,
+        image_url,
+        parent_comment_id,
+        created_at,
+        updated_at,
+        deleted_at,
+        author:AllowedUsers!author_id (
+          id,
+          username,
+          FirstName,
+          LastName
+        )
+      `,
+    )
     .single();
 
   if (insertError) {
@@ -121,8 +137,24 @@ export async function POST(
     );
   }
 
+  const inserted = newComment as unknown as RawComment;
+
+  const formattedComment: FormattedComment = {
+    id: inserted.id,
+    body: inserted.body,
+    image_url: inserted.image_url,
+    author_id: inserted.author?.id || user.id,
+    username: inserted.author?.username || "",
+    like_count: 0,
+    is_liked: false,
+    parent_comment_id: inserted.parent_comment_id,
+    created_at: inserted.created_at,
+    updated_at: inserted.updated_at,
+  };
+
+
   return NextResponse.json(
-    { success: true, comment: newComment },
+    { success: true, comment: formattedComment },
     { status: 201, headers: corsHeaders },
   );
 }

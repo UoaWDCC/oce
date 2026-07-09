@@ -414,7 +414,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/PostSummary"
+                  $ref: "#/components/schemas/PostListItem"
         "500":
           $ref: "#/components/responses/InternalServerError"
     post:
@@ -434,7 +434,7 @@ paths:
             schema:
               $ref: "#/components/schemas/CreatePostRequest"
             example:
-              post_type_id: 1
+              post_type: Announcement
               title: Test post
               body: Testing a DAO forum post
               anonymous: false
@@ -500,7 +500,7 @@ paths:
             schema:
               $ref: "#/components/schemas/UpdatePostRequest"
             example:
-              post_type_id: 1
+              post_type: Announcement
               title: Updated post
               body: Updated post body
               anonymous: false
@@ -1291,62 +1291,118 @@ components:
             type: object
             additionalProperties: true
 
-    PostSummary:
+    PostListItem:
       type: object
       properties:
         id:
           type: string
           format: uuid
+        dao_group_id:
+          type: string
+          format: uuid
         author_id:
           type: string
           format: uuid
-        post_type_id:
-          type: integer
+        post_type:
+          type: string
+          nullable: true
         title:
+          type: string
+          nullable: true
+        body:
           type: string
           nullable: true
         anonymous:
           type: boolean
         is_pinned:
           type: boolean
+        image_url:
+          type: string
+          nullable: true
         created_at:
           type: string
           format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        comment_count:
+          type: integer
+        author:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: string
+              format: uuid
+            username:
+              type: string
+              nullable: true
+            FirstName:
+              type: string
+              nullable: true
+            LastName:
+              type: string
+              nullable: true
+            Name:
+              type: string
+              nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+
+    Post:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        dao_group_id:
+          type: string
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        post_type:
+          type: string
+          nullable: true
+        title:
+          type: string
+          nullable: true
+        body:
+          type: string
+          nullable: true
+        anonymous:
+          type: boolean
+        is_pinned:
+          type: boolean
+        image_url:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
         deleted_at:
           type: string
           format: date-time
           nullable: true
 
-    Post:
-      allOf:
-        - $ref: "#/components/schemas/PostSummary"
-        - type: object
-          properties:
-            dao_group_id:
-              type: string
-              format: uuid
-            body:
-              type: string
-              nullable: true
-            image_url:
-              type: string
-              nullable: true
-            updated_at:
-              type: string
-              format: date-time
-              nullable: true
-
     CreatePostRequest:
       type: object
       required:
-        - post_type_id
+        - post_type
         - title
         - body
         - anonymous
         - is_pinned
       properties:
-        post_type_id:
-          type: integer
+        post_type:
+          type: string
         title:
           type: string
         body:

@@ -8,6 +8,7 @@ import DaoMembers from "./members";
 import { DAO, WalletInfo, Proposal } from "./types";
 import ProposalCreation from "./proposalCreation";
 import Proposals from "./proposals";
+import DaoForum from "./forum";
 import { API_URL } from "@/utils/config";
 import { useProposalSubscription } from "@/hooks/useProposalSubscription";
 
@@ -25,7 +26,7 @@ interface GetDaoUserResponse {
   UID: string;
 }
 
-type TabType = "overview" | "proposals" | "members";
+type TabType = "overview" | "proposals" | "members" | "forum";
 
 interface UserVoteChoice {
   hasVoted: boolean;
@@ -304,6 +305,16 @@ export default function DaoDetailsPage() {
               >
                 Members
               </button>
+              <button
+                onClick={() => setActiveTab("forum")}
+                className={`pb-3 sm:pb-4 px-2 font-bold transition-colors relative whitespace-nowrap text-sm sm:text-base ${
+                  activeTab === "forum"
+                    ? "text-[#5e00b2] border-b-4 border-[#5e00b2]"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                Forum
+              </button>
             </nav>
           </div>
         </div>
@@ -346,6 +357,7 @@ export default function DaoDetailsPage() {
           {activeTab === "members" && (
             <DaoMembers dao={dao} truncateAddress={truncateAddress} />
           )}
+          {activeTab === "forum" && <DaoForum dao={dao} />}
         </div>
       </div>
     </div>

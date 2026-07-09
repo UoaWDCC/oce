@@ -11,7 +11,7 @@ export const mockUser = { id: "test-user", email: "test@example.com" };
 export const defaultPostBody = {
   title: "Post",
   body: "Content",
-  post_type_id: 1,
+  post_type: "Announcement",
   anonymous: false,
   is_pinned: false,
   image_url: null,
@@ -25,13 +25,22 @@ export const defaultCommentBody = {
 
 // --- Mock Supabase client ---
 
-let mockQueryResult: { data: any; error: any } = { data: [], error: null };
+type MockQueryResult = {
+  data: unknown;
+  error: unknown;
+};
+
+let mockQueryResult: MockQueryResult = { data: [], error: null };
+
+const emptyQueryResult = (): Promise<MockQueryResult> =>
+  Promise.resolve({ data: [], error: null });
 
 export const mockSupabase = {
   from: vi.fn().mockReturnThis(),
   select: vi.fn().mockReturnThis(),
   eq: vi.fn().mockReturnThis(),
-  in: vi.fn(() => Promise.resolve({ data: [], error: null })),
+  is: vi.fn().mockReturnThis(),
+  in: vi.fn(emptyQueryResult),
   order: vi.fn(() => Promise.resolve(mockQueryResult)),
   insert: vi.fn().mockReturnThis(),
   update: vi.fn().mockReturnThis(),
@@ -40,7 +49,7 @@ export const mockSupabase = {
   maybeSingle: vi.fn(() => Promise.resolve(mockQueryResult)),
 };
 
-export function setMockQueryResult(result: { data: any; error: any }) {
+export function setMockQueryResult(result: MockQueryResult) {
   mockQueryResult = result;
 }
 
@@ -48,9 +57,8 @@ export function resetMockSupabase() {
   mockSupabase.from.mockReturnThis();
   mockSupabase.select.mockReturnThis();
   mockSupabase.eq.mockReturnThis();
-  mockSupabase.in.mockImplementation(() =>
-    Promise.resolve({ data: [], error: null }),
-  );
+  mockSupabase.is.mockReturnThis();
+  mockSupabase.in.mockImplementation(emptyQueryResult);
   mockSupabase.insert.mockReturnThis();
   mockSupabase.update.mockReturnThis();
   mockSupabase.delete.mockReturnThis();

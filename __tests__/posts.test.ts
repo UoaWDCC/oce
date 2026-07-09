@@ -19,6 +19,7 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import type { PostListItem } from "@app-types/dao-forum";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -40,15 +41,104 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
   });
 
   it("returns posts on success", async () => {
-    const fakePosts = [{ id: "post-1", title: "Hello" }];
+    const fakePosts = [
+      {
+        id: "post-1",
+        dao_group_id: "dao-1",
+        author_id: "author-1",
+        post_type: "Announcement",
+        title: "Hello",
+        body: "Post body",
+        anonymous: false,
+        is_pinned: true,
+        image_url: "https://example.com/image.png",
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: null,
+        author: {
+          id: "author-1",
+          username: "alice",
+          FirstName: "Alice",
+          LastName: "A",
+          Name: "Alice A",
+        },
+        post_tags: [
+          { tag: { name: "Governance" } },
+          { tag: { name: "Technical" } },
+        ],
+      },
+    ];
     setMockQueryResult({ data: fakePosts, error: null });
+    mockSupabase.in.mockResolvedValueOnce({
+      data: [{ post_id: "post-1" }, { post_id: "post-1" }],
+      error: null,
+    });
 
     const req = createMockRequest("GET");
     const res = await listGET(req, mockParams);
-    const json = await readJson<typeof fakePosts>(res);
+    const json = await readJson<PostListItem[]>(res);
 
     expect(res.status).toBe(200);
-    expect(json).toEqual(fakePosts);
+    expect(json).toEqual([
+      {
+        id: "post-1",
+        dao_group_id: "dao-1",
+        author_id: "author-1",
+        post_type: "Announcement",
+        title: "Hello",
+        body: "Post body",
+        anonymous: false,
+        is_pinned: true,
+        image_url: "https://example.com/image.png",
+        created_at: "2026-06-01T00:00:00Z",
+        updated_at: null,
+        comment_count: 2,
+        author: {
+          id: "author-1",
+          username: "alice",
+          FirstName: "Alice",
+          LastName: "A",
+          Name: "Alice A",
+        },
+        tags: ["Governance", "Technical"],
+      },
+    ]);
+    expect(mockSupabase.is).toHaveBeenCalledWith("deleted_at", null);
+  });
+
+  it("hides author display data for anonymous posts", async () => {
+    setMockQueryResult({
+      data: [
+        {
+          id: "post-1",
+          dao_group_id: "dao-1",
+          author_id: "author-1",
+          post_type: "Announcement",
+          title: "Anonymous post",
+          body: "Post body",
+          anonymous: true,
+          is_pinned: false,
+          image_url: null,
+          created_at: "2026-06-01T00:00:00Z",
+          updated_at: null,
+          author: {
+            id: "author-1",
+            username: "alice",
+            FirstName: "Alice",
+            LastName: "A",
+            Name: "Alice A",
+          },
+          post_tags: [],
+        },
+      ],
+      error: null,
+    });
+
+    const req = createMockRequest("GET");
+    const res = await listGET(req, mockParams);
+    const json = await readJson<PostListItem[]>(res);
+
+    expect(res.status).toBe(200);
+    expect(json[0].author).toBeNull();
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -72,6 +162,40 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
     expect(res.status).toBe(500);
     expect(json.error).toBe("DB error");
   });
+
+  it("returns 500 when comment count query fails", async () => {
+    setMockQueryResult({
+      data: [
+        {
+          id: "post-1",
+          dao_group_id: "dao-1",
+          author_id: "author-1",
+          post_type: "Announcement",
+          title: "Hello",
+          body: "Post body",
+          anonymous: false,
+          is_pinned: false,
+          image_url: null,
+          created_at: "2026-06-01T00:00:00Z",
+          updated_at: null,
+          author: null,
+          post_tags: [],
+        },
+      ],
+      error: null,
+    });
+    mockSupabase.in.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Comment count failed" },
+    });
+
+    const req = createMockRequest("GET");
+    const res = await listGET(req, mockParams);
+    const json = await readJson<{ error: string }>(res);
+
+    expect(res.status).toBe(500);
+    expect(json.error).toBe("Comment count failed");
+  });
 });
 
 describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
@@ -86,7 +210,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     const req = createMockRequest("POST", {
       title: "New Post",
       body: "Content",
-      post_type_id: 1,
+      post_type: "Announcement",
       anonymous: false,
       is_pinned: false,
       image_url: null,
@@ -102,7 +226,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     const req = createMockRequest("POST", {
       title: "",
       body: "",
-      post_type_id: 0,
+      post_type: "",
       anonymous: false,
       is_pinned: false,
       image_url: null,
@@ -217,7 +341,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   const validBody = {
     title: "Updated",
     body: "Updated body",
-    post_type_id: 1,
+    post_type: "Announcement",
     anonymous: false,
     is_pinned: false,
     image_url: null,

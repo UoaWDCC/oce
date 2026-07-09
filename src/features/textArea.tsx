@@ -34,11 +34,15 @@ export default function TextArea({
       return;
     }
 
+    // Clear on send so the question never stays stuck (e.g. if the user switches
+    // conversations mid-stream). Restore the draft only if submit throws — which
+    // the parent does only while the failing conversation is still selected.
+    setInputValue("");
+
     try {
       await submitMessage(message);
-      setInputValue("");
     } catch {
-      // Keep the draft in place so the user can retry after the parent shows the error.
+      setInputValue(message);
     }
   }
 

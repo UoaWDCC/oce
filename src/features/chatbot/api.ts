@@ -43,6 +43,16 @@ export async function createConversation(): Promise<Conversation> {
   return data.conversation;
 }
 
+export async function getConversationMessages(
+  conversationId: string,
+): Promise<TutorMessage[]> {
+  const response = await apiFetch(
+    `/api/ai-tutor/conversations/${conversationId}/messages`,
+  );
+  const data = (await response.json()) as { messages: TutorMessage[] };
+  return data.messages;
+}
+
 export async function saveUserMessage(
   conversationId: string,
   content: string,
@@ -85,7 +95,20 @@ function parseStreamPayload(
       continue;
     }
 
-    handlers.onText(data);
+    // Text chunks are JSON-encoded server-side to preserve newlines and
+    // leading whitespace. Fall back to the raw payload so an older,
+    // unencoded stream still renders.
+    let text = data;
+    try {
+      const parsed = JSON.parse(data) as unknown;
+      if (typeof parsed === "string") {
+        text = parsed;
+      }
+    } catch {
+      // Not JSON — treat as raw text.
+    }
+
+    handlers.onText(text);
   }
 }
 

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createPostComment } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
 import type { ForumCommentPreview } from "../types";
@@ -25,6 +25,7 @@ export function useCreateDaoForumComment(
 ): UseCreateDaoForumCommentResult {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const isSubmittingRef = useRef(false);
   const createComment = useCallback(
     async (data: CreateCommentComposerData) => {
       if (!daoGroupId || !postId) {
@@ -33,6 +34,10 @@ export function useCreateDaoForumComment(
         );
         return undefined;
       }
+      if (isSubmittingRef.current) {
+        return undefined;
+      }
+      isSubmittingRef.current = true;
       setIsSubmitting(true);
 
       try {
@@ -58,6 +63,7 @@ export function useCreateDaoForumComment(
         );
         return undefined;
       } finally {
+        isSubmittingRef.current = false;
         setIsSubmitting(false);
       }
     },

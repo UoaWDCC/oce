@@ -262,13 +262,8 @@ export default function ChatForumPreviewClient() {
             Simulate submission failure (exercise error + submitting states)
           </label>
           <ForumPanel
-<<<<<<< fix/dao-db-modification
-            comments={mockForumCommentPreviews}
-            daoGroupId="00000000-0000-4000-8000-000000000001"
-=======
             comments={forumPanelComments}
-            daoId={PREVIEW_DAO_ID}
->>>>>>> feature/wire-dao-forum-hooks
+            daoGroupId="00000000-0000-4000-8000-000000000001"
             daoName="WDCC DAO"
             posts={forumPanelPosts}
             error={previewError}

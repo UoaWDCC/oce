@@ -184,7 +184,7 @@ export default function ChatForumPreviewClient() {
         <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-slate-50 to-purple-50 p-4 shadow-sm sm:p-6">
           <ForumPanel
             comments={mockForumCommentPreviews}
-            daoId="0x333B47F13128A1225A434d9f403A3e850B0B48D"
+            daoGroupId="00000000-0000-4000-8000-000000000001"
             daoName="WDCC DAO"
             posts={mockForumPostPreviews}
           />

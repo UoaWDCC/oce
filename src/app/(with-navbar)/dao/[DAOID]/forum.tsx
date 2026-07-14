@@ -7,13 +7,14 @@ import { DAO } from "./types";
 
 type DaoForumProps = {
   dao: DAO;
+  daoGroupId: string;
 };
 
-export default function DaoForum({ dao }: DaoForumProps) {
+export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   return (
     <ForumPanel
       comments={mockForumCommentPreviews}
-      daoId={dao.DAOID}
+      daoGroupId={daoGroupId}
       daoName={dao.Name}
       posts={mockForumPostPreviews.map((post) => ({
         ...post,

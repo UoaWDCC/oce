@@ -83,9 +83,12 @@ export default function ForumEntryComposer({
         body: body.trim(),
         imageUrl: imageUrl ?? undefined,
       });
+      // Only clear content after successful submission
       setBody("");
       setImageUrl(null);
+      setError(null);
     } catch (err) {
+      // Keep the content when submission fails so user can retry
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setIsSubmitting(false);

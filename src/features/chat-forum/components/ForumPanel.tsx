@@ -177,8 +177,15 @@ export default function ForumPanel({
   };
 
   const submitPost = async (payload: PostSubmitPayload) => {
-    await onSubmitPost?.(payload);
-    setIsComposerOpen(false);
+    try {
+      await onSubmitPost?.(payload);
+      // Only close modal after successful submission
+      setIsComposerOpen(false);
+    } catch (err) {
+      // Keep modal open when submission fails so user can see error and retry
+      // Error will be displayed by the composer component
+      throw err;
+    }
   };
 
   const submitComment = async (payload: CommentSubmitPayload) => {

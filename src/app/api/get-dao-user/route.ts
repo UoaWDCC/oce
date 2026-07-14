@@ -111,8 +111,8 @@ export async function GET(req: NextRequest) {
 
     if (!daoGroup) {
       return NextResponse.json(
-        { error: "DAO forum group not found" },
-        { status: 404, headers: corsHeaders },
+        { daoData, daoGroupId: null, userWallets, UID },
+        { headers: corsHeaders },
       );
     }
 

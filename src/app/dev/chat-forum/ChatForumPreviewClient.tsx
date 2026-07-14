@@ -2,9 +2,15 @@
 
 import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
-import { POST_TYPE } from "@app-types/dao-forum";
+import {
+  POST_TYPE,
+  type CommentSubmitPayload,
+  type ForumCommentPreview,
+  type ForumPostPreview,
+  type PostSubmitPayload,
+} from "@app-types/dao-forum";
 import CommentCard from "@/components/dao-forum/CommentCard";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
@@ -13,6 +19,14 @@ import {
   mockForumCommentPreviews,
   mockForumPostPreviews,
 } from "@/features/chat-forum/mocks";
+
+const PREVIEW_DAO_ID = "0x333B47F13128A1225A434d9f403A3e850B0B48D";
+
+// Fake latency so the composer's "submitting" state is visible when clicking
+// through the preview.
+function simulateLatency() {
+  return new Promise((resolve) => setTimeout(resolve, 600));
+}
 
 type PreviewPost = {
   id: string;
@@ -166,6 +180,63 @@ export default function ChatForumPreviewClient() {
     (comment) => comment.postId === previewPosts[0].id,
   );
 
+  // In-memory store so the live ForumPanel below can create posts/comments with
+  // no backend — useful for testing the #122 submission wiring before the
+  // DAOID -> dao_groups UUID resolver lands.
+  const [forumPanelPosts, setForumPanelPosts] = useState<ForumPostPreview[]>(
+    mockForumPostPreviews,
+  );
+  const [forumPanelComments, setForumPanelComments] = useState<
+    ForumCommentPreview[]
+  >(mockForumCommentPreviews);
+  const [simulateFailure, setSimulateFailure] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const handlePreviewSubmitPost = async (payload: PostSubmitPayload) => {
+    await simulateLatency();
+    if (simulateFailure) {
+      setPreviewError("Simulated failure: could not create post.");
+      return;
+    }
+    setPreviewError(null);
+    const newPost: ForumPostPreview = {
+      id: `preview-post-${Date.now()}`,
+      daoId: PREVIEW_DAO_ID,
+      title: payload.title,
+      excerpt: payload.body,
+      authorName: "You (preview)",
+      createdAt: new Date().toISOString(),
+      createdAtLabel: "just now",
+      commentCount: 0,
+      types: [payload.postType],
+      tags: [],
+      isPinned: payload.isPinned,
+    };
+    setForumPanelPosts((prev) => [newPost, ...prev]);
+  };
+
+  const handlePreviewSubmitComment = async (
+    postId: string,
+    payload: CommentSubmitPayload,
+  ) => {
+    await simulateLatency();
+    if (simulateFailure) {
+      setPreviewError("Simulated failure: could not create comment.");
+      return;
+    }
+    setPreviewError(null);
+    const newComment: ForumCommentPreview = {
+      id: `preview-comment-${Date.now()}`,
+      postId,
+      authorName: "You (preview)",
+      body: payload.body,
+      createdAt: new Date().toISOString(),
+      createdAtLabel: "just now",
+      likeCount: 0,
+    };
+    setForumPanelComments((prev) => [...prev, newComment]);
+  };
+
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-8 text-slate-950">
       <div className="mx-auto flex max-w-6xl flex-col gap-8">
@@ -182,11 +253,28 @@ export default function ChatForumPreviewClient() {
         </header>
 
         <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-slate-50 to-purple-50 p-4 shadow-sm sm:p-6">
+          <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={simulateFailure}
+              onChange={(event) => setSimulateFailure(event.target.checked)}
+            />
+            Simulate submission failure (exercise error + submitting states)
+          </label>
           <ForumPanel
+<<<<<<< fix/dao-db-modification
             comments={mockForumCommentPreviews}
             daoGroupId="00000000-0000-4000-8000-000000000001"
+=======
+            comments={forumPanelComments}
+            daoId={PREVIEW_DAO_ID}
+>>>>>>> feature/wire-dao-forum-hooks
             daoName="WDCC DAO"
-            posts={mockForumPostPreviews}
+            posts={forumPanelPosts}
+            error={previewError}
+            onSelectPost={() => setPreviewError(null)}
+            onSubmitPost={handlePreviewSubmitPost}
+            onSubmitComment={handlePreviewSubmitComment}
           />
         </section>
 

@@ -21,10 +21,11 @@ export function useCreateDaoForumPost(
   const createPost = useCallback(
     async (composerData: PostSubmitPayload): Promise<Post | null> => {
       if (!daoGroupId) {
-        setError(
-          new Error("Cannot create a post: no DAO group id was provided."),
+        const err = new Error(
+          "Cannot create a post: no DAO group id was provided.",
         );
-        return null;
+        setError(err);
+        throw err;
       }
 
       if (isSubmittingRef.current) {
@@ -40,8 +41,13 @@ export function useCreateDaoForumPost(
         setError(null);
         return createdPost;
       } catch (err) {
-        setError(err instanceof Error ? err : new Error("Failed to create DAO forum post"));
-        return null;
+        const error =
+          err instanceof Error
+            ? err
+            : new Error("Failed to create DAO forum post");
+        setError(error);
+        // Rethrow so the composer keeps the modal open and shows the error inline.
+        throw error;
       } finally {
         isSubmittingRef.current = false;
         setIsSubmitting(false);

@@ -29,10 +29,11 @@ export function useCreateDaoForumComment(
   const createComment = useCallback(
     async (data: CreateCommentComposerData) => {
       if (!daoGroupId || !postId) {
-        setError(
-          new Error("Cannot create comment: missing DAO group id or post id"),
+        const err = new Error(
+          "Cannot create comment: missing DAO group id or post id",
         );
-        return undefined;
+        setError(err);
+        throw err;
       }
       if (isSubmittingRef.current) {
         return undefined;
@@ -56,12 +57,13 @@ export function useCreateDaoForumComment(
         setError(null);
         return mapped;
       } catch (err) {
-        setError(
+        const error =
           err instanceof Error
             ? err
-            : new Error("Failed to create DAO forum comment"),
-        );
-        return undefined;
+            : new Error("Failed to create DAO forum comment");
+        setError(error);
+        // Rethrow so the composer keeps its content and shows the error inline.
+        throw error;
       } finally {
         isSubmittingRef.current = false;
         setIsSubmitting(false);

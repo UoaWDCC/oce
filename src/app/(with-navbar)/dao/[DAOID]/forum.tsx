@@ -18,18 +18,13 @@ import type {
 
 type DaoForumProps = {
   dao: DAO;
+  daoGroupId: string;
 };
 
-export default function DaoForum({ dao }: DaoForumProps) {
+export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const supabase = createClient();
   const [token, setToken] = useState<string | undefined>(undefined);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-
-  // The DAO forum API is keyed by the dao_groups UUID, but this route only has
-  // the on-chain DAOID (contract address). Until the DAOID -> dao_groups.id
-  // resolver lands (skrz_0's data-fetching work), we pass DAOID directly.
-  // TODO: swap this single line for the resolved dao_groups.id UUID.
-  const daoGroupId = dao.DAOID;
 
   useEffect(() => {
     async function fetchToken() {
@@ -81,7 +76,7 @@ export default function DaoForum({ dao }: DaoForumProps) {
   return (
     <ForumPanel
       comments={comments}
-      daoId={dao.DAOID}
+      daoGroupId={daoGroupId}
       daoName={dao.Name}
       posts={posts}
       isLoading={isLoading}

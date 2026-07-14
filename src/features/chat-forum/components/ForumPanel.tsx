@@ -25,7 +25,7 @@ import type {
 } from "@app-types/dao-forum";
 
 type ForumPanelProps = {
-  daoId: string;
+  daoGroupId: string;
   daoName: string;
   posts: ForumPostPreview[];
   comments?: ForumCommentPreview[];
@@ -116,7 +116,7 @@ function PostPreview({
 }
 
 export default function ForumPanel({
-  daoId,
+  daoGroupId,
   daoName,
   posts,
   comments = [],
@@ -455,7 +455,9 @@ export default function ForumPanel({
             )}
           </>
         )}
-        <p className="mt-6 text-xs text-slate-400">DAO reference: {daoId}</p>
+        <p className="mt-6 text-xs text-slate-400">
+          DAO group reference: {daoGroupId}
+        </p>
       </main>
     </div>
   );

@@ -22,6 +22,7 @@ interface UserInfo {
 
 interface GetDaoUserResponse {
   daoData: DAO;
+  daoGroupId: string;
   userWallets: WalletInfo[];
   UID: string;
 }
@@ -50,6 +51,7 @@ interface DaohausApiResponse {
 export default function DaoDetailsPage() {
   const { DAOID } = useParams<{ DAOID: string }>();
   const [dao, setDao] = useState<DAO | null>(null);
+  const [daoGroupId, setDaoGroupId] = useState<string | null>(null);
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -102,6 +104,9 @@ export default function DaoDetailsPage() {
 
       const data: GetDaoUserResponse = await res.json();
       setDao(data.daoData);
+      setDaoGroupId(
+        typeof data.daoGroupId === "string" ? data.daoGroupId : null,
+      );
 
       const user: UserInfo = {
         UID: data.UID,
@@ -357,7 +362,14 @@ export default function DaoDetailsPage() {
           {activeTab === "members" && (
             <DaoMembers dao={dao} truncateAddress={truncateAddress} />
           )}
-          {activeTab === "forum" && <DaoForum dao={dao} />}
+          {activeTab === "forum" &&
+            (daoGroupId ? (
+              <DaoForum dao={dao} daoGroupId={daoGroupId} />
+            ) : (
+              <p className="py-8 text-center text-sm text-slate-500">
+                This DAO does not have a forum group yet.
+              </p>
+            ))}
         </div>
       </div>
     </div>

@@ -21,3 +21,18 @@ export async function getConversations(): Promise<Conversation[]> {
 
   return data.conversation as Conversation[];
 }
+
+export async function endConversation(id: string): Promise<void> {
+  const supabase = createClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData?.session?.access_token;
+
+  const res = await fetch(`/api/ai-tutor/conversations/${id}`, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to end conversation");
+  }
+}

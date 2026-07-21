@@ -88,30 +88,17 @@ function PostPreview({
   onSelect?: () => void;
 }) {
   return (
-    <article className="rounded-2xl border border-purple-100 bg-white p-4 shadow-sm transition hover:border-purple-200 hover:shadow-md">
-      <PostCard
-        className="border-0 p-0 shadow-none hover:border-0"
-        commentCount={post.commentCount}
-        createdAt={{ label: post.createdAtLabel, dateTime: post.createdAt }}
-        daoId={post.daoId}
-        displayName={post.authorName}
-        onSelect={onSelect}
-        title={post.title}
-        types={post.types}
-        walletAddress={post.authorWallet}
-      />
-      <p className="mt-3 text-sm leading-6 text-slate-600">{post.excerpt}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {post.tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-    </article>
+    <PostCard
+      commentCount={post.commentCount}
+      createdAt={{ label: post.createdAtLabel, dateTime: post.createdAt }}
+      displayName={post.authorName}
+      excerpt={post.excerpt}
+      onSelect={onSelect}
+      tags={post.tags}
+      title={post.title}
+      types={post.types}
+      walletAddress={post.authorWallet}
+    />
   );
 }
 

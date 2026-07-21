@@ -44,7 +44,8 @@ export function mapPostToForumPostPreview(
     id: post.id,
     daoId: post.dao_group_id,
     title: post.title ?? "",
-    excerpt: (post.body ?? "").slice(0, 100),
+    // Keep the full body available for search and let the card clamp it visually.
+    excerpt: post.body ?? "",
     authorName: post.author?.Name ?? "Anonymous",
     authorWallet: undefined,
     createdAt: post.created_at,

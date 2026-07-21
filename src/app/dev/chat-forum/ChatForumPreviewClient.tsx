@@ -147,7 +147,6 @@ function PlaceholderPostCard({
 
   return (
     <PostCard
-      daoId={post.daoId}
       title={post.title}
       types={[POST_TYPE.Discussion]}
       displayName={author.displayName}

@@ -56,6 +56,7 @@ export const mockForumCommentPreviews: ForumCommentPreview[] = [
   {
     id: "forum-comment-1",
     postId: "forum-post-proposal",
+    parentCommentId: null,
     authorName: "Alice Chen",
     authorWallet: "0xA4B1780e379BC4Fa18e1a026A42dCe738FB105D3",
     body: "A delegate flow makes sense if the final submission clearly identifies both the author and delegate.",
@@ -84,7 +85,6 @@ export const mockForumThreadPost: ForumThreadPost = {
   createdAt: "2026-07-22T04:24:00.000Z",
   createdAtLabel: "3 hours ago",
   statusLabel: "Voting Open",
-  likeCount: 15,
 };
 
 export const mockForumThreadComments: ForumThreadComment[] = [

@@ -1,7 +1,14 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
-import { ArrowLeft, BookOpen, Heart, MessageCircle, Reply } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  Heart,
+  MessageCircle,
+  Reply,
+  X,
+} from "lucide-react";
 import StudentAvatar from "@/components/common/StudentAvatar";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import Tag from "@/components/dao-forum/Tag";
@@ -17,11 +24,14 @@ type PostThreadProps = {
   comments: ForumThreadComment[];
   sort?: ForumThreadSort;
   onBack?: () => void;
-  onLikePost?: () => void;
   onSortChange?: (sort: ForumThreadSort) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
   onLikeComment?: (commentId: string) => void;
   onReplyToComment?: (commentId: string) => void;
+  replyingTo?: { id: string; authorName: string } | null;
+  onCancelReply?: () => void;
+  isLoadingComments?: boolean;
+  commentsError?: string | null;
   className?: string;
 };
 
@@ -123,7 +133,7 @@ function ThreadComment({
         </div>
 
         <div className="mt-4 flex items-center gap-4 text-sm font-semibold text-slate-500">
-          {onLikeComment && (
+          {!comment.isDeleted && onLikeComment && (
             <button
               aria-label={
                 comment.isLiked ? "Unlike this comment" : "Like this comment"
@@ -143,7 +153,7 @@ function ThreadComment({
               {comment.likeCount}
             </button>
           )}
-          {onReplyToComment && (
+          {!comment.isDeleted && onReplyToComment && (
             <button
               className="inline-flex items-center gap-1.5 transition hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
               onClick={() => onReplyToComment(comment.id)}
@@ -184,11 +194,14 @@ export default function PostThread({
   comments,
   sort = "latest",
   onBack,
-  onLikePost,
   onSortChange,
   onSubmitComment,
   onLikeComment,
   onReplyToComment,
+  replyingTo = null,
+  onCancelReply,
+  isLoadingComments = false,
+  commentsError = null,
   className,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
@@ -263,32 +276,6 @@ export default function PostThread({
         <div className="mt-7 border-t border-slate-100 pt-7">
           <MarkdownContent content={post.body} />
         </div>
-
-        {onLikePost && (
-          <div className="mt-7 border-t border-slate-100 pt-5">
-            <button
-              aria-label={post.isLiked ? "Unlike this post" : "Like this post"}
-              aria-pressed={post.isLiked}
-              className={classNames(
-                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2",
-                post.isLiked
-                  ? "border-red-200 bg-red-50 text-red-600"
-                  : "border-slate-200 text-slate-600 hover:border-red-200 hover:text-red-600",
-              )}
-              onClick={onLikePost}
-              type="button"
-            >
-              <Heart
-                aria-hidden="true"
-                className={classNames(
-                  "h-4 w-4",
-                  post.isLiked && "fill-current",
-                )}
-              />
-              {post.likeCount ?? 0} {post.likeCount === 1 ? "Like" : "Likes"}
-            </button>
-          </div>
-        )}
       </article>
 
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
@@ -315,15 +302,48 @@ export default function PostThread({
         </label>
       </div>
 
+      {replyingTo && (
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
+          <span>Replying to {replyingTo.authorName}</span>
+          {onCancelReply && (
+            <button
+              aria-label="Cancel reply"
+              className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+              onClick={onCancelReply}
+              type="button"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      )}
+
       <CommentEntryComposer
         className="mt-4 border-purple-100"
         disabled={!onSubmitComment}
         onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+        parentCommentId={replyingTo?.id}
         showAttachment
       />
 
       <div className="mt-5 space-y-4">
-        {comments.length > 0 ? (
+        {commentsError ? (
+          <div
+            className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
+            role="alert"
+          >
+            {commentsError}
+          </div>
+        ) : isLoadingComments ? (
+          <div className="space-y-3" aria-label="Loading replies">
+            {[0, 1].map((item) => (
+              <div
+                key={item}
+                className="h-32 animate-pulse rounded-2xl bg-purple-100/70"
+              />
+            ))}
+          </div>
+        ) : comments.length > 0 ? (
           comments.map((comment) => (
             <ThreadComment
               key={comment.id}

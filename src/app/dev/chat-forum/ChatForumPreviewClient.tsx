@@ -227,6 +227,7 @@ export default function ChatForumPreviewClient() {
     const newComment: ForumCommentPreview = {
       id: `preview-comment-${Date.now()}`,
       postId,
+      parentCommentId: payload.parentCommentId ?? null,
       authorName: "You (preview)",
       body: payload.body,
       createdAt: new Date().toISOString(),
@@ -355,7 +356,6 @@ export default function ChatForumPreviewClient() {
             onLikeComment={(commentId) =>
               console.log(`Like comment ${commentId}`)
             }
-            onLikePost={() => console.log("Like post")}
             onReplyToComment={(commentId) =>
               console.log(`Reply to comment ${commentId}`)
             }

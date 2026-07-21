@@ -163,6 +163,7 @@ export interface ForumPostPreview {
 export interface ForumCommentPreview {
   id: string;
   postId: string;
+  parentCommentId: string | null;
   authorName: string;
   authorWallet?: string;
   body: string;
@@ -170,4 +171,5 @@ export interface ForumCommentPreview {
   createdAtLabel: string;
   likeCount: number;
   isLiked?: boolean;
+  isDeleted?: boolean;
 }

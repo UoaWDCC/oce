@@ -2,18 +2,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getPostComments } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
 import type { ForumCommentPreview } from "../types";
+import type { ForumThreadSort } from "../types";
 
 export interface UseDaoForumCommentsResult {
   comments: ForumCommentPreview[];
   isLoading: boolean;
   error: Error | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 export function useDaoForumComments(
   daoGroupId: string | undefined | null,
   postId: string | undefined | null,
   token?: string,
+  sort: ForumThreadSort = "oldest",
 ): UseDaoForumCommentsResult {
   const [comments, setComments] = useState<ForumCommentPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,7 +37,7 @@ export function useDaoForumComments(
       const rawComments = await getPostComments(
         daoGroupId,
         postId,
-        "oldest",
+        sort,
         token,
       );
       if (currentRequestId !== requestIdRef.current) {
@@ -60,14 +62,14 @@ export function useDaoForumComments(
         setIsLoading(false);
       }
     }
-  }, [daoGroupId, postId, token]);
+  }, [daoGroupId, postId, sort, token]);
 
   useEffect(() => {
     fetchComments();
   }, [fetchComments]);
 
   const refetch = useCallback(() => {
-    fetchComments();
+    return fetchComments();
   }, [fetchComments]);
 
   return { comments, isLoading, error, refetch };

@@ -11,11 +11,14 @@ import {
   Search,
   Tag as TagIcon,
 } from "lucide-react";
-import CommentCard from "@/components/dao-forum/CommentCard";
-import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostCard from "@/components/dao-forum/Post";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
-import Tag from "@/components/dao-forum/Tag";
+import PostThread from "./PostThread";
+import {
+  buildForumThreadComments,
+  mapForumPostPreviewToThreadPost,
+} from "../mappers";
+import type { ForumThreadSort } from "../types";
 import type {
   CommentSubmitPayload,
   ForumCommentPreview,
@@ -30,16 +33,19 @@ type ForumPanelProps = {
   posts: ForumPostPreview[];
   comments?: ForumCommentPreview[];
   isLoading?: boolean;
+  isCommentsLoading?: boolean;
   error?: string | null;
+  commentsError?: string | null;
+  commentSort?: ForumThreadSort;
   onCreatePost?: () => void;
   onSubmitPost?: (payload: PostSubmitPayload) => Promise<void> | void;
-  onSelectPost?: (postId: string) => void;
+  onSelectPost?: (postId: string | null) => void;
   onSubmitComment?: (
     postId: string,
     payload: CommentSubmitPayload,
   ) => Promise<void> | void;
-  onLikeComment?: (commentId: string) => void;
-  onReplyToComment?: (commentId: string) => void;
+  onLikeComment?: (commentId: string) => void | Promise<void>;
+  onCommentSortChange?: (sort: ForumThreadSort) => void;
 };
 
 type PostTypeFilter = "All" | PostType;
@@ -88,30 +94,17 @@ function PostPreview({
   onSelect?: () => void;
 }) {
   return (
-    <article className="rounded-2xl border border-purple-100 bg-white p-4 shadow-sm transition hover:border-purple-200 hover:shadow-md">
-      <PostCard
-        className="border-0 p-0 shadow-none hover:border-0"
-        commentCount={post.commentCount}
-        createdAt={{ label: post.createdAtLabel, dateTime: post.createdAt }}
-        daoId={post.daoId}
-        displayName={post.authorName}
-        onSelect={onSelect}
-        title={post.title}
-        types={post.types}
-        walletAddress={post.authorWallet}
-      />
-      <p className="mt-3 text-sm leading-6 text-slate-600">{post.excerpt}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {post.tags.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-          >
-            {tag}
-          </span>
-        ))}
-      </div>
-    </article>
+    <PostCard
+      commentCount={post.commentCount}
+      createdAt={{ label: post.createdAtLabel, dateTime: post.createdAt }}
+      displayName={post.authorName}
+      excerpt={post.excerpt}
+      onSelect={onSelect}
+      tags={post.tags}
+      title={post.title}
+      types={post.types}
+      walletAddress={post.authorWallet}
+    />
   );
 }
 
@@ -121,19 +114,25 @@ export default function ForumPanel({
   posts,
   comments = [],
   isLoading = false,
+  isCommentsLoading = false,
   error = null,
+  commentsError = null,
+  commentSort = "latest",
   onCreatePost,
   onSubmitPost,
   onSelectPost,
   onSubmitComment,
   onLikeComment,
-  onReplyToComment,
+  onCommentSortChange,
 }: ForumPanelProps) {
   const [query, setQuery] = useState("");
   const [postType, setPostType] = useState<PostTypeFilter>("All");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [sort, setSort] = useState<SortOption>("Recent");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+  const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
+    null,
+  );
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
   const tags = useMemo(
@@ -161,14 +160,32 @@ export default function ForumPanel({
   const pinnedPosts = filteredPosts.filter((post) => post.isPinned);
   const regularPosts = filteredPosts.filter((post) => !post.isPinned);
   const selectedPost = posts.find((post) => post.id === selectedPostId);
-  const selectedComments = comments.filter(
-    (comment) => comment.postId === selectedPostId,
+  const selectedComments = useMemo(
+    () => comments.filter((comment) => comment.postId === selectedPostId),
+    [comments, selectedPostId],
+  );
+  const threadPost = selectedPost
+    ? mapForumPostPreviewToThreadPost(selectedPost)
+    : null;
+  const threadComments = useMemo(
+    () => buildForumThreadComments(selectedComments),
+    [selectedComments],
+  );
+  const replyingToComment = selectedComments.find(
+    (comment) => comment.id === replyingToCommentId,
   );
   const unreadCount = posts.filter((post) => post.isUnread).length;
 
   const selectPost = (postId: string) => {
+    setReplyingToCommentId(null);
     setSelectedPostId(postId);
     onSelectPost?.(postId);
+  };
+
+  const closeThread = () => {
+    setReplyingToCommentId(null);
+    setSelectedPostId(null);
+    onSelectPost?.(null);
   };
 
   const openComposer = () => {
@@ -190,8 +207,38 @@ export default function ForumPanel({
 
   const submitComment = async (payload: CommentSubmitPayload) => {
     if (!selectedPost) return;
-    await onSubmitComment?.(selectedPost.id, payload);
+    await onSubmitComment?.(selectedPost.id, {
+      ...payload,
+      parentCommentId: replyingToCommentId ?? payload.parentCommentId,
+    });
+    setReplyingToCommentId(null);
   };
+
+  if (threadPost) {
+    return (
+      <PostThread
+        comments={threadComments}
+        commentsError={commentsError}
+        isLoadingComments={isCommentsLoading}
+        onBack={closeThread}
+        onCancelReply={() => setReplyingToCommentId(null)}
+        onLikeComment={onLikeComment}
+        onReplyToComment={setReplyingToCommentId}
+        onSortChange={onCommentSortChange}
+        onSubmitComment={submitComment}
+        post={threadPost}
+        replyingTo={
+          replyingToComment
+            ? {
+                id: replyingToComment.id,
+                authorName: replyingToComment.authorName,
+              }
+            : null
+        }
+        sort={commentSort}
+      />
+    );
+  }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
@@ -401,65 +448,6 @@ export default function ForumPanel({
                 </div>
               )}
             </section>
-
-            {selectedPost && (
-              <section
-                className="mt-8 rounded-2xl border border-purple-100 bg-purple-50/50 p-4 sm:p-6"
-                aria-labelledby="discussion-heading"
-              >
-                <div className="mb-5 flex flex-wrap items-center gap-2">
-                  <h2
-                    id="discussion-heading"
-                    className="mr-auto text-xl font-bold text-slate-950"
-                  >
-                    Discussion preview
-                  </h2>
-                  {selectedPost.types.map((type) => (
-                    <Tag key={type} type={type} />
-                  ))}
-                </div>
-                <p className="mb-5 text-sm text-slate-600">
-                  Comment rendering slot for{" "}
-                  <span className="font-bold">{selectedPost.title}</span>
-                </p>
-                {selectedComments.length > 0 ? (
-                  <div className="space-y-3">
-                    {selectedComments.map((comment) => (
-                      <CommentCard
-                        key={comment.id}
-                        body={comment.body}
-                        displayName={comment.authorName}
-                        isLiked={comment.isLiked}
-                        likeCount={comment.likeCount}
-                        onLike={
-                          onLikeComment
-                            ? () => onLikeComment(comment.id)
-                            : undefined
-                        }
-                        onReply={
-                          onReplyToComment
-                            ? () => onReplyToComment(comment.id)
-                            : undefined
-                        }
-                        timestamp={{
-                          label: comment.createdAtLabel,
-                          dateTime: comment.createdAt,
-                        }}
-                        walletAddress={comment.authorWallet}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-dashed border-purple-200 bg-white p-6 text-center text-sm font-semibold text-slate-500">
-                    No comments yet. API-loaded comments will render here.
-                  </div>
-                )}
-                <CommentEntryComposer
-                  className="mt-4 border-purple-100"
-                  onSubmit={submitComment}
-                />
-              </section>
-            )}
           </>
         )}
         <p className="mt-6 text-xs text-slate-400">

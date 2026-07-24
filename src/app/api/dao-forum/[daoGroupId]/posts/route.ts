@@ -148,7 +148,8 @@ export async function GET(
     }
 
     (comments as CommentCountRow[] | null)?.forEach((comment) => {
-      commentCounts[comment.post_id] = (commentCounts[comment.post_id] ?? 0) + 1;
+      commentCounts[comment.post_id] =
+        (commentCounts[comment.post_id] ?? 0) + 1;
     });
   }
 

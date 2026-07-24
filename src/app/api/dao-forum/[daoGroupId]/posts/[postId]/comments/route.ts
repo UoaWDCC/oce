@@ -152,7 +152,6 @@ export async function POST(
     updated_at: inserted.updated_at,
   };
 
-
   return NextResponse.json(
     { success: true, comment: formattedComment },
     { status: 201, headers: corsHeaders },

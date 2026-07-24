@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef} from "react";
+import { useCallback, useState, useRef } from "react";
 import { deleteForumPost } from "../services";
 
 export interface UseDeleteDaoForumPostResult {
@@ -38,7 +38,11 @@ export function useDeleteDaoForumPost(
       setError(null);
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err : new Error("Failed to delete DAO forum post"));
+      setError(
+        err instanceof Error
+          ? err
+          : new Error("Failed to delete DAO forum post"),
+      );
       return false;
     } finally {
       setIsSubmitting(false);

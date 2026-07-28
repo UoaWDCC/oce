@@ -53,6 +53,30 @@ export async function POST(req: Request) {
         { status: 400, headers: corsHeaders },
       );
     }
+    //TODO: determine the token usage
+    //NOTE: this may need to change due to timezone differences between the server and localhost
+
+    const now = new Date();
+    const range = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+
+    const { data: messages } = await supabase
+      .from("messages")
+      .select("id, conversations!inner(user_id), content")
+      .eq("conversations.user_id", user.id)
+      .gte("created_at", range.toISOString())
+      .lte("created_at", now.toISOString());
+
+    const tokenCount =
+      messages!.reduce((total, message) => total + message.content.length, 0) /
+      4;
+
+    //NOTE: max daily tokens is 100000.
+    if (tokenCount >= 100000) {
+      return Response.json(
+        { error: "exceeded daily token limit" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
 
     const { conversation_id, content } = body;
 

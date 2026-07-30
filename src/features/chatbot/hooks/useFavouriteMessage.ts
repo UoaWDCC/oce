@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createClient } from "@/utils/supabase/client";
+import { patchFavourite } from "../api/favourite";
 
 export function useFavouriteMessage(
   messageId: string | undefined,
@@ -13,25 +13,7 @@ export function useFavouriteMessage(
     const next = !favourited;
     setFavourited(next);
 
-    try {
-      const {
-        data: { session },
-      } = await createClient().auth.getSession();
-
-      const res = await fetch(
-        `/api/ai-tutor/messages/${messageId}/${next ? "favourite" : "unfavourite"}`,
-        {
-          method: "PATCH",
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-        },
-      );
-
-      if (!res.ok) {
-        setFavourited(!next);
-      }
-    } catch {
-      setFavourited(!next);
-    }
+    setFavourited(await patchFavourite(messageId, next));
   };
 
   return { favourited, toggleFavourite };

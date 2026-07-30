@@ -8,7 +8,7 @@ export async function patchFavourite(messageId: string, next: boolean) {
       },
       true,
     );
-    return !next;
+    return next;
   } catch {
     return !next;
   }

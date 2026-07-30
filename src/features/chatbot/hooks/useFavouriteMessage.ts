@@ -11,7 +11,6 @@ export function useFavouriteMessage(
     if (!messageId) return;
 
     const next = !favourited;
-    setFavourited(next);
 
     setFavourited(await patchFavourite(messageId, next));
   };

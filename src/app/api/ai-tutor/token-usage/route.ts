@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { createClient } from "@/utils/supabase/server";
 import { authenticateRequest } from "@/utils/authHelper";
 
@@ -22,6 +21,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  //NOTE: this may need to change due to timezone differences between the server and localhost
   const now = new Date();
   const range = new Date(now.getTime() - 12 * 60 * 60 * 1000);
 
@@ -34,11 +34,12 @@ export async function GET(req: NextRequest) {
 
   const tokenCount =
     messages!.reduce((total, message) => total + message.content.length, 0) / 4;
+  const maxDailyTokens = parseInt(process.env.MAX_DAILY_TOKENS!) ?? 100000;
 
   const message = {
-    availableTokens: 100000 - tokenCount,
+    availableTokens: maxDailyTokens - tokenCount,
     usedTokens: tokenCount,
-    totalTokens: 100000,
+    totalTokens: maxDailyTokens,
     oldestMessage: messages ? messages[0].created_at : null,
   };
 

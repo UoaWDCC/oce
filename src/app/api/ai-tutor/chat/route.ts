@@ -70,8 +70,7 @@ export async function POST(req: Request) {
       messages!.reduce((total, message) => total + message.content.length, 0) /
       4;
 
-    //NOTE: max daily tokens is 100000.
-    if (tokenCount >= 100000) {
+    if (tokenCount >= (parseInt(process.env.MAX_DAILY_TOKENS!) ?? 100000)) {
       return Response.json(
         { error: "exceeded daily token limit" },
         { status: 400, headers: corsHeaders },

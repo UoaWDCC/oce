@@ -22,6 +22,15 @@ export type PostCardProps = {
   className?: string;
 };
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, "$1")  // bold
+    .replace(/\*(.*?)\*/g, "$1")       // italic
+    .replace(/<u>(.*?)<\/u>/g, "$1")  // underline
+    .replace(/^- /gm, "")              // bullets
+    .trim();
+}
+
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -76,7 +85,7 @@ function PostCardContent({
             WebkitLineClamp: 2,
           }}
         >
-          {excerpt}
+          {stripMarkdown(excerpt)}
         </p>
       )}
 

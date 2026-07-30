@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { Paperclip, X, Loader2 } from "lucide-react";
+import FormattingToolbar from "./FormattingToolbar";
 
 export type ForumEntryComposerState = {
   body: string;
@@ -57,16 +58,90 @@ export default function ForumEntryComposer({
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [body, variant]);
 
-  const handleImageAttach = () => {
-    const url = prompt("Enter image URL:");
-    if (url) {
-      setImageUrl(url);
+  const applyFormat = (type: "bold" | "italic" | "underline" | "bullet") => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = body.slice(start, end);
+    const hasSelection = start !== end;
+
+    let newBody = body;
+    let newCursorStart = start;
+    let newCursorEnd = end;
+
+    switch (type) {
+      case "bold": {
+        if (hasSelection) {
+          const replacement = `**${selectedText}**`;
+          newBody = body.slice(0, start) + replacement + body.slice(end);
+          newCursorStart = start;
+          newCursorEnd = start + replacement.length;
+        } else {
+          newBody = body.slice(0, start) + "****" + body.slice(start);
+          newCursorStart = start + 2;
+          newCursorEnd = start + 2;
+        }
+        break;
+      }
+      case "italic": {
+        if (hasSelection) {
+          const replacement = `*${selectedText}*`;
+          newBody = body.slice(0, start) + replacement + body.slice(end);
+          newCursorStart = start;
+          newCursorEnd = start + replacement.length;
+        } else {
+          newBody = body.slice(0, start) + "**" + body.slice(start);
+          newCursorStart = start + 1;
+          newCursorEnd = start + 1;
+        }
+        break;
+      }
+      case "underline": {
+        if (hasSelection) {
+          const replacement = `<u>${selectedText}</u>`;
+          newBody = body.slice(0, start) + replacement + body.slice(end);
+          newCursorStart = start;
+          newCursorEnd = start + replacement.length;
+        } else {
+          newBody = body.slice(0, start) + "<u></u>" + body.slice(start);
+          newCursorStart = start + 3;
+          newCursorEnd = start + 3;
+        }
+        break;
+      }
+      case "bullet": {
+        if (hasSelection) {
+          const lines = selectedText.split("\n");
+          const bulleted = lines.map((line) => `- ${line}`).join("\n");
+          newBody = body.slice(0, start) + bulleted + body.slice(end);
+          newCursorStart = start;
+          newCursorEnd = start + bulleted.length;
+        } else {
+          const bullet = "- ";
+          newBody = body.slice(0, start) + bullet + body.slice(start);
+          newCursorStart = start + bullet.length;
+          newCursorEnd = start + bullet.length;
+        }
+        break;
+      }
     }
+
+    setBody(newBody);
+
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorStart, newCursorEnd);
+    });
   };
 
-  const handleRemoveImage = () => {
-    setImageUrl(null);
+  const handleImageAttach = () => {
+    const url = prompt("Enter image URL:");
+    if (url) setImageUrl(url);
   };
+
+  const handleRemoveImage = () => setImageUrl(null);
 
   const handleSubmit = async () => {
     setValidationError(null);
@@ -79,16 +154,11 @@ export default function ForumEntryComposer({
 
     setIsSubmitting(true);
     try {
-      await onSubmit({
-        body: body.trim(),
-        imageUrl: imageUrl ?? undefined,
-      });
-      // Only clear content after successful submission
+      await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
       setBody("");
       setImageUrl(null);
       setError(null);
     } catch (err) {
-      // Keep the content when submission fails so user can retry
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setIsSubmitting(false);
@@ -118,10 +188,12 @@ export default function ForumEntryComposer({
 
       <div
         className={classNames(
-          isFullVariant &&
-            "rounded-lg border border-slate-200 bg-white p-3",
+          isFullVariant && "rounded-lg border border-slate-200 bg-white p-3",
         )}
       >
+        {/* ── Formatting toolbar ── */}
+        <FormattingToolbar onFormat={applyFormat} disabled={isDisabled} />
+
         <textarea
           ref={textareaRef}
           value={body}

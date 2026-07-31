@@ -132,6 +132,7 @@ describe("GET /api/ai-tutor/conversations", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("DB error");
+    expect(json.error).toBe("Failed to fetch conversations");
+    expect(JSON.stringify(json)).not.toContain("DB error");
   });
 });

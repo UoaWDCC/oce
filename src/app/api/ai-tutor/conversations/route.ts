@@ -41,8 +41,12 @@ export async function GET(req: NextRequest) {
     });
 
     if (error) {
+      console.error(
+        "GET /api/ai-tutor/conversations database query failed:",
+        error,
+      );
       return NextResponse.json(
-        { error: error.message },
+        { error: "Failed to fetch conversations" },
         { status: 500, headers: corsHeaders },
       );
     }

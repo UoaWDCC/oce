@@ -24,6 +24,7 @@ export type ForumEntryComposerProps = {
   showAttachButton?: boolean;
   showCancelButton?: boolean;
   variant?: "compact" | "full";
+  autoFocus?: boolean;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -41,6 +42,7 @@ export default function ForumEntryComposer({
   showAttachButton = true,
   showCancelButton = false,
   variant = "compact",
+  autoFocus = false,
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -56,6 +58,12 @@ export default function ForumEntryComposer({
     const maxHeight = variant === "full" ? 300 : 150;
     el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
   }, [body, variant]);
+
+  useEffect(() => {
+    if (autoFocus) {
+      textareaRef.current?.focus();
+    }
+  }, [autoFocus]);
 
   const handleImageAttach = () => {
     const url = prompt("Enter image URL:");
@@ -118,8 +126,7 @@ export default function ForumEntryComposer({
 
       <div
         className={classNames(
-          isFullVariant &&
-            "rounded-lg border border-slate-200 bg-white p-3",
+          isFullVariant && "rounded-lg border border-slate-200 bg-white p-3",
         )}
       >
         <textarea

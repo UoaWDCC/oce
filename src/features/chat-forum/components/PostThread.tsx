@@ -193,6 +193,7 @@ function ThreadComment({
             onSubmit={onSubmitComment ?? (() => Promise.resolve())}
             parentCommentId={replyingTo.id}
             showAttachment
+            autoFocus
           />
         </div>
       )}

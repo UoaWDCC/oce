@@ -172,35 +172,35 @@ function ThreadComment({
         </div>
       </article>
 
-      {replyingTo?.id === comment.id && (
-        <div className="mt-3">
-          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
-            <span>Replying to {replyingTo.authorName}</span>
-            {onCancelReply && (
-              <button
-                aria-label="Cancel reply"
-                className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-                onClick={onCancelReply}
-                type="button"
-              >
-                <X aria-hidden="true" className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          <CommentEntryComposer
-            className="mt-2 border-purple-100"
-            disabled={!onSubmitComment}
-            onSubmit={onSubmitComment ?? (() => Promise.resolve())}
-            parentCommentId={replyingTo.id}
-            showAttachment
-            autoFocus
-          />
-        </div>
-      )}
-
-      {comment.replies && comment.replies.length > 0 && (
+      {(replyingTo?.id === comment.id ||
+        (comment.replies && comment.replies.length > 0)) && (
         <div className="mt-3 space-y-3 border-l-2 border-purple-200 pl-3 sm:pl-6">
-          {comment.replies.map((reply) => (
+          {replyingTo?.id === comment.id && (
+            <div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
+                <span>Replying to {replyingTo.authorName}</span>
+                {onCancelReply && (
+                  <button
+                    aria-label="Cancel reply"
+                    className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                    onClick={onCancelReply}
+                    type="button"
+                  >
+                    <X aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <CommentEntryComposer
+                className="mt-2 border-purple-100"
+                disabled={!onSubmitComment}
+                onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+                parentCommentId={replyingTo.id}
+                showAttachment
+                autoFocus
+              />
+            </div>
+          )}
+          {comment.replies?.map((reply) => (
             <ThreadComment
               key={reply.id}
               comment={reply}

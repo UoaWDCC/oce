@@ -105,12 +105,18 @@ type ThreadCommentProps = {
   comment: ForumThreadComment;
   onLikeComment?: (commentId: string) => void;
   onReplyToComment?: (commentId: string) => void;
+  replyingTo?: { id: string; authorName: string } | null;
+  onCancelReply?: () => void;
+  onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
 };
 
 function ThreadComment({
   comment,
   onLikeComment,
   onReplyToComment,
+  replyingTo,
+  onCancelReply,
+  onSubmitComment,
 }: ThreadCommentProps) {
   return (
     <div>
@@ -166,6 +172,31 @@ function ThreadComment({
         </div>
       </article>
 
+      {replyingTo?.id === comment.id && (
+        <div className="mt-3">
+          <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
+            <span>Replying to {replyingTo.authorName}</span>
+            {onCancelReply && (
+              <button
+                aria-label="Cancel reply"
+                className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                onClick={onCancelReply}
+                type="button"
+              >
+                <X aria-hidden="true" className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <CommentEntryComposer
+            className="mt-2 border-purple-100"
+            disabled={!onSubmitComment}
+            onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+            parentCommentId={replyingTo.id}
+            showAttachment
+          />
+        </div>
+      )}
+
       {comment.replies && comment.replies.length > 0 && (
         <div className="mt-3 space-y-3 border-l-2 border-purple-200 pl-3 sm:pl-6">
           {comment.replies.map((reply) => (
@@ -174,6 +205,9 @@ function ThreadComment({
               comment={reply}
               onLikeComment={onLikeComment}
               onReplyToComment={onReplyToComment}
+              replyingTo={replyingTo}
+              onCancelReply={onCancelReply}
+              onSubmitComment={onSubmitComment}
             />
           ))}
         </div>
@@ -302,29 +336,14 @@ export default function PostThread({
         </label>
       </div>
 
-      {replyingTo && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
-          <span>Replying to {replyingTo.authorName}</span>
-          {onCancelReply && (
-            <button
-              aria-label="Cancel reply"
-              className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-              onClick={onCancelReply}
-              type="button"
-            >
-              <X aria-hidden="true" className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+      {!replyingTo && (
+        <CommentEntryComposer
+          className="mt-4 border-purple-100"
+          disabled={!onSubmitComment}
+          onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+          showAttachment
+        />
       )}
-
-      <CommentEntryComposer
-        className="mt-4 border-purple-100"
-        disabled={!onSubmitComment}
-        onSubmit={onSubmitComment ?? (() => Promise.resolve())}
-        parentCommentId={replyingTo?.id}
-        showAttachment
-      />
 
       <div className="mt-5 space-y-4">
         {commentsError ? (
@@ -350,6 +369,9 @@ export default function PostThread({
               comment={comment}
               onLikeComment={onLikeComment}
               onReplyToComment={onReplyToComment}
+              replyingTo={replyingTo}
+              onCancelReply={onCancelReply}
+              onSubmitComment={onSubmitComment}
             />
           ))
         ) : (

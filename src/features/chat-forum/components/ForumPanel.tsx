@@ -49,7 +49,6 @@ type ForumPanelProps = {
 };
 
 type PostTypeFilter = "All" | PostType;
-type SortOption = "Recent" | "Unanswered";
 
 const POST_TYPES: Array<{
   label: PostTypeFilter;
@@ -83,8 +82,6 @@ const POST_TYPES: Array<{
     iconClassName: "bg-emerald-100 text-emerald-700",
   },
 ];
-
-const SORT_OPTIONS: SortOption[] = ["Recent", "Unanswered"];
 
 function PostPreview({
   post,
@@ -128,7 +125,6 @@ export default function ForumPanel({
   const [query, setQuery] = useState("");
   const [postType, setPostType] = useState<PostTypeFilter>("All");
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [sort, setSort] = useState<SortOption>("Recent");
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
     null,
@@ -152,10 +148,9 @@ export default function ForumPanel({
     });
 
     return [...filtered].sort((left, right) => {
-      if (sort === "Unanswered") return left.commentCount - right.commentCount;
       return Date.parse(right.createdAt) - Date.parse(left.createdAt);
     });
-  }, [postType, posts, query, sort, unreadOnly]);
+  }, [postType, posts, query, unreadOnly]);
 
   const pinnedPosts = filteredPosts.filter((post) => post.isPinned);
   const regularPosts = filteredPosts.filter((post) => !post.isPinned);
@@ -411,19 +406,6 @@ export default function ForumPanel({
             )}
 
             <section aria-labelledby="forum-posts-heading">
-              <div className="mb-5 flex gap-6 overflow-x-auto border-b border-purple-100">
-                {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option}
-                    aria-pressed={sort === option}
-                    className={`shrink-0 border-b-4 px-1 pb-3 text-sm font-bold ${sort === option ? "border-purple-600 text-purple-700" : "border-transparent text-slate-400 hover:text-slate-600"}`}
-                    onClick={() => setSort(option)}
-                    type="button"
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
               <h2 id="forum-posts-heading" className="sr-only">
                 Forum posts
               </h2>

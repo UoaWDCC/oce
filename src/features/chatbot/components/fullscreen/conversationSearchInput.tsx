@@ -17,7 +17,7 @@ export default function ConversationSearchInput({
         onChange={(event) => onChange(event.target.value)}
         placeholder="Search conversations title"
         aria-label="Search conversations by title"
-        className="w-full outline outline-message-grey rounded-2xl p-2 pr-8 text-sm focus:outline-2"
+        className="w-full outline outline-message-grey rounded-2xl p-2 pr-8 text-sm focus:outline-2 focus:outline-[#5e00b2]"
       />
       {value && (
         <button

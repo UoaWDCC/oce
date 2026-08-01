@@ -3,7 +3,9 @@ import { Conversation } from "@/features/chatbot/types";
 
 // Passing a query filters by a case-insensitive partial match on title
 // (see the ?q= handling in /api/ai-tutor/conversations).
-export async function getConversations(query?: string): Promise<Conversation[]> {
+export async function getConversations(
+  query?: string,
+): Promise<Conversation[]> {
   const supabase = createClient();
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData?.session?.access_token;

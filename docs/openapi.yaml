@@ -1037,7 +1037,8 @@ paths:
         Streams incremental AI response chunks from
         /api/ai-tutor/chat/stream using Server-Sent Events. In local
         development, the route may also accept Authorization: dev when
-        the dev-only bypass is enabled in code.
+        the dev-only bypass is enabled in code. The AI Tutor's system
+        instruction is managed by the application.
       security:
         - bearerAuth: []
       requestBody:
@@ -1084,8 +1085,6 @@ paths:
                         type: string
             example:
               messages:
-                - role: system
-                  content: You are a helpful AI tutor for blockchain and DAO learning.
                 - role: user
                   content: Explain what a DAO is in three concise bullet points.
               config:

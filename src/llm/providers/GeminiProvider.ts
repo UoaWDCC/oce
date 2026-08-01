@@ -74,10 +74,12 @@ export class GeminiProvider implements LLMProvider {
     messages: Message[],
     config: LLMConfig,
   ): GenerateContentConfig {
-    const systemInstruction = messages
+    const messageSystemInstruction = messages
       .filter((message) => message.role === "system")
       .map((message) => message.content)
       .join("\n\n");
+    const systemInstruction =
+      config.systemInstruction ?? messageSystemInstruction;
 
     return {
       temperature: config.temperature,

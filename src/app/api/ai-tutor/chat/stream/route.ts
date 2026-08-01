@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import type { LLMConfig } from "@/llm/types/LLMConfig";
 import type { Message } from "@/llm/types/Message";
@@ -102,7 +103,11 @@ export async function POST(req: NextRequest) {
   }
 
   const provider = createLLMProvider();
-  const stream = provider.stream(body.messages, body.config ?? {});
+  const systemInstruction = buildAiTutorInstruction();
+  const stream = provider.stream(body.messages, {
+    ...body.config,
+    systemInstruction,
+  });
   const iterator = stream[Symbol.asyncIterator]();
 
   let firstChunk: IteratorResult<string>;

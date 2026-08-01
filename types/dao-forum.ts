@@ -158,6 +158,7 @@ export interface ForumPostPreview {
   tags: string[];
   isPinned?: boolean;
   isUnread?: boolean;
+  imageUrl?: string | null;
 }
 
 export interface ForumCommentPreview {
@@ -172,4 +173,5 @@ export interface ForumCommentPreview {
   likeCount: number;
   isLiked?: boolean;
   isDeleted?: boolean;
+  imageUrl?: string | null;
 }

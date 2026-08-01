@@ -26,6 +26,7 @@ export type ForumThreadPost = {
   createdAt: string;
   createdAtLabel: string;
   statusLabel?: string;
+  imageUrl?: string | null;
 };
 
 export type ForumThreadComment = {
@@ -37,5 +38,6 @@ export type ForumThreadComment = {
   likeCount: number;
   isLiked?: boolean;
   isDeleted?: boolean;
+  imageUrl?: string | null;
   replies?: ForumThreadComment[];
 };

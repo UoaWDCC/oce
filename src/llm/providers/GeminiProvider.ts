@@ -10,7 +10,7 @@ import type { Message } from "@/llm/types/Message";
 import type { ModelInfo } from "@/llm/types/ModelInfo";
 import type { TokenUsage } from "@/llm/types/TokenUsage";
 
-const MODEL_ID = "gemini-3.1-flash-lite";
+const MODEL_ID = "gemini-2.5-flash-lite";
 
 export class GeminiProvider implements LLMProvider {
   private readonly client = new GoogleGenAI({

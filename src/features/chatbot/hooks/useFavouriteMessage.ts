@@ -11,8 +11,13 @@ export function useFavouriteMessage(
     if (!messageId) return;
 
     const next = !favourited;
+    setFavourited(next);
 
-    setFavourited(await patchFavourite(messageId, next));
+    try {
+      await patchFavourite(messageId, next);
+    } catch {
+      setFavourited(!next);
+    }
   };
 
   return { favourited, toggleFavourite };

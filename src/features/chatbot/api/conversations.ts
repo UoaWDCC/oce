@@ -4,9 +4,13 @@ import { apiFetch } from "../utils/apiFetch";
 
 export async function getConversations(): Promise<Conversation[]> {
   const response = await apiFetch("/api/ai-tutor/conversations", {}, true);
-  const data = (await response.json()) as { conversation: Conversation[] };
+  const data = (await response.json()) as { conversation?: unknown };
 
-  return data.conversation;
+  if (!Array.isArray(data.conversation)) {
+    throw new Error("Invalid conversations response");
+  }
+
+  return data.conversation as Conversation[];
 }
 export async function createConversation(): Promise<Conversation> {
   const response = await apiFetch(

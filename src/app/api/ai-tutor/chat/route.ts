@@ -1,5 +1,10 @@
 import { createClient } from "@/utils/supabase/server";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
+import {
+  estimateTokenUsage,
+  getMaxDailyTokens,
+  getUsageWindow,
+} from "@/utils/aiTutorTokenUsage";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,7 +58,6 @@ export async function POST(req: Request) {
         { status: 400, headers: corsHeaders },
       );
     }
-
     const { conversation_id, content } = body;
 
     if (
@@ -65,6 +69,34 @@ export async function POST(req: Request) {
       return Response.json(
         { error: "conversation_id and content must be non-empty strings" },
         { status: 400, headers: corsHeaders },
+      );
+    }
+
+    const { start, end } = getUsageWindow();
+    const { data: messages, error: usageError } = await supabase
+      .from("messages")
+      .select("content, conversations!inner(user_id)")
+      .eq("conversations.user_id", user.id)
+      .gte("created_at", start.toISOString())
+      .lte("created_at", end.toISOString());
+
+    if (usageError) {
+      console.error("Failed to load AI tutor token usage:", usageError);
+      return Response.json(
+        { error: "Failed to load token usage" },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    const existingUsage = estimateTokenUsage(
+      (messages ?? []).map((message) => message.content),
+    );
+    const incomingUsage = estimateTokenUsage([content]);
+
+    if (existingUsage + incomingUsage > getMaxDailyTokens()) {
+      return Response.json(
+        { error: "exceeded daily token limit" },
+        { status: 429, headers: corsHeaders },
       );
     }
 

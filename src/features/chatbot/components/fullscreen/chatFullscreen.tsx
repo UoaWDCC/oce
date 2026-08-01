@@ -15,7 +15,7 @@ import {
   getConversationMessages,
   saveUserMessage,
   streamAssistantMessage,
-} from "@/features/chatbot/api";
+} from "@/features/chatbot/api/conversations";
 import ErrorMessage from "../errorMessage";
 import type { Message } from "@/llm/types/Message";
 

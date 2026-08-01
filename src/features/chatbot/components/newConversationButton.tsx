@@ -1,6 +1,6 @@
 "use client";
 import { useConversation } from "../providers/ConversationProvider";
-import { createConversation } from "../api";
+import { createConversation } from "@/features/chatbot/api/conversations";
 import { CirclePlus } from "lucide-react";
 import { useState } from "react";
 
@@ -20,10 +20,8 @@ export default function NewConversationButton() {
         if (isCreating) {
           return;
         }
-
         setIsCreating(true);
         setError(undefined);
-
         try {
           const newConversation = await createConversation();
           setSelectedConversationId(newConversation.id);

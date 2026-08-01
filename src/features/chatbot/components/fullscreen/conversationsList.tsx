@@ -111,6 +111,7 @@ export default function ConversationsList() {
                 clearCurrentMessages();
               }}
               onEnd={() => handleEnd(id)}
+              isEnding={endingIds.has(id)}
             />
           );
         })

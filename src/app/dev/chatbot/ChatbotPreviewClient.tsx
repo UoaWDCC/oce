@@ -174,12 +174,14 @@ export default function ChatbotPreviewClient() {
                 isSelected={false}
                 onSelect={() => {}}
                 onEnd={() => alert("Conversation ended")}
+                isEnding={false}
               />
               <Conversation
                 name="Proposal summary draft"
                 isSelected={true}
                 onSelect={() => {}}
                 onEnd={() => alert("Conversation ended")}
+                isEnding={false}
               />
               <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-4">
                 <ChatDownButton scrollDown={() => {}} />

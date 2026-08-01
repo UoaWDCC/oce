@@ -5,12 +5,14 @@ interface ConversationPropsType {
   isSelected: boolean;
   onSelect: () => void;
   onEnd: () => void;
+  isEnding: boolean;
 }
 export default function Conversation({
   name,
   isSelected,
   onSelect,
   onEnd,
+  isEnding,
 }: ConversationPropsType) {
   return (
     <div
@@ -23,6 +25,7 @@ export default function Conversation({
         className="opacity-0 group-hover:opacity-100 shrink-0 ml-2 text-gray-400 hover:text-[#5e00b2]"
         onClick={(e) => { e.stopPropagation(); if (window.confirm("End this conversation?")) onEnd(); }}
         title="End conversation"
+        disabled={isEnding}
       >
         <Trash2 size={14} />
       </button>

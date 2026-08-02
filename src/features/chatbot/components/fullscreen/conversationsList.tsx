@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Conversation from "./conversation";
 import ConversationSearchInput from "./conversationSearchInput";
 import NewConversationButton from "../newConversationButton";
 import { useConversations } from "@/features/chatbot/hooks/useConversations";
 import { useConversationSearch } from "@/features/chatbot/hooks/useConversationSearch";
 import { useConversation } from "@/features/chatbot/providers/ConversationProvider";
+import { endConversation } from "@/features/chatbot/api/conversations";
 
 function StatusMessage({ children }: { children: string }) {
   return (
@@ -23,14 +24,44 @@ export default function ConversationsList() {
     selectedConversationId,
     setSelectedConversationId,
     conversationListVersion,
+    refreshConversationList,
     clearCurrentMessages,
+    setError,
   } = useConversation();
+
   const [searchQuery, setSearchQuery] = useState("");
   const isSearching = searchQuery.trim().length > 0;
+
+  const [endingIds, setEndingIds] = useState<Set<string>>(new Set());
+  const [endedIds, setEndedIds] = useState<Set<string>>(new Set());
+  const selectedConversationIdRef = useRef(selectedConversationId);
+  selectedConversationIdRef.current = selectedConversationId;
+
+  async function handleEnd(id: string) {
+    setEndingIds((prev) => new Set(prev).add(id));
+    try {
+      await endConversation(id);
+      setEndedIds((prev) => new Set(prev).add(id));
+      if (selectedConversationIdRef.current === id) {
+        setSelectedConversationId(null);
+        clearCurrentMessages();
+      }
+      refreshConversationList();
+    } catch {
+      setError("Failed to end conversation. Please try again.");
+    } finally {
+      setEndingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
+  }
 
   const { conversations, isLoading, error } = useConversations(
     conversationListVersion,
   );
+
   const {
     results,
     isLoading: isSearchLoading,
@@ -39,7 +70,9 @@ export default function ConversationsList() {
 
   // Clearing the input flips isSearching back to false, which restores the
   // normal list without refetching it.
-  const shownConversations = isSearching ? results : conversations;
+  const shownConversations = (isSearching ? results : conversations).filter(
+    ({ id }) => !endedIds.has(id),
+  );
   const shownIsLoading = isSearching ? isSearchLoading : isLoading;
   const shownError = isSearching ? searchError : error;
 
@@ -83,6 +116,8 @@ export default function ConversationsList() {
                 setSelectedConversationId(id);
                 clearCurrentMessages();
               }}
+              onEnd={() => handleEnd(id)}
+              isEnding={endingIds.has(id)}
             />
           );
         })

@@ -56,6 +56,7 @@ export function mapPostToForumPostPreview(
       year: "numeric",
     }),
     commentCount: post.comment_count,
+    viewCount: post.view_count ?? 0,
     types: post.post_type ? [post.post_type as PostType] : [],
     tags: post.tags,
     isPinned: post.is_pinned,
@@ -101,6 +102,7 @@ export function mapForumPostPreviewToThreadPost(
     },
     createdAt: post.createdAt,
     createdAtLabel: post.createdAtLabel,
+    viewCount: post.viewCount,
   };
 }
 

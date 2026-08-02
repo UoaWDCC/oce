@@ -96,6 +96,7 @@ function PostPreview({
   return (
     <PostCard
       commentCount={post.commentCount}
+      viewCount={post.viewCount}
       createdAt={{ label: post.createdAtLabel, dateTime: post.createdAt }}
       displayName={post.authorName}
       excerpt={post.excerpt}

@@ -1,5 +1,5 @@
 const DEFAULT_MAX_DAILY_TOKENS = 100000;
-const USAGE_WINDOW_MS = 12 * 60 * 60 * 1000;
+const USAGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export function getMaxDailyTokens(): number {
   const configuredValue = process.env.MAX_DAILY_TOKENS;

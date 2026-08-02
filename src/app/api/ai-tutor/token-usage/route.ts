@@ -58,3 +58,10 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(message, { status: 200, headers: corsHeaders });
 }
+
+export async function OPTIONS() {
+  return new NextResponse(null, {
+    status: 204,
+    headers: corsHeaders,
+  });
+}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Conversation from "./conversation";
 import ConversationSearchInput from "./conversationSearchInput";
 import NewConversationButton from "../newConversationButton";
@@ -33,12 +33,16 @@ export default function ConversationsList() {
   const isSearching = searchQuery.trim().length > 0;
 
   const [endingIds, setEndingIds] = useState<Set<string>>(new Set());
+  const [endedIds, setEndedIds] = useState<Set<string>>(new Set());
+  const selectedConversationIdRef = useRef(selectedConversationId);
+  selectedConversationIdRef.current = selectedConversationId;
 
   async function handleEnd(id: string) {
     setEndingIds((prev) => new Set(prev).add(id));
     try {
       await endConversation(id);
-      if (selectedConversationId === id) {
+      setEndedIds((prev) => new Set(prev).add(id));
+      if (selectedConversationIdRef.current === id) {
         setSelectedConversationId(null);
         clearCurrentMessages();
       }
@@ -66,7 +70,9 @@ export default function ConversationsList() {
 
   // Clearing the input flips isSearching back to false, which restores the
   // normal list without refetching it.
-  const shownConversations = isSearching ? results : conversations;
+  const shownConversations = (isSearching ? results : conversations).filter(
+    ({ id }) => !endedIds.has(id),
+  );
   const shownIsLoading = isSearching ? isSearchLoading : isLoading;
   const shownError = isSearching ? searchError : error;
 

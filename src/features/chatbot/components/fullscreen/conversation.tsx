@@ -23,7 +23,10 @@ export default function Conversation({
       <span className="truncate flex-1">{name}</span>
       <button
         className="opacity-0 group-hover:opacity-100 shrink-0 ml-2 text-gray-400 hover:text-[#5e00b2]"
-        onClick={(e) => { e.stopPropagation(); if (window.confirm("End this conversation?")) onEnd(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (window.confirm("End this conversation?")) onEnd();
+        }}
         title="End conversation"
         disabled={isEnding}
       >

@@ -1026,7 +1026,68 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
+  /api/ai-tutor/token-usage:
+    get:
+      summary: Get AI tutor token usage
+      description: Returns the user's AI tutor token usage for the current usage window.
+      tags:
+        - AI Tutor
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Token usage retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  availableTokens:
+                    type: integer
+                    description: Number of tokens remaining in the current usage window.
+                    example: 8450
+                  usedTokens:
+                    type: integer
+                    description: Number of tokens used in the current usage window.
+                    example: 1550
+                  totalTokens:
+                    type: integer
+                    description: Maximum number of tokens allowed in the current usage window.
+                    example: 10000
+                  oldestMessage:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Timestamp of the oldest message counted towards the current usage window.
+                    example: "2026-08-02T08:15:42.123Z"
+        "401":
+          description: Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid auth token
+        "500":
+          description: Failed to load token usage.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to load token usage
+    options:
+      summary: CORS preflight
+      description: Responds to CORS preflight requests for this endpoint.
+      tags:
+        - AI Tutor
+      responses:
+        "204":
+          description: No content.
   /api/ai-tutor/chat/stream:
     post:
       tags:

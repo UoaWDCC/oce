@@ -7,24 +7,50 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
+const MAX_SEARCH_QUERY_LENGTH = 200;
+
+// Escapes ILIKE wildcard characters so search input is matched literally.
+function escapeIlikePattern(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/\*/g, "\\*");
+}
+
 // GET /api/ai-tutor/conversations
-// Returns all non-deleted (active) conversations for the authenticated user
+// Returns all non-deleted (active) conversations for the authenticated user,
+// optionally filtered by a case-insensitive partial match on title via ?q=
 export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateUser(req, corsHeaders);
     if (auth.response) return auth.response;
     const { supabase, user } = auth;
 
-    const { data: conversation, error } = await supabase
+    const { searchParams } = new URL(req.url);
+    const q = searchParams.get("q")?.trim().slice(0, MAX_SEARCH_QUERY_LENGTH);
+
+    let query = supabase
       .from("conversations")
       .select("id, user_id, status, title, created_at, updated_at")
       .eq("user_id", user.id)
-      .neq("status", "ended")
-      .order("updated_at", { ascending: false });
+      .neq("status", "ended");
+
+    if (q) {
+      query = query.ilike("title", `%${escapeIlikePattern(q)}%`);
+    }
+
+    const { data: conversation, error } = await query.order("updated_at", {
+      ascending: false,
+    });
 
     if (error) {
+      console.error(
+        "GET /api/ai-tutor/conversations database query failed:",
+        error,
+      );
       return NextResponse.json(
-        { error: error.message },
+        { error: "Failed to fetch conversations" },
         { status: 500, headers: corsHeaders },
       );
     }

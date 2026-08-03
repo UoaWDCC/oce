@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import type { LLMConfig } from "@/llm/types/LLMConfig";
 import type { Message } from "@/llm/types/Message";
 import { authenticateRequest, getAdminClient } from "@/utils/authHelper";
+import {
+  estimateTokenUsage,
+  getMaxDailyTokens,
+  getUsageWindow,
+} from "@/utils/aiTutorTokenUsage";
 
 interface ChatRequestBody {
   messages?: Message[];
@@ -66,10 +72,42 @@ export async function POST(req: NextRequest) {
         { status: 404 },
       );
     }
+
+    const { start, end } = getUsageWindow();
+    const { data: persistedMessages, error: usageError } =
+      await getAdminClient()
+        .from("messages")
+        .select("content, conversations!inner(user_id)")
+        .eq("conversations.user_id", userId)
+        .gte("created_at", start.toISOString())
+        .lte("created_at", end.toISOString());
+
+    if (usageError) {
+      console.error("Failed to load AI tutor token usage:", usageError);
+      return NextResponse.json(
+        { error: "Failed to load token usage" },
+        { status: 500 },
+      );
+    }
+
+    const tokenUsage = estimateTokenUsage(
+      (persistedMessages ?? []).map((message) => message.content),
+    );
+
+    if (tokenUsage > getMaxDailyTokens()) {
+      return NextResponse.json(
+        { error: "exceeded daily token limit" },
+        { status: 429 },
+      );
+    }
   }
 
   const provider = createLLMProvider();
-  const stream = provider.stream(body.messages, body.config ?? {});
+  const systemInstruction = buildAiTutorInstruction();
+  const stream = provider.stream(body.messages, {
+    ...body.config,
+    systemInstruction,
+  });
   const iterator = stream[Symbol.asyncIterator]();
 
   let firstChunk: IteratorResult<string>;

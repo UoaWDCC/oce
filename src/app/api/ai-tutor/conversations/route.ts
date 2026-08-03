@@ -11,7 +11,11 @@ const MAX_SEARCH_QUERY_LENGTH = 200;
 
 // Escapes ILIKE wildcard characters so search input is matched literally.
 function escapeIlikePattern(value: string): string {
-  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/\*/g, "\\*");
 }
 
 // GET /api/ai-tutor/conversations

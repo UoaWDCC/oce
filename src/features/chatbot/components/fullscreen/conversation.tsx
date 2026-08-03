@@ -18,11 +18,22 @@ export default function Conversation({
     <div
       className={`group flex items-center min-w-0 outline outline-message-grey rounded-2xl w-full p-2 text-sm font-bold cursor-pointer ${isSelected ? "bg-message-grey" : "hover:bg-message-grey"}`}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (
+          e.target === e.currentTarget &&
+          (e.key === "Enter" || e.key === " ")
+        ) {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      role="button"
+      tabIndex={0}
       title={name}
     >
       <span className="truncate flex-1">{name}</span>
       <button
-        className="opacity-0 group-hover:opacity-100 shrink-0 ml-2 text-gray-400 hover:text-[#5e00b2]"
+        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 ml-2 text-gray-400 hover:text-[#5e00b2]"
         onClick={(e) => {
           e.stopPropagation();
           if (window.confirm("End this conversation?")) onEnd();

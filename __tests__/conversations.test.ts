@@ -94,6 +94,15 @@ describe("GET /api/ai-tutor/conversations", () => {
     expect(mockSupabase.ilike).toHaveBeenCalledWith("title", "%100\\%\\_off%");
   });
 
+  it("escapes a literal asterisk in q", async () => {
+    setMockQueryResult({ data: [], error: null });
+
+    const req = createMockRequest("GET", undefined, `${conversationsUrl}?q=*`);
+    await GET(req);
+
+    expect(mockSupabase.ilike).toHaveBeenCalledWith("title", "%\\*%");
+  });
+
   it("returns 200 with an empty array when no conversations match", async () => {
     setMockQueryResult({ data: [], error: null });
 

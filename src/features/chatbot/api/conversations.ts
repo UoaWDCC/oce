@@ -2,8 +2,17 @@ import { Conversation, TutorMessage } from "@/features/chatbot/types";
 import type { Message } from "@/llm/types/Message";
 import { apiFetch } from "../utils/apiFetch";
 
-export async function getConversations(): Promise<Conversation[]> {
-  const response = await apiFetch("/api/ai-tutor/conversations", {}, true);
+// Passing a query filters by a case-insensitive partial match on title
+// (see the ?q= handling in /api/ai-tutor/conversations).
+export async function getConversations(
+  query?: string,
+): Promise<Conversation[]> {
+  const search = query?.trim();
+  const url = search
+    ? `/api/ai-tutor/conversations?q=${encodeURIComponent(search)}`
+    : "/api/ai-tutor/conversations";
+
+  const response = await apiFetch(url, {}, true);
   const data = (await response.json()) as { conversation?: unknown };
 
   if (!Array.isArray(data.conversation)) {
@@ -12,6 +21,7 @@ export async function getConversations(): Promise<Conversation[]> {
 
   return data.conversation as Conversation[];
 }
+
 export async function createConversation(): Promise<Conversation> {
   const response = await apiFetch(
     "/api/ai-tutor/conversations",
@@ -142,4 +152,12 @@ export async function streamAssistantMessage(
   if (buffer) {
     parseStreamPayload(buffer, handlers);
   }
+}
+
+export async function endConversation(id: string): Promise<void> {
+  await apiFetch(
+    `/api/ai-tutor/conversations/${id}`,
+    { method: "PATCH" },
+    true,
+  );
 }

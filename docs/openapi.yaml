@@ -1187,6 +1187,70 @@ paths:
               example:
                 error: LLM provider error
 
+  /api/ai-tutor/conversations:
+    get:
+      tags:
+        - AI Tutor
+      summary: List (or search) the authenticated user's AI Tutor conversations
+      operationId: listAiTutorConversations
+      description: >
+        Returns active (non-ended) conversations owned by the authenticated
+        user, ordered by most recently updated. When q is provided, results
+        are filtered to conversations whose title case-insensitively contains
+        q; an empty or whitespace-only q is treated the same as omitting it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: >
+            Optional case-insensitive partial match on conversation title.
+            Empty, whitespace-only, or omitted returns the normal
+            unfiltered list.
+      responses:
+        "200":
+          description: Conversations for the authenticated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Conversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - AI Tutor
+      summary: Create a new AI Tutor conversation
+      operationId: createAiTutorConversation
+      description: >
+        Creates a new active conversation for the authenticated user. The
+        title is set later once generated.
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation:
+                    $ref: "#/components/schemas/Conversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -1790,5 +1854,26 @@ components:
           type: string
           format: date-time
         UpdatedAt:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        title:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time

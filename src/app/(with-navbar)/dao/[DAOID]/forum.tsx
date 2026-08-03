@@ -8,6 +8,7 @@ import { useDaoForumComments } from "@/features/chat-forum/hooks/useDaoForumComm
 import { useCreateDaoForumPost } from "@/features/chat-forum/hooks/useCreateDaoForumPost";
 import { useCreateDaoForumComment } from "@/features/chat-forum/hooks/useCreateDaoForumComment";
 import { useDaoForumCommentLike } from "@/features/chat-forum/hooks/useDaoForumCommentLike";
+import { useRecordPostView } from "@/features/chat-forum/hooks/useRecordPostView";
 import {
   submitForumComment,
   submitForumPost,
@@ -65,6 +66,18 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     unlikeComment,
     error: commentLikeError,
   } = useDaoForumCommentLike();
+  const { recordView } = useRecordPostView();
+
+  const handleSelectPost = async (postId: string | null): Promise<void> => {
+    setSelectedPostId(postId);
+    if (postId) {
+      const success = await recordView(postId);
+      if (success) {
+        // Refresh the post list to update unread state
+        await refetchPosts();
+      }
+    }
+  };
 
   const handleSubmitPost = async (
     payload: PostSubmitPayload,
@@ -110,7 +123,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       isLoading={isLoading}
       onCommentSortChange={setCommentSort}
       onLikeComment={handleLikeComment}
-      onSelectPost={setSelectedPostId}
+      onSelectPost={handleSelectPost}
       onSubmitPost={handleSubmitPost}
       onSubmitComment={handleSubmitComment}
       posts={posts}

@@ -59,7 +59,7 @@ export function mapPostToForumPostPreview(
     types: post.post_type ? [post.post_type as PostType] : [],
     tags: post.tags,
     isPinned: post.is_pinned,
-    isUnread: undefined,
+    isUnread: post.is_unread,
   };
 }
 

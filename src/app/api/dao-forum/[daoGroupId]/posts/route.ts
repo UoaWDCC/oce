@@ -11,7 +11,7 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "tags" | "author"
+  "comment_count" | "tags" | "author" | "is_unread"
 > & {
   author:
     | {
@@ -47,6 +47,17 @@ type CommentCountRow = {
   post_id: string;
 };
 
+type CommentWithTimestamp = {
+  post_id: string;
+  created_at: string;
+  updated_at: string | null;
+};
+
+type PostViewRow = {
+  post_id: string;
+  last_viewed_at: string;
+};
+
 function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
@@ -55,6 +66,7 @@ function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
 function formatPostListItem(
   post: RawPostListItem,
   commentCounts: Record<string, number>,
+  isUnread: Record<string, boolean>,
 ): PostListItem {
   return {
     id: post.id,
@@ -69,6 +81,7 @@ function formatPostListItem(
     created_at: post.created_at,
     updated_at: post.updated_at,
     comment_count: commentCounts[post.id] ?? 0,
+    is_unread: isUnread[post.id] ?? true,
     author: post.anonymous ? null : firstOrNull(post.author),
     tags:
       post.post_tags
@@ -88,7 +101,7 @@ export async function GET(
 
   const auth = await authenticateUser(_request, corsHeaders);
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { data, error } = await supabase
     .from("posts")
@@ -132,11 +145,13 @@ export async function GET(
   const posts = (data ?? []) as unknown as RawPostListItem[];
   const postIds = posts.map((post) => post.id);
   const commentCounts: Record<string, number> = {};
+  const isUnread: Record<string, boolean> = {};
 
   if (postIds.length > 0) {
+    // Fetch comments with timestamps for count and latest activity
     const { data: comments, error: commentsError } = await supabase
       .from("comments")
-      .select("post_id")
+      .select("post_id, created_at, updated_at")
       .is("deleted_at", null)
       .in("post_id", postIds);
 
@@ -147,13 +162,63 @@ export async function GET(
       );
     }
 
-    (comments as CommentCountRow[] | null)?.forEach((comment) => {
+    // Calculate comment counts and track latest comment timestamps
+    const latestCommentActivity: Record<string, Date> = {};
+    (comments as CommentWithTimestamp[] | null)?.forEach((comment) => {
       commentCounts[comment.post_id] = (commentCounts[comment.post_id] ?? 0) + 1;
+
+      const commentTime = new Date(comment.updated_at ?? comment.created_at);
+      if (
+        !latestCommentActivity[comment.post_id] ||
+        commentTime > latestCommentActivity[comment.post_id]
+      ) {
+        latestCommentActivity[comment.post_id] = commentTime;
+      }
+    });
+
+    // Fetch user's post views
+    const { data: postViews, error: viewsError } = await supabase
+      .from("post_views")
+      .select("post_id, last_viewed_at")
+      .eq("viewer_id", user.id)
+      .in("post_id", postIds);
+
+    if (viewsError) {
+      return NextResponse.json(
+        { error: viewsError.message },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    const userPostViews: Record<string, Date> = {};
+    (postViews as PostViewRow[] | null)?.forEach((view) => {
+      userPostViews[view.post_id] = new Date(view.last_viewed_at);
+    });
+
+    // Calculate is_unread for each post
+    posts.forEach((post) => {
+      const lastViewed = userPostViews[post.id];
+
+      // If never viewed, it's unread
+      if (!lastViewed) {
+        isUnread[post.id] = true;
+        return;
+      }
+
+      // Determine latest activity (post or comments)
+      const postActivity = new Date(post.updated_at ?? post.created_at);
+      const latestComment = latestCommentActivity[post.id];
+      const latestActivity = latestComment
+        ? new Date(Math.max(postActivity.getTime(), latestComment.getTime()))
+        : postActivity;
+
+      // Unread if activity is newer than last view
+      isUnread[post.id] = latestActivity > lastViewed;
     });
   }
 
   return NextResponse.json(
-    posts.map((post) => formatPostListItem(post, commentCounts)),
+    posts.map((post) => formatPostListItem(post, commentCounts, isUnread)),
     { headers: corsHeaders },
   );
 }

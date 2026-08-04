@@ -9,12 +9,40 @@ import { useConversationSearch } from "@/features/chatbot/hooks/useConversationS
 import { useConversation } from "@/features/chatbot/providers/ConversationProvider";
 import { endConversation } from "@/features/chatbot/api/conversations";
 
-function StatusMessage({ children }: { children: string }) {
+interface StatusMessageProps {
+  title: string;
+  description?: string;
+  variant: "loading" | "empty" | "error";
+}
+
+function StatusMessage({ title, description, variant }: StatusMessageProps) {
+  const isError = variant === "error";
+
   return (
     <div className="flex flex-1 items-center justify-center p-4">
-      <p className="text-sm text-slate-500 font-semibold text-center">
-        {children}
-      </p>
+      <div
+        className={`w-full rounded-xl border px-4 py-6 text-center ${
+          isError
+            ? "border-red-200 bg-red-50"
+            : variant === "loading"
+              ? "border-purple-100 bg-purple-50/50"
+              : "border-dashed border-purple-200 bg-slate-50/70"
+        }`}
+        role={isError ? "alert" : "status"}
+      >
+        <p
+          className={`text-sm font-semibold ${isError ? "text-red-700" : "text-slate-700"}`}
+        >
+          {title}
+        </p>
+        {description && (
+          <p
+            className={`mt-1 text-xs ${isError ? "text-red-600" : "text-slate-500"}`}
+          >
+            {description}
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -77,8 +105,8 @@ export default function ConversationsList() {
   const shownError = isSearching ? searchError : error;
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl p-4 shadow-xl outline outline-message-grey">
-      <div className="flex shrink-0 flex-col gap-2">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
+      <div className="flex shrink-0 flex-col gap-3">
         <div>
           <NewConversationButton />
         </div>
@@ -92,21 +120,39 @@ export default function ConversationsList() {
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         {shownIsLoading ? (
-          <StatusMessage>
-            {isSearching ? "Searching..." : "Loading..."}
-          </StatusMessage>
+          <StatusMessage
+            title={isSearching ? "Searching..." : "Loading..."}
+            description={
+              isSearching
+                ? "Looking for matching conversations."
+                : "Loading your conversations."
+            }
+            variant="loading"
+          />
         ) : shownError ? (
-          <StatusMessage>
-            {isSearching
-              ? "Could not load search results."
-              : "Could not load conversations."}
-          </StatusMessage>
+          <StatusMessage
+            title={
+              isSearching
+                ? "Could not load search results."
+                : "Could not load conversations."
+            }
+            description="Please try again."
+            variant="error"
+          />
         ) : shownConversations.length === 0 ? (
-          <StatusMessage>
-            {isSearching
-              ? "No conversations match your search."
-              : "No conversations yet."}
-          </StatusMessage>
+          <StatusMessage
+            title={
+              isSearching
+                ? "No conversations match your search."
+                : "No conversations yet."
+            }
+            description={
+              isSearching
+                ? "Try another search term."
+                : "Start a new conversation to see it here."
+            }
+            variant="empty"
+          />
         ) : (
           shownConversations.map((conversation) => {
             const { title, id } = conversation;

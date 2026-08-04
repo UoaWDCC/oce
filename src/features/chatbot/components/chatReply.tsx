@@ -33,13 +33,13 @@ export default function ChatReply({
   const showTutorAction = isLast && Boolean(conversationId);
 
   return (
-    <div className="px-3">
-      <div className="w-full">
-        <div className="markdown">
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="min-w-0 max-w-full overflow-x-auto">
+        <div className="markdown min-w-0 max-w-full text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">
           <ReactMarkdown>{children}</ReactMarkdown>
         </div>
       </div>
-      <div className="flex flex-col gap-2">
+      <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-2">
         <div className="flex items-center gap-2">
           <button
             type="button"

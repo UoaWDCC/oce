@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
-import { Maximize2, Minimize2, X } from "lucide-react";
+import { Bot, Maximize2, Minimize2, X } from "lucide-react";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
@@ -38,9 +38,9 @@ function mapChatMessagesToLLMMessages(messages: ChatMessageType[]): Message[] {
 // Lightweight "thinking" indicator shown while persisted history is loading.
 function HistoryLoadingState() {
   return (
-    <div className="flex w-full justify-center py-6">
+    <div className="flex w-full flex-1 items-center justify-center py-8">
       <div
-        className="flex items-center gap-2 text-sm font-semibold text-slate-500"
+        className="flex items-center gap-2 rounded-xl border border-purple-100 bg-white px-4 py-3 text-sm font-medium text-slate-500 shadow-sm"
         role="status"
         aria-label="Loading messages"
       >
@@ -61,9 +61,14 @@ function HistoryLoadingState() {
 // Shown when the selected conversation has no persisted messages yet.
 function EmptyConversationState() {
   return (
-    <div className="flex w-full flex-col items-center justify-center gap-1 py-10 text-center">
-      <p className="text-sm font-semibold text-slate-500">No messages yet</p>
-      <p className="text-sm text-slate-400">Ask a question to get started.</p>
+    <div className="flex w-full flex-1 flex-col items-center justify-center px-6 py-12 text-center">
+      <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-100 text-[#5e00b2]">
+        <Bot aria-hidden="true" className="h-6 w-6" />
+      </div>
+      <p className="text-base font-semibold text-slate-800">No messages yet</p>
+      <p className="mt-1 text-sm text-slate-500">
+        Ask a question to get started.
+      </p>
     </div>
   );
 }
@@ -72,9 +77,9 @@ function EmptyConversationState() {
 // message is sent but before the first streamed assistant chunk arrives.
 function AssistantThinkingState() {
   return (
-    <div className="px-3">
+    <div className="w-fit rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <div
-        className="flex items-center gap-2 py-1"
+        className="flex items-center gap-2"
         role="status"
         aria-label="Assistant is thinking"
       >
@@ -354,9 +359,11 @@ export default function ChatFullscreen() {
   }, [messages]);
   return (
     <div
-      className={`${open ? `` : `hidden`} flex flex-col rounded-2xl 
-${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5 max-h-1/2 w-3/5 overflow-hidden z-70 md:w-2/5 lg:w-1/4`} bg-white shadow-xl
-`}
+      className={`${open ? `` : `hidden`} flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-purple-100 bg-white ${
+        openZoomChatBox
+          ? `relative h-full w-full shadow-sm`
+          : `fixed bottom-5 right-5 z-70 max-h-1/2 min-h-1/3 w-3/5 shadow-lg md:w-2/5 lg:w-1/4`
+      }`}
     >
       <div className="absolute bottom-20 right-1/2 z-40">
         {!isVisible && (
@@ -368,16 +375,28 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
         )}
       </div>
 
-      <div className="relative top-0 h-20 flex items-center justify-between bg-[#5e00b2] w-full px-5 py-2 rounded-tr-2xl rounded-tl-2xl box-border">
-        <p className="font-bold text-white text-lg">AI Tutor</p>
+      <div className="flex h-16 w-full shrink-0 items-center justify-between border-b border-purple-100 bg-white px-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-[#5e00b2]">
+            <Bot aria-hidden="true" className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-900">
+              AI Tutor
+            </p>
+            <p className="truncate text-xs text-slate-500">
+              Your learning assistant
+            </p>
+          </div>
+        </div>
 
-        <div className="flex-1 gap-2 flex justify-end">
+        <div className="flex shrink-0 gap-1">
           <button
             type="button"
             aria-label={
               openZoomChatBox ? "Minimise chat" : "Open fullscreen chat"
             }
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#5e00b2]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-purple-50 hover:text-[#5e00b2] active:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2"
             onClick={() => {
               toggleOpenZoomChatBox();
             }}
@@ -391,7 +410,7 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
           <button
             type="button"
             aria-label="Close AI Tutor"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#5e00b2]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-slate-500 transition-colors hover:bg-purple-50 hover:text-[#5e00b2] active:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2"
             onClick={() => {
               if (openZoomChatBox) {
                 toggleOpenZoomChatBox();
@@ -404,13 +423,15 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
         </div>
       </div>
 
-      <div className="z-10 flex w-full justify-center relative p-5">
-        {error !== undefined && <ErrorMessage message={error} />}
-      </div>
+      {error !== undefined && (
+        <div className="z-10 w-full shrink-0 px-4 pt-4">
+          <ErrorMessage message={error} />
+        </div>
+      )}
 
-      <div className="min-h-0 pt-3 flex-1 overflow-y-scroll h-full w-full">
-        <div className="relative py-3 pr-2 w-full pl-3">
-          <div className="flex flex-col w-full gap-3 pb-3 ">
+      <div className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60">
+        <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">
+          <div className="flex min-h-full w-full flex-1 flex-col gap-4">
             {isLoadingHistory ? (
               <HistoryLoadingState />
             ) : messages.length === 0 && error === undefined ? (
@@ -443,17 +464,15 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
               })
             )}
           </div>
-          <div className="h-3" ref={lastMessageRef}></div>
+          <div className="h-1" ref={lastMessageRef}></div>
         </div>
       </div>
-      <div className="bg-transparent w-full bg-none">
-        <div className="">
-          <TextArea
-            submitMessage={submitMessage}
-            isSubmitting={isSavingMessage}
-            errorMessage={saveError}
-          />
-        </div>
+      <div className="w-full shrink-0 border-t border-slate-200 bg-white pt-3">
+        <TextArea
+          submitMessage={submitMessage}
+          isSubmitting={isSavingMessage}
+          errorMessage={saveError}
+        />
       </div>
     </div>
   );

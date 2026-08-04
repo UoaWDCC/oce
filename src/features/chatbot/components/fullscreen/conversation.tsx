@@ -16,7 +16,11 @@ export default function Conversation({
 }: ConversationPropsType) {
   return (
     <div
-      className={`group flex items-center min-w-0 outline outline-message-grey rounded-2xl w-full p-2 text-sm font-bold cursor-pointer ${isSelected ? "bg-message-grey" : "hover:bg-message-grey"}`}
+      className={`group flex min-w-0 w-full cursor-pointer items-center rounded-xl border px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${
+        isSelected
+          ? "border-purple-200 bg-purple-100 text-purple-700"
+          : "border-transparent bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+      }`}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (

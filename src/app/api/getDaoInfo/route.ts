@@ -10,7 +10,10 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-const RPC_URL = process.env.INFURA_KEY;
+const RPC_URL =
+  process.env.INFURA_KEY ??
+  process.env.NEXT_PUBLIC_INFURA_URL ??
+  "https://rpc.sepolia.org";
 
 const provider = new ethers.JsonRpcProvider(RPC_URL, {
   name: "sepolia",
@@ -66,6 +69,13 @@ export async function POST(request: Request) {
     if (!body.daoAddress) {
       return NextResponse.json(
         { error: "Missing daoAddress" },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    if (!ethers.isAddress(body.daoAddress)) {
+      return NextResponse.json(
+        { error: "Invalid daoAddress" },
         { status: 400, headers: corsHeaders },
       );
     }

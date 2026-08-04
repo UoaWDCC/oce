@@ -119,7 +119,7 @@ export default function ForumEntryComposer({
 
   useEffect(() => {
     if (autoFocus) {
-      textareaRef.current?.focus();
+      editorRef.current?.focus();
     }
   }, [autoFocus]);
 

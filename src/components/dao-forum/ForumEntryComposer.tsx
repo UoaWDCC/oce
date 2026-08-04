@@ -198,11 +198,6 @@ export default function ForumEntryComposer({
     clearUploadError();
     onCancel?.();
   };
-    const url = prompt("Enter image URL:");
-    if (url) setImageUrl(url);
-  };
-
-  const handleRemoveImage = () => setImageUrl(null);
 
   const handleSubmit = async () => {
     setValidationError(null);
@@ -227,19 +222,14 @@ export default function ForumEntryComposer({
         imageUrl: uploadedImage?.publicUrl,
       });
       setBody("");
+      setActiveFormats([]);
+      if (editorRef.current) editorRef.current.innerHTML = "";
       clearSelectedImage();
       setError(null);
     } catch (err) {
       if (uploadedImage) {
         await removeImage(uploadedImage.path);
       }
-      await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
-      setBody("");
-      setActiveFormats([]);
-      if (editorRef.current) editorRef.current.innerHTML = "";
-      setImageUrl(null);
-      setError(null);
-    } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setIsSubmitting(false);

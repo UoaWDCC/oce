@@ -27,6 +27,7 @@ export type ForumThreadPost = {
   createdAtLabel: string;
   statusLabel?: string;
   imageUrl?: string | null;
+  viewCount: number;
 };
 
 export type ForumThreadComment = {

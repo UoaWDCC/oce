@@ -5,29 +5,41 @@ const BUCKET_NAME = "forum-images";
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"];
 
+export type UploadedForumImage = {
+  path: string;
+  publicUrl: string;
+};
+
 export interface UseForumImageUploadResult {
-  uploadImage: (file: File) => Promise<string | null>;
+  uploadImage: (file: File) => Promise<UploadedForumImage | null>;
+  removeImage: (path: string) => Promise<boolean>;
   isUploading: boolean;
   error: string | null;
   validateFile: (file: File) => string | null;
+  clearError: () => void;
+}
+
+export function validateForumImageFile(
+  file: Pick<File, "size" | "type">,
+): string | null {
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    return "Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.";
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return "File too large. Maximum size is 5MB.";
+  }
+  return null;
 }
 
 export function useForumImageUpload(): UseForumImageUploadResult {
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validateFile = useCallback((file: File): string | null => {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      return "Invalid file type. Please upload a JPEG, PNG, GIF, or WebP image.";
-    }
-    if (file.size > MAX_FILE_SIZE) {
-      return "File too large. Maximum size is 5MB.";
-    }
-    return null;
-  }, []);
+  const validateFile = useCallback(validateForumImageFile, []);
+  const clearError = useCallback(() => setError(null), []);
 
   const uploadImage = useCallback(
-    async (file: File): Promise<string | null> => {
+    async (file: File): Promise<UploadedForumImage | null> => {
       const validationError = validateFile(file);
       if (validationError) {
         setError(validationError);
@@ -55,6 +67,7 @@ export function useForumImageUpload(): UseForumImageUploadResult {
           .from(BUCKET_NAME)
           .upload(fileName, file, {
             cacheControl: "3600",
+            contentType: file.type,
             upsert: false,
           });
 
@@ -66,7 +79,7 @@ export function useForumImageUpload(): UseForumImageUploadResult {
           data: { publicUrl },
         } = supabase.storage.from(BUCKET_NAME).getPublicUrl(fileName);
 
-        return publicUrl;
+        return { path: fileName, publicUrl };
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to upload image";
@@ -79,5 +92,33 @@ export function useForumImageUpload(): UseForumImageUploadResult {
     [validateFile],
   );
 
-  return { uploadImage, isUploading, error, validateFile };
+  const removeImage = useCallback(async (path: string): Promise<boolean> => {
+    try {
+      const { error: removeError } = await createClient()
+        .storage.from(BUCKET_NAME)
+        .remove([path]);
+
+      if (removeError) {
+        console.error("Failed to clean up forum image:", removeError.message);
+        return false;
+      }
+
+      return true;
+    } catch (err) {
+      console.error(
+        "Failed to clean up forum image:",
+        err instanceof Error ? err.message : "Unknown error",
+      );
+      return false;
+    }
+  }, []);
+
+  return {
+    uploadImage,
+    removeImage,
+    isUploading,
+    error,
+    validateFile,
+    clearError,
+  };
 }

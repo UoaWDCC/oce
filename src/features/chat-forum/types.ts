@@ -25,6 +25,7 @@ export type ForumThreadPost = {
   author: ForumThreadAuthor;
   createdAt: string;
   createdAtLabel: string;
+  viewCount: number;
   statusLabel?: string;
   imageUrl?: string | null;
 };

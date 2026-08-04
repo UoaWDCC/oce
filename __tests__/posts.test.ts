@@ -92,6 +92,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         created_at: "2026-06-01T00:00:00Z",
         updated_at: null,
         comment_count: 2,
+        view_count: 0,
         author: {
           id: "author-1",
           username: "alice",

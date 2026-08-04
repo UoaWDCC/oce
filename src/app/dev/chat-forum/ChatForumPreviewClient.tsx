@@ -157,6 +157,7 @@ function PlaceholderPostCard({
       profileImageUrl={author.profileImageUrl}
       createdAt={createTimestamp(post.createdAt)}
       commentCount={commentCount}
+      viewCount={0}
       onSelect={() => console.log(`Open post ${post.id}`)}
     />
   );
@@ -207,6 +208,7 @@ export default function ChatForumPreviewClient() {
       createdAt: new Date().toISOString(),
       createdAtLabel: "just now",
       commentCount: 0,
+      viewCount: 0,
       types: [payload.postType],
       tags: [],
       isPinned: payload.isPinned,

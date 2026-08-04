@@ -17,6 +17,7 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     createdAt: "2026-06-21T07:00:00.000Z",
     createdAtLabel: "2 hours ago",
     commentCount: 4,
+    viewCount: 18,
     types: ["Announcement"],
     tags: ["Governance"],
     isPinned: true,
@@ -32,6 +33,7 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     createdAt: "2026-06-21T06:00:00.000Z",
     createdAtLabel: "3 hours ago",
     commentCount: 9,
+    viewCount: 31,
     types: ["Proposal"],
     tags: ["Governance", "Tokenomics"],
     isUnread: true,
@@ -47,6 +49,7 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     createdAt: "2026-06-20T22:00:00.000Z",
     createdAtLabel: "11 hours ago",
     commentCount: 0,
+    viewCount: 7,
     types: ["Question"],
     tags: ["Technical"],
   },
@@ -84,6 +87,7 @@ export const mockForumThreadPost: ForumThreadPost = {
   },
   createdAt: "2026-07-22T04:24:00.000Z",
   createdAtLabel: "3 hours ago",
+  viewCount: 31,
   statusLabel: "Voting Open",
 };
 

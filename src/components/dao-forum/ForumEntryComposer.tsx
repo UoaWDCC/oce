@@ -1,6 +1,5 @@
 "use client";
 
-
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
 import { hasMeaningfulForumContent } from "@/utils/forumContent";
@@ -12,16 +11,6 @@ const FORMAT_COMMANDS: Record<FormatType, string> = {
   italic: "italic",
   underline: "underline",
   bullet: "insertUnorderedList",
-};
-
-export type ForumEntryComposerState = {
-  body: string;
-  setBody: (body: string) => void;
-  imageUrl: string | null;
-  setImageUrl: (url: string | null) => void;
-  isSubmitting: boolean;
-  error: string | null;
-  validationError: string | null;
 };
 
 export type ForumEntryComposerProps = {
@@ -61,7 +50,6 @@ export default function ForumEntryComposer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
@@ -198,11 +186,6 @@ export default function ForumEntryComposer({
     clearUploadError();
     onCancel?.();
   };
-    const url = prompt("Enter image URL:");
-    if (url) setImageUrl(url);
-  };
-
-  const handleRemoveImage = () => setImageUrl(null);
 
   const handleSubmit = async () => {
     setValidationError(null);
@@ -227,19 +210,14 @@ export default function ForumEntryComposer({
         imageUrl: uploadedImage?.publicUrl,
       });
       setBody("");
+      setActiveFormats([]);
+      if (editorRef.current) editorRef.current.innerHTML = "";
       clearSelectedImage();
       setError(null);
     } catch (err) {
       if (uploadedImage) {
         await removeImage(uploadedImage.path);
       }
-      await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
-      setBody("");
-      setActiveFormats([]);
-      if (editorRef.current) editorRef.current.innerHTML = "";
-      setImageUrl(null);
-      setError(null);
-    } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setIsSubmitting(false);

@@ -77,51 +77,55 @@ export default function ConversationsList() {
   const shownError = isSearching ? searchError : error;
 
   return (
-    <div className="rounded-2xl h-full shadow-xl outline outline-message-grey overflow-y-auto flex flex-col p-4 min-w-1/7 gap-2">
-      <div>
-        <NewConversationButton />
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-2 overflow-hidden rounded-2xl p-4 shadow-xl outline outline-message-grey">
+      <div className="flex shrink-0 flex-col gap-2">
+        <div>
+          <NewConversationButton />
+        </div>
+
+        <ConversationSearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          onClear={() => setSearchQuery("")}
+        />
       </div>
 
-      <ConversationSearchInput
-        value={searchQuery}
-        onChange={setSearchQuery}
-        onClear={() => setSearchQuery("")}
-      />
-
-      {shownIsLoading ? (
-        <StatusMessage>
-          {isSearching ? "Searching..." : "Loading..."}
-        </StatusMessage>
-      ) : shownError ? (
-        <StatusMessage>
-          {isSearching
-            ? "Could not load search results."
-            : "Could not load conversations."}
-        </StatusMessage>
-      ) : shownConversations.length === 0 ? (
-        <StatusMessage>
-          {isSearching
-            ? "No conversations match your search."
-            : "No conversations yet."}
-        </StatusMessage>
-      ) : (
-        shownConversations.map((conversation) => {
-          const { title, id } = conversation;
-          return (
-            <Conversation
-              name={title?.trim() || "Untitled"}
-              key={id}
-              isSelected={selectedConversationId === id}
-              onSelect={() => {
-                setSelectedConversationId(id);
-                clearCurrentMessages();
-              }}
-              onEnd={() => handleEnd(id)}
-              isEnding={endingIds.has(id)}
-            />
-          );
-        })
-      )}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+        {shownIsLoading ? (
+          <StatusMessage>
+            {isSearching ? "Searching..." : "Loading..."}
+          </StatusMessage>
+        ) : shownError ? (
+          <StatusMessage>
+            {isSearching
+              ? "Could not load search results."
+              : "Could not load conversations."}
+          </StatusMessage>
+        ) : shownConversations.length === 0 ? (
+          <StatusMessage>
+            {isSearching
+              ? "No conversations match your search."
+              : "No conversations yet."}
+          </StatusMessage>
+        ) : (
+          shownConversations.map((conversation) => {
+            const { title, id } = conversation;
+            return (
+              <Conversation
+                name={title?.trim() || "Untitled"}
+                key={id}
+                isSelected={selectedConversationId === id}
+                onSelect={() => {
+                  setSelectedConversationId(id);
+                  clearCurrentMessages();
+                }}
+                onEnd={() => handleEnd(id)}
+                isEnding={endingIds.has(id)}
+              />
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

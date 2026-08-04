@@ -31,7 +31,7 @@ export default function Conversation({
       tabIndex={0}
       title={name}
     >
-      <span className="truncate flex-1">{name}</span>
+      <span className="min-w-0 flex-1 truncate">{name}</span>
       <button
         type="button"
         aria-label="End conversation"

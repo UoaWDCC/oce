@@ -33,6 +33,7 @@ export type ForumEntryComposerProps = {
   showAttachButton?: boolean;
   showCancelButton?: boolean;
   variant?: "compact" | "full";
+  autoFocus?: boolean;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -50,6 +51,7 @@ export default function ForumEntryComposer({
   showAttachButton = true,
   showCancelButton = false,
   variant = "compact",
+  autoFocus = false,
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState("");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -114,6 +116,12 @@ export default function ForumEntryComposer({
     );
     handleEditorInput();
   };
+
+  useEffect(() => {
+    if (autoFocus) {
+      textareaRef.current?.focus();
+    }
+  }, [autoFocus]);
 
   const handleImageAttach = () => {
     const url = prompt("Enter image URL:");

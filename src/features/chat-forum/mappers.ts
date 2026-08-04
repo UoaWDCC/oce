@@ -61,6 +61,7 @@ export function mapPostToForumPostPreview(
     tags: post.tags,
     isPinned: post.is_pinned,
     isUnread: undefined,
+    imageUrl: post.image_url,
   };
 }
 
@@ -84,6 +85,7 @@ export function mapCommentToForumCommentPreview(
     likeCount: comment.like_count,
     isLiked: comment.is_liked,
     isDeleted: comment.body === null,
+    imageUrl: comment.image_url,
   };
 }
 
@@ -102,6 +104,7 @@ export function mapForumPostPreviewToThreadPost(
     },
     createdAt: post.createdAt,
     createdAtLabel: post.createdAtLabel,
+    imageUrl: post.imageUrl,
     viewCount: post.viewCount,
   };
 }
@@ -124,6 +127,7 @@ export function buildForumThreadComments(
       likeCount: comment.likeCount,
       isLiked: comment.isLiked,
       isDeleted: comment.isDeleted,
+      imageUrl: comment.isDeleted ? null : comment.imageUrl,
       replies: [],
     });
   });

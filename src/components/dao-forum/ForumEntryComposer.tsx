@@ -1,8 +1,10 @@
 "use client";
 
+
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Paperclip, X, Loader2 } from "lucide-react";
+import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
 import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
 import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
 
 const FORMAT_COMMANDS: Record<FormatType, string> = {
@@ -54,10 +56,23 @@ export default function ForumEntryComposer({
   autoFocus = false,
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState("");
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imagePreviewRef = useRef<string | null>(null);
+
+  const {
+    uploadImage,
+    removeImage,
+    isUploading,
+    error: uploadError,
+    validateFile,
+    clearError: clearUploadError,
+  } = useForumImageUpload();
   const [activeFormats, setActiveFormats] = useState<FormatType[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
 
@@ -123,7 +138,66 @@ export default function ForumEntryComposer({
     }
   }, [autoFocus]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreviewRef.current) {
+        URL.revokeObjectURL(imagePreviewRef.current);
+      }
+    };
+  }, []);
+
   const handleImageAttach = () => {
+    fileInputRef.current?.click();
+  };
+
+  const clearSelectedImage = () => {
+    if (imagePreviewRef.current) {
+      URL.revokeObjectURL(imagePreviewRef.current);
+      imagePreviewRef.current = null;
+    }
+    setSelectedFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset file input so same file can be selected again
+    e.target.value = "";
+
+    // Validate file first
+    const fileError = validateFile(file);
+    if (fileError) {
+      setError(fileError);
+      clearUploadError();
+      return;
+    }
+
+    clearSelectedImage();
+    const previewUrl = URL.createObjectURL(file);
+    imagePreviewRef.current = previewUrl;
+    setSelectedFile(file);
+    setImagePreview(previewUrl);
+    setError(null);
+    clearUploadError();
+  };
+
+  const handleRemoveImage = () => {
+    clearSelectedImage();
+    setError(null);
+    clearUploadError();
+  };
+
+  const handleCancel = () => {
+    clearSelectedImage();
+    setError(null);
+    clearUploadError();
+    onCancel?.();
+  };
     const url = prompt("Enter image URL:");
     if (url) setImageUrl(url);
   };
@@ -140,7 +214,25 @@ export default function ForumEntryComposer({
     }
 
     setIsSubmitting(true);
+    let uploadedImage: Awaited<ReturnType<typeof uploadImage>> = null;
+
     try {
+      if (selectedFile) {
+        uploadedImage = await uploadImage(selectedFile);
+        if (!uploadedImage) return;
+      }
+
+      await onSubmit({
+        body: body.trim(),
+        imageUrl: uploadedImage?.publicUrl,
+      });
+      setBody("");
+      clearSelectedImage();
+      setError(null);
+    } catch (err) {
+      if (uploadedImage) {
+        await removeImage(uploadedImage.path);
+      }
       await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
       setBody("");
       setActiveFormats([]);
@@ -154,8 +246,9 @@ export default function ForumEntryComposer({
     }
   };
 
-  const isDisabled = disabled || isSubmitting;
+  const isDisabled = disabled || isSubmitting || isUploading;
   const isFullVariant = variant === "full";
+  const displayError = error ?? uploadError;
   const hasContent = hasMeaningfulForumContent(body);
 
   return (
@@ -169,6 +262,16 @@ export default function ForumEntryComposer({
       )}
     >
       {children}
+
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        onChange={handleFileChange}
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {isFullVariant && (
         <label className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -210,14 +313,29 @@ export default function ForumEntryComposer({
         />
       </div>
 
-      {imageUrl && (
-        <div className="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm text-slate-600">
-          <span className="min-w-0 truncate">{imageUrl}</span>
+      {/* Image preview */}
+      {imagePreview && (
+        <div className="relative inline-block w-fit">
+          <div className="relative overflow-hidden rounded-lg border border-slate-200">
+            <img
+              src={imagePreview}
+              alt="Selected image preview"
+              className="max-h-48 max-w-full object-contain"
+            />
+            {isUploading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <div className="flex items-center gap-2 text-sm font-medium text-white">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Uploading...
+                </div>
+              </div>
+            )}
+          </div>
           <button
             type="button"
             onClick={handleRemoveImage}
             disabled={isDisabled}
-            className="shrink-0 text-slate-400 transition-colors hover:text-slate-600"
+            className="absolute -right-2 -top-2 rounded-full bg-slate-800 p-1 text-white shadow-md transition-colors hover:bg-slate-700"
             aria-label="Remove image"
           >
             <X className="h-4 w-4" />
@@ -231,9 +349,9 @@ export default function ForumEntryComposer({
         </p>
       )}
 
-      {error && (
+      {displayError && (
         <p className="text-sm text-red-600" role="alert">
-          {error}
+          {displayError}
         </p>
       )}
 
@@ -243,10 +361,11 @@ export default function ForumEntryComposer({
             <button
               type="button"
               onClick={handleImageAttach}
-              disabled={isDisabled}
+              disabled={isDisabled || !!imagePreview}
               className={classNames(
                 "rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2",
-                isDisabled && "cursor-not-allowed opacity-50",
+                (isDisabled || !!imagePreview) &&
+                  "cursor-not-allowed opacity-50",
               )}
               aria-label="Attach image"
             >
@@ -282,13 +401,13 @@ export default function ForumEntryComposer({
           <button
             type="button"
             onClick={handleImageAttach}
-            disabled={isDisabled}
+            disabled={isDisabled || !!imagePreview}
             className={classNames(
               "flex w-fit items-center gap-2 rounded-full border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-500 transition-colors hover:border-slate-400 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
-              isDisabled && "cursor-not-allowed opacity-50",
+              (isDisabled || !!imagePreview) && "cursor-not-allowed opacity-50",
             )}
           >
-            <Paperclip className="h-4 w-4" />
+            <ImageIcon className="h-4 w-4" />
             Attach image
           </button>
 
@@ -296,7 +415,7 @@ export default function ForumEntryComposer({
             {showCancelButton && onCancel && (
               <button
                 type="button"
-                onClick={onCancel}
+                onClick={handleCancel}
                 disabled={isDisabled}
                 className="rounded-full border border-slate-300 bg-white px-6 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
               >

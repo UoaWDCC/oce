@@ -95,6 +95,19 @@ function MarkdownContent({ content }: { content: string }) {
   );
 }
 
+function AttachedImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
+      <img
+        src={src}
+        alt={alt}
+        className="max-h-96 w-full object-contain"
+        loading="lazy"
+      />
+    </div>
+  );
+}
+
 function AuthorBadges({ comment }: { comment: ForumThreadComment }) {
   const { badges = [], isEndorsed } = comment.author;
 
@@ -154,6 +167,9 @@ function ThreadComment({
 
         <div className="mt-4">
           <MarkdownContent content={comment.body} />
+          {comment.imageUrl && (
+            <AttachedImage src={comment.imageUrl} alt="Comment attachment" />
+          )}
         </div>
 
         <div className="mt-4 flex items-center gap-4 text-sm font-semibold text-slate-500">
@@ -334,6 +350,9 @@ export default function PostThread({
 
         <div className="mt-7 border-t border-slate-100 pt-7">
           <MarkdownContent content={post.body} />
+          {post.imageUrl && (
+            <AttachedImage src={post.imageUrl} alt="Post attachment" />
+          )}
         </div>
       </article>
 

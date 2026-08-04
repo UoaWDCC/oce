@@ -2,17 +2,34 @@
 
 import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import PostCard from "@/components/dao-forum/Post";
-import { POST_TYPE } from "@app-types/dao-forum";
-import CommentCard from "@/components/dao-forum/CommentCard";
+import {
+  POST_TYPE,
+  type CommentSubmitPayload,
+  type ForumCommentPreview,
+  type ForumPostPreview,
+  type PostSubmitPayload,
+} from "@app-types/dao-forum";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
 import { ForumPanel } from "@/features/chat-forum";
+import type { ForumThreadSort } from "@/features/chat-forum";
+import PostThread from "@/features/chat-forum/components/PostThread";
 import {
   mockForumCommentPreviews,
   mockForumPostPreviews,
+  mockForumThreadComments,
+  mockForumThreadPost,
 } from "@/features/chat-forum/mocks";
+
+const PREVIEW_DAO_ID = "0x333B47F13128A1225A434d9f403A3e850B0B48D";
+
+// Fake latency so the composer's "submitting" state is visible when clicking
+// through the preview.
+function simulateLatency() {
+  return new Promise((resolve) => setTimeout(resolve, 600));
+}
 
 type PreviewPost = {
   id: string;
@@ -133,7 +150,6 @@ function PlaceholderPostCard({
 
   return (
     <PostCard
-      daoId={post.daoId}
       title={post.title}
       types={[POST_TYPE.Discussion]}
       displayName={author.displayName}
@@ -141,6 +157,7 @@ function PlaceholderPostCard({
       profileImageUrl={author.profileImageUrl}
       createdAt={createTimestamp(post.createdAt)}
       commentCount={commentCount}
+      viewCount={0}
       onSelect={() => console.log(`Open post ${post.id}`)}
     />
   );
@@ -162,9 +179,65 @@ function PlaceholderStateCard({
 }
 
 export default function ChatForumPreviewClient() {
-  const firstPostComments = previewComments.filter(
-    (comment) => comment.postId === previewPosts[0].id,
+  // In-memory store so the live ForumPanel below can create posts/comments with
+  // no backend — useful for testing the #122 submission wiring before the
+  // DAOID -> dao_groups UUID resolver lands.
+  const [forumPanelPosts, setForumPanelPosts] = useState<ForumPostPreview[]>(
+    mockForumPostPreviews,
   );
+  const [forumPanelComments, setForumPanelComments] = useState<
+    ForumCommentPreview[]
+  >(mockForumCommentPreviews);
+  const [simulateFailure, setSimulateFailure] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [threadSort, setThreadSort] = useState<ForumThreadSort>("latest");
+
+  const handlePreviewSubmitPost = async (payload: PostSubmitPayload) => {
+    await simulateLatency();
+    if (simulateFailure) {
+      setPreviewError("Simulated failure: could not create post.");
+      return;
+    }
+    setPreviewError(null);
+    const newPost: ForumPostPreview = {
+      id: `preview-post-${Date.now()}`,
+      daoId: PREVIEW_DAO_ID,
+      title: payload.title,
+      excerpt: payload.body,
+      authorName: "You (preview)",
+      createdAt: new Date().toISOString(),
+      createdAtLabel: "just now",
+      commentCount: 0,
+      viewCount: 0,
+      types: [payload.postType],
+      tags: [],
+      isPinned: payload.isPinned,
+    };
+    setForumPanelPosts((prev) => [newPost, ...prev]);
+  };
+
+  const handlePreviewSubmitComment = async (
+    postId: string,
+    payload: CommentSubmitPayload,
+  ) => {
+    await simulateLatency();
+    if (simulateFailure) {
+      setPreviewError("Simulated failure: could not create comment.");
+      return;
+    }
+    setPreviewError(null);
+    const newComment: ForumCommentPreview = {
+      id: `preview-comment-${Date.now()}`,
+      postId,
+      parentCommentId: payload.parentCommentId ?? null,
+      authorName: "You (preview)",
+      body: payload.body,
+      createdAt: new Date().toISOString(),
+      createdAtLabel: "just now",
+      likeCount: 0,
+    };
+    setForumPanelComments((prev) => [...prev, newComment]);
+  };
 
   return (
     <main className="min-h-screen bg-slate-100 px-6 py-8 text-slate-950">
@@ -182,11 +255,23 @@ export default function ChatForumPreviewClient() {
         </header>
 
         <section className="rounded-2xl border border-purple-100 bg-gradient-to-br from-slate-50 to-purple-50 p-4 shadow-sm sm:p-6">
+          <label className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              checked={simulateFailure}
+              onChange={(event) => setSimulateFailure(event.target.checked)}
+            />
+            Simulate submission failure (exercise error + submitting states)
+          </label>
           <ForumPanel
-            comments={mockForumCommentPreviews}
-            daoId="0x333B47F13128A1225A434d9f403A3e850B0B48D"
+            comments={forumPanelComments}
+            daoGroupId="00000000-0000-4000-8000-000000000001"
             daoName="WDCC DAO"
-            posts={mockForumPostPreviews}
+            posts={forumPanelPosts}
+            error={previewError}
+            onSelectPost={() => setPreviewError(null)}
+            onSubmitPost={handlePreviewSubmitPost}
+            onSubmitComment={handlePreviewSubmitComment}
           />
         </section>
 
@@ -251,33 +336,39 @@ export default function ChatForumPreviewClient() {
           </div>
         </section>
 
-        <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="text-lg font-semibold">Forum Thread</h2>
-          <PlaceholderPostCard
-            post={previewPosts[0]}
-            commentCount={firstPostComments.length}
-          />
-          <div className="grid gap-3 pl-4 md:pl-8">
-            {firstPostComments.map((comment) => {
-              const author = getPreviewAuthor(comment.authorId);
-              return (
-                <CommentCard
-                  key={comment.id}
-                  avatarColor={author.avatarColor}
-                  badges={author.badges}
-                  displayName={author.displayName}
-                  profileImageUrl={author.profileImageUrl}
-                  timestamp={createTimestamp(comment.createdAt)}
-                  walletAddress={comment.authorId}
-                  body={comment.body}
-                  likeCount={0}
-                  isLiked={false}
-                  onLike={() => console.log(`Liked comment ${comment.id}`)}
-                  onReply={() => console.log(`Reply to comment ${comment.id}`)}
-                />
-              );
-            })}
+        <section aria-labelledby="forum-thread-preview-heading">
+          <div className="mb-4">
+            <p className="text-sm font-semibold uppercase tracking-wide text-purple-600">
+              Detail view
+            </p>
+            <h2
+              id="forum-thread-preview-heading"
+              className="mt-1 text-2xl font-bold"
+            >
+              Forum post thread
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Presentational preview with mock post content, composer, and
+              nested replies. Actions log to the development console only.
+            </p>
           </div>
+          <PostThread
+            comments={mockForumThreadComments}
+            onBack={() => console.log("Back to forum")}
+            onLikeComment={(commentId) =>
+              console.log(`Like comment ${commentId}`)
+            }
+            onReplyToComment={(commentId) =>
+              console.log(`Reply to comment ${commentId}`)
+            }
+            onSortChange={setThreadSort}
+            onSubmitComment={async (payload) => {
+              console.log("Thread comment submitted:", payload);
+              await simulateLatency();
+            }}
+            post={mockForumThreadPost}
+            sort={threadSort}
+          />
         </section>
 
         <section className="grid gap-4 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">

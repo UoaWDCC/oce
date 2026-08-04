@@ -74,18 +74,50 @@ export async function GET(req: NextRequest) {
         }))
       : [];
 
-    const { data: daoData } = await supabase
+    const { data: daoData, error: daoError } = await supabase
       .from("DAO")
       .select("*")
       .eq("DAOID", DAOID)
-      .single();
+      .maybeSingle();
 
-    if (userWallets.length === 0) {
-      return NextResponse.json({ student }, { headers: corsHeaders });
+    if (daoError) {
+      console.error("DAO lookup failed:", daoError);
+      return NextResponse.json(
+        { error: "Failed to load DAO" },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    if (!daoData) {
+      return NextResponse.json(
+        { error: "DAO not found" },
+        { status: 404, headers: corsHeaders },
+      );
+    }
+
+    const { data: daoGroup, error: daoGroupError } = await supabase
+      .from("dao_groups")
+      .select("id")
+      .eq("dao_id", daoData.DAOID)
+      .maybeSingle();
+
+    if (daoGroupError) {
+      console.error("DAO group lookup failed:", daoGroupError);
+      return NextResponse.json(
+        { error: "Failed to load DAO forum group" },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    if (!daoGroup) {
+      return NextResponse.json(
+        { daoData, daoGroupId: null, userWallets, UID },
+        { headers: corsHeaders },
+      );
     }
 
     return NextResponse.json(
-      { daoData, userWallets, UID },
+      { daoData, daoGroupId: daoGroup.id, userWallets, UID },
       { headers: corsHeaders },
     );
   } catch (error) {

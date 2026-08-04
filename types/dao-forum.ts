@@ -36,6 +36,7 @@ export interface PostListItem {
   created_at: string;
   updated_at: string | null;
   comment_count: number;
+  view_count: number;
   author: {
     id: string;
     username: string | null;
@@ -154,15 +155,18 @@ export interface ForumPostPreview {
   createdAt: string;
   createdAtLabel: string;
   commentCount: number;
+  viewCount: number;
   types: PostType[];
   tags: string[];
   isPinned?: boolean;
   isUnread?: boolean;
+  imageUrl?: string | null;
 }
 
 export interface ForumCommentPreview {
   id: string;
   postId: string;
+  parentCommentId: string | null;
   authorName: string;
   authorWallet?: string;
   body: string;
@@ -170,4 +174,6 @@ export interface ForumCommentPreview {
   createdAtLabel: string;
   likeCount: number;
   isLiked?: boolean;
+  isDeleted?: boolean;
+  imageUrl?: string | null;
 }

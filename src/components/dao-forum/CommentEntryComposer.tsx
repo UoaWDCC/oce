@@ -10,6 +10,7 @@ export type CommentEntryComposerProps = {
   disabled?: boolean;
   showAttachment?: boolean;
   className?: string;
+  autoFocus?: boolean;
 };
 
 export default function CommentEntryComposer({
@@ -18,6 +19,7 @@ export default function CommentEntryComposer({
   disabled = false,
   showAttachment = false,
   className = "",
+  autoFocus = false,
 }: CommentEntryComposerProps) {
   const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
     await onSubmit({
@@ -35,6 +37,7 @@ export default function CommentEntryComposer({
       disabled={disabled}
       className={className}
       showAttachButton={showAttachment}
+      autoFocus={autoFocus}
     />
   );
 }

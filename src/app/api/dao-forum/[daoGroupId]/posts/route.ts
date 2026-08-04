@@ -1,5 +1,6 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,7 +12,7 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "tags" | "author"
+  "comment_count" | "view_count" | "tags" | "author"
 > & {
   author:
     | {
@@ -47,6 +48,11 @@ type CommentCountRow = {
   post_id: string;
 };
 
+type ViewCountRow = {
+  post_id: string;
+  viewer_id: string;
+};
+
 function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
@@ -55,6 +61,7 @@ function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
 function formatPostListItem(
   post: RawPostListItem,
   commentCounts: Record<string, number>,
+  viewCounts: Record<string, number>,
 ): PostListItem {
   return {
     id: post.id,
@@ -69,6 +76,7 @@ function formatPostListItem(
     created_at: post.created_at,
     updated_at: post.updated_at,
     comment_count: commentCounts[post.id] ?? 0,
+    view_count: viewCounts[post.id] ?? 0,
     author: post.anonymous ? null : firstOrNull(post.author),
     tags:
       post.post_tags
@@ -122,6 +130,7 @@ export async function GET(
     .eq("dao_group_id", daoGroupId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
   if (error) {
     return NextResponse.json(
       { error: error.message },
@@ -132,6 +141,7 @@ export async function GET(
   const posts = (data ?? []) as unknown as RawPostListItem[];
   const postIds = posts.map((post) => post.id);
   const commentCounts: Record<string, number> = {};
+  const viewCounts: Record<string, number> = {};
 
   if (postIds.length > 0) {
     const { data: comments, error: commentsError } = await supabase
@@ -148,12 +158,36 @@ export async function GET(
     }
 
     (comments as CommentCountRow[] | null)?.forEach((comment) => {
-      commentCounts[comment.post_id] = (commentCounts[comment.post_id] ?? 0) + 1;
+      commentCounts[comment.post_id] =
+        (commentCounts[comment.post_id] ?? 0) + 1;
+    });
+
+    const { data: views, error: viewsError } = await supabase
+      .from("post_views")
+      .select("post_id, viewer_id")
+      .in("post_id", postIds);
+
+    if (viewsError) {
+      return NextResponse.json(
+        { error: viewsError.message },
+        { status: 500, headers: corsHeaders },
+      );
+    }
+
+    const distinctViewers: Record<string, Set<string>> = {};
+    (views as ViewCountRow[] | null)?.forEach((view) => {
+      if (!distinctViewers[view.post_id]) {
+        distinctViewers[view.post_id] = new Set();
+      }
+      distinctViewers[view.post_id].add(view.viewer_id);
+    });
+    Object.entries(distinctViewers).forEach(([postId, viewers]) => {
+      viewCounts[postId] = viewers.size;
     });
   }
 
   return NextResponse.json(
-    posts.map((post) => formatPostListItem(post, commentCounts)),
+    posts.map((post) => formatPostListItem(post, commentCounts, viewCounts)),
     { headers: corsHeaders },
   );
 }
@@ -170,7 +204,12 @@ export async function POST(
 
   const body = (await request.json()) as CreatePostFields;
 
-  if (!body.title || !body.body || !body.post_type || !daoGroupId) {
+  if (
+    !body.title ||
+    !hasMeaningfulForumContent(body.body) ||
+    !body.post_type ||
+    !daoGroupId
+  ) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400, headers: corsHeaders },

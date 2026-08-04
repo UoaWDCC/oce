@@ -81,19 +81,26 @@ export default function PostEntryComposer({
       throw new Error("Title is required");
     }
 
-    await onSubmit({
-      title: title.trim(),
-      body: data.body,
-      postType,
-      anonymous,
-      isPinned,
-      imageUrl: data.imageUrl,
-    });
+    try {
+      await onSubmit({
+        title: title.trim(),
+        body: data.body,
+        postType,
+        anonymous,
+        isPinned,
+        imageUrl: data.imageUrl,
+      });
 
-    setTitle("");
-    setPostType(POST_TYPE.Discussion);
-    setAnonymous(false);
-    setIsPinned(false);
+      // Only clear form after successful submission
+      setTitle("");
+      setPostType(POST_TYPE.Discussion);
+      setAnonymous(false);
+      setIsPinned(false);
+    } catch (err) {
+      // Keep form data when submission fails so user can retry
+      // Error will be caught and displayed by ForumEntryComposer
+      throw err;
+    }
   };
 
   const postTypes = Object.values(POST_TYPE);

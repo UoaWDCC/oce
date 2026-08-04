@@ -8,22 +8,61 @@ import type {
   UpdatePostFields,
 } from "@app-types/dao-forum";
 
+const NETWORK_ERROR_MESSAGE =
+  "Couldn't reach the server. Check your connection and try again.";
+
+function statusMessage(status: number) {
+  if (status === 401 || status === 403) {
+    return "Your session has expired. Sign in again and retry.";
+  }
+  if (status === 404) {
+    return "That DAO forum could not be found. Refresh the page and try again.";
+  }
+  if (status === 429) {
+    return "Too many requests. Wait a moment and try again.";
+  }
+  if (status >= 500) {
+    return "The server ran into a problem. Your draft is safe — try again in a moment.";
+  }
+  return "Something went wrong. Your draft is safe — try again.";
+}
+
+/** Prefers the API's own error text, falling back to a message for the status code. */
+async function errorFromResponse(res: Response) {
+  try {
+    const body = (await res.json()) as { error?: string; message?: string };
+    const message = body?.error ?? body?.message;
+    if (typeof message === "string" && message.trim()) {
+      return new Error(message);
+    }
+  } catch {
+    // No JSON body to read; fall through to the status-based message.
+  }
+  return new Error(statusMessage(res.status));
+}
+
 async function request(
   path: string,
   options: RequestInit = {},
   token?: string,
 ) {
-  const res = await fetch(`/api${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`/api${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch {
+    // fetch only rejects when the request never reached the server.
+    throw new Error(NETWORK_ERROR_MESSAGE);
+  }
 
   if (!res.ok) {
-    throw new Error(res.statusText);
+    throw await errorFromResponse(res);
   }
   if (res.status === 204) {
     return null;

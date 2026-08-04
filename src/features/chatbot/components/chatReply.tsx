@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { Check, Copy, Star } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useState } from "react";
 import { useFavouriteMessage } from "../hooks/useFavouriteMessage";
@@ -42,6 +42,9 @@ export default function ChatReply({
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            aria-label={copied ? "Response copied" : "Copy response"}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#5e00b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2"
             onClick={() => {
               navigator.clipboard.writeText(children);
               setCopied(true);
@@ -50,21 +53,28 @@ export default function ChatReply({
               }, 3000);
             }}
           >
-            <Image
-              src={copied ? "/checkButton.svg" : "/copyButton.svg"}
-              alt="copy the chatbot's response"
-              height={25}
-              width={25}
-            />
+            {copied ? (
+              <Check aria-hidden="true" className="h-5 w-5" />
+            ) : (
+              <Copy aria-hidden="true" className="h-5 w-5" />
+            )}
           </button>
           {/* Favourite is only available for persisted assistant messages. */}
           {messageId && (
-            <button onClick={toggleFavourite}>
-              <Image
-                src={`${favourited ? `/favouriteButtonSelected.svg` : `/favouriteButton.svg`}`}
-                alt="add the chatbot's response to your favourites"
-                height={30}
-                width={30}
+            <button
+              type="button"
+              aria-label={
+                favourited
+                  ? "Remove response from favourites"
+                  : "Add response to favourites"
+              }
+              aria-pressed={favourited}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#5e00b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2"
+              onClick={toggleFavourite}
+            >
+              <Star
+                aria-hidden="true"
+                className={`h-5 w-5 ${favourited ? "fill-[#5e00b2] text-[#5e00b2]" : ""}`}
               />
             </button>
           )}

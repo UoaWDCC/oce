@@ -1,5 +1,5 @@
 "use client";
-import Image from "next/image";
+import { Send } from "lucide-react";
 import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
 
 interface TextAreaPropsType {
@@ -69,18 +69,15 @@ export default function TextArea({
           }}
         />
         <button
-          className="px-2 shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
+          type="button"
+          aria-label="Send message"
+          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#e9d5ff] text-slate-800 transition-colors hover:bg-purple-200 hover:text-[#5e00b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
           disabled={isSubmitting || inputValue.trim().length === 0}
           onClick={() => {
             void handleSubmit();
           }}
         >
-          <Image
-            src={"/submitButton.svg"}
-            alt="submit input"
-            width={30}
-            height={30}
-          />
+          <Send aria-hidden="true" className="h-5 w-5" />
         </button>
       </div>
       {errorMessage && (

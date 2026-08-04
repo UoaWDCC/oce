@@ -33,7 +33,9 @@ export default function Conversation({
     >
       <span className="truncate flex-1">{name}</span>
       <button
-        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 ml-2 text-gray-400 hover:text-[#5e00b2]"
+        type="button"
+        aria-label="End conversation"
+        className="ml-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={(e) => {
           e.stopPropagation();
           if (window.confirm("End this conversation?")) onEnd();
@@ -41,7 +43,7 @@ export default function Conversation({
         title="End conversation"
         disabled={isEnding}
       >
-        <Trash2 size={14} />
+        <Trash2 aria-hidden="true" className="h-5 w-5" />
       </button>
     </div>
   );

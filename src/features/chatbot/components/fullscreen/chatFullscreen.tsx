@@ -3,7 +3,7 @@
 import { useRef, useEffect, useState } from "react";
 import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
-import Image from "next/image";
+import { Maximize2, Minimize2, X } from "lucide-react";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
@@ -373,18 +373,25 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
 
         <div className="flex-1 gap-2 flex justify-end">
           <button
+            type="button"
+            aria-label={
+              openZoomChatBox ? "Minimise chat" : "Open fullscreen chat"
+            }
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#5e00b2]"
             onClick={() => {
               toggleOpenZoomChatBox();
             }}
           >
-            <Image
-              src={"/zoomButton.svg"}
-              alt="make the chatbox window bigger"
-              width={25}
-              height={25}
-            />
+            {openZoomChatBox ? (
+              <Minimize2 aria-hidden="true" className="h-5 w-5" />
+            ) : (
+              <Maximize2 aria-hidden="true" className="h-5 w-5" />
+            )}
           </button>
           <button
+            type="button"
+            aria-label="Close AI Tutor"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl text-white/80 transition-colors hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#5e00b2]"
             onClick={() => {
               if (openZoomChatBox) {
                 toggleOpenZoomChatBox();
@@ -392,12 +399,7 @@ ${openZoomChatBox ? `h-full w-full relative` : `min-h-1/3 fixed bottom-5 right-5
               toggleOpen();
             }}
           >
-            <Image
-              src={"/cancelButton.svg"}
-              alt="close the chatbot window"
-              width={30}
-              height={30}
-            />
+            <X aria-hidden="true" className="h-6 w-6" />
           </button>
         </div>
       </div>

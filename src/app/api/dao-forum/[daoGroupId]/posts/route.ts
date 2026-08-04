@@ -1,5 +1,6 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -203,7 +204,12 @@ export async function POST(
 
   const body = (await request.json()) as CreatePostFields;
 
-  if (!body.title || !body.body || !body.post_type || !daoGroupId) {
+  if (
+    !body.title ||
+    !hasMeaningfulForumContent(body.body) ||
+    !body.post_type ||
+    !daoGroupId
+  ) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400, headers: corsHeaders },

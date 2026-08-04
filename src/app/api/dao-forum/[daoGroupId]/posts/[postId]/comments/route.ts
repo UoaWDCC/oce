@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import type {
   CreateCommentFields,
   FormattedComment,
@@ -72,6 +73,13 @@ export async function POST(
     typeof body === "string" ? body.trim() || undefined : undefined;
   const imageUrlValue =
     typeof image_url === "string" ? image_url.trim() || undefined : undefined;
+
+  if (bodyValue && !hasMeaningfulForumContent(bodyValue)) {
+    return NextResponse.json(
+      { error: "Comment body cannot be empty" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
 
   if (!bodyValue && !imageUrlValue) {
     return NextResponse.json(
@@ -151,7 +159,6 @@ export async function POST(
     created_at: inserted.created_at,
     updated_at: inserted.updated_at,
   };
-
 
   return NextResponse.json(
     { success: true, comment: formattedComment },

@@ -4,6 +4,7 @@ import React from "react";
 import { Eye, MessageCircle } from "lucide-react";
 import Tag from "./Tag";
 import StudentAvatar, { Timestamp } from "../common/StudentAvatar";
+import { forumContentToPlainText } from "@/utils/forumContent";
 import type { PostType } from "@app-types/dao-forum";
 export type PostCardProps = {
   title: string;
@@ -72,7 +73,7 @@ function PostCardContent({
             WebkitLineClamp: 2,
           }}
         >
-          {excerpt}
+          {forumContentToPlainText(excerpt)}
         </p>
       )}
       <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-4">

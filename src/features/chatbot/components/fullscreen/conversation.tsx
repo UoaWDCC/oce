@@ -4,14 +4,14 @@ interface ConversationPropsType {
   name: string;
   isSelected: boolean;
   onSelect: () => void;
-  onEnd: () => void;
+  onRequestEnd: (trigger: HTMLButtonElement) => void;
   isEnding: boolean;
 }
 export default function Conversation({
   name,
   isSelected,
   onSelect,
-  onEnd,
+  onRequestEnd,
   isEnding,
 }: ConversationPropsType) {
   return (
@@ -42,7 +42,7 @@ export default function Conversation({
         className="ml-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={(e) => {
           e.stopPropagation();
-          if (window.confirm("End this conversation?")) onEnd();
+          onRequestEnd(e.currentTarget);
         }}
         title="End conversation"
         disabled={isEnding}

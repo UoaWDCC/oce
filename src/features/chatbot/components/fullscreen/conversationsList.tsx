@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Conversation from "./conversation";
 import ConversationSearchInput from "./conversationSearchInput";
+import EndConversationDialog from "./endConversationDialog";
 import NewConversationButton from "../newConversationButton";
 import { useConversations } from "@/features/chatbot/hooks/useConversations";
 import { useConversationSearch } from "@/features/chatbot/hooks/useConversationSearch";
@@ -13,6 +14,12 @@ interface StatusMessageProps {
   title: string;
   description?: string;
   variant: "loading" | "empty" | "error";
+}
+
+interface PendingEnd {
+  id: string;
+  name: string;
+  trigger: HTMLButtonElement;
 }
 
 function StatusMessage({ title, description, variant }: StatusMessageProps) {
@@ -62,10 +69,15 @@ export default function ConversationsList() {
 
   const [endingIds, setEndingIds] = useState<Set<string>>(new Set());
   const [endedIds, setEndedIds] = useState<Set<string>>(new Set());
+  const [pendingEnd, setPendingEnd] = useState<PendingEnd | null>(null);
+  const endingIdsRef = useRef<Set<string>>(new Set());
   const selectedConversationIdRef = useRef(selectedConversationId);
   selectedConversationIdRef.current = selectedConversationId;
 
-  async function handleEnd(id: string) {
+  async function handleEnd(id: string): Promise<boolean> {
+    if (endingIdsRef.current.has(id)) return false;
+
+    endingIdsRef.current.add(id);
     setEndingIds((prev) => new Set(prev).add(id));
     try {
       await endConversation(id);
@@ -75,15 +87,25 @@ export default function ConversationsList() {
         clearCurrentMessages();
       }
       refreshConversationList();
+      return true;
     } catch {
       setError("Failed to end conversation. Please try again.");
+      return false;
     } finally {
+      endingIdsRef.current.delete(id);
       setEndingIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
         return next;
       });
     }
+  }
+
+  async function handleConfirmEnd() {
+    if (!pendingEnd) return;
+
+    const didEnd = await handleEnd(pendingEnd.id);
+    if (didEnd) setPendingEnd(null);
   }
 
   const { conversations, isLoading, error } = useConversations(
@@ -105,73 +127,88 @@ export default function ConversationsList() {
   const shownError = isSearching ? searchError : error;
 
   return (
-    <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
-      <div className="flex shrink-0 flex-col gap-3">
-        <div>
-          <NewConversationButton />
+    <>
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
+        <div className="flex shrink-0 flex-col gap-3">
+          <div>
+            <NewConversationButton />
+          </div>
+
+          <ConversationSearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            onClear={() => setSearchQuery("")}
+          />
         </div>
 
-        <ConversationSearchInput
-          value={searchQuery}
-          onChange={setSearchQuery}
-          onClear={() => setSearchQuery("")}
-        />
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+          {shownIsLoading ? (
+            <StatusMessage
+              title={isSearching ? "Searching..." : "Loading..."}
+              description={
+                isSearching
+                  ? "Looking for matching conversations."
+                  : "Loading your conversations."
+              }
+              variant="loading"
+            />
+          ) : shownError ? (
+            <StatusMessage
+              title={
+                isSearching
+                  ? "Could not load search results."
+                  : "Could not load conversations."
+              }
+              description="Please try again."
+              variant="error"
+            />
+          ) : shownConversations.length === 0 ? (
+            <StatusMessage
+              title={
+                isSearching
+                  ? "No conversations match your search."
+                  : "No conversations yet."
+              }
+              description={
+                isSearching
+                  ? "Try another search term."
+                  : "Start a new conversation to see it here."
+              }
+              variant="empty"
+            />
+          ) : (
+            shownConversations.map((conversation) => {
+              const { title, id } = conversation;
+              const name = title?.trim() || "Untitled";
+              return (
+                <Conversation
+                  name={name}
+                  key={id}
+                  isSelected={selectedConversationId === id}
+                  onSelect={() => {
+                    setSelectedConversationId(id);
+                    clearCurrentMessages();
+                  }}
+                  onRequestEnd={(trigger) => {
+                    setPendingEnd({ id, name, trigger });
+                  }}
+                  isEnding={endingIds.has(id)}
+                />
+              );
+            })
+          )}
+        </div>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-        {shownIsLoading ? (
-          <StatusMessage
-            title={isSearching ? "Searching..." : "Loading..."}
-            description={
-              isSearching
-                ? "Looking for matching conversations."
-                : "Loading your conversations."
-            }
-            variant="loading"
-          />
-        ) : shownError ? (
-          <StatusMessage
-            title={
-              isSearching
-                ? "Could not load search results."
-                : "Could not load conversations."
-            }
-            description="Please try again."
-            variant="error"
-          />
-        ) : shownConversations.length === 0 ? (
-          <StatusMessage
-            title={
-              isSearching
-                ? "No conversations match your search."
-                : "No conversations yet."
-            }
-            description={
-              isSearching
-                ? "Try another search term."
-                : "Start a new conversation to see it here."
-            }
-            variant="empty"
-          />
-        ) : (
-          shownConversations.map((conversation) => {
-            const { title, id } = conversation;
-            return (
-              <Conversation
-                name={title?.trim() || "Untitled"}
-                key={id}
-                isSelected={selectedConversationId === id}
-                onSelect={() => {
-                  setSelectedConversationId(id);
-                  clearCurrentMessages();
-                }}
-                onEnd={() => handleEnd(id)}
-                isEnding={endingIds.has(id)}
-              />
-            );
-          })
-        )}
-      </div>
-    </div>
+      {pendingEnd && (
+        <EndConversationDialog
+          conversationName={pendingEnd.name}
+          isEnding={endingIds.has(pendingEnd.id)}
+          returnFocusTo={pendingEnd.trigger}
+          onCancel={() => setPendingEnd(null)}
+          onConfirm={handleConfirmEnd}
+        />
+      )}
+    </>
   );
 }

@@ -1,5 +1,6 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -11,7 +12,7 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "tags" | "author" | "is_unread"
+  "comment_count" | "view_count" | "is_unread" | "tags" | "author"
 > & {
   author:
     | {
@@ -43,18 +44,15 @@ type RawPostListItem = Omit<
     | null;
 };
 
-type CommentCountRow = {
-  post_id: string;
-};
-
 type CommentWithTimestamp = {
   post_id: string;
   created_at: string;
   updated_at: string | null;
 };
 
-type PostViewRow = {
+type ViewRow = {
   post_id: string;
+  viewer_id: string;
   last_viewed_at: string;
 };
 
@@ -66,6 +64,7 @@ function firstOrNull<T>(value: T | T[] | null | undefined): T | null {
 function formatPostListItem(
   post: RawPostListItem,
   commentCounts: Record<string, number>,
+  viewCounts: Record<string, number>,
   isUnread: Record<string, boolean>,
 ): PostListItem {
   return {
@@ -81,6 +80,7 @@ function formatPostListItem(
     created_at: post.created_at,
     updated_at: post.updated_at,
     comment_count: commentCounts[post.id] ?? 0,
+    view_count: viewCounts[post.id] ?? 0,
     is_unread: isUnread[post.id] ?? true,
     author: post.anonymous ? null : firstOrNull(post.author),
     tags:
@@ -135,6 +135,7 @@ export async function GET(
     .eq("dao_group_id", daoGroupId)
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
+
   if (error) {
     return NextResponse.json(
       { error: error.message },
@@ -145,6 +146,7 @@ export async function GET(
   const posts = (data ?? []) as unknown as RawPostListItem[];
   const postIds = posts.map((post) => post.id);
   const commentCounts: Record<string, number> = {};
+  const viewCounts: Record<string, number> = {};
   const isUnread: Record<string, boolean> = {};
 
   if (postIds.length > 0) {
@@ -176,11 +178,10 @@ export async function GET(
       }
     });
 
-    // Fetch user's post views
-    const { data: postViews, error: viewsError } = await supabase
+    // Fetch all post views for view count and user's views for unread state
+    const { data: views, error: viewsError } = await supabase
       .from("post_views")
-      .select("post_id, last_viewed_at")
-      .eq("viewer_id", user.id)
+      .select("post_id, viewer_id, last_viewed_at")
       .in("post_id", postIds);
 
     if (viewsError) {
@@ -190,9 +191,25 @@ export async function GET(
       );
     }
 
+    // Calculate view counts and track user's last viewed times
+    const distinctViewers: Record<string, Set<string>> = {};
     const userPostViews: Record<string, Date> = {};
-    (postViews as PostViewRow[] | null)?.forEach((view) => {
-      userPostViews[view.post_id] = new Date(view.last_viewed_at);
+
+    (views as ViewRow[] | null)?.forEach((view) => {
+      // Track distinct viewers for view count
+      if (!distinctViewers[view.post_id]) {
+        distinctViewers[view.post_id] = new Set();
+      }
+      distinctViewers[view.post_id].add(view.viewer_id);
+
+      // Track current user's last viewed time
+      if (view.viewer_id === user.id) {
+        userPostViews[view.post_id] = new Date(view.last_viewed_at);
+      }
+    });
+
+    Object.entries(distinctViewers).forEach(([postId, viewers]) => {
+      viewCounts[postId] = viewers.size;
     });
 
     // Calculate is_unread for each post
@@ -218,7 +235,7 @@ export async function GET(
   }
 
   return NextResponse.json(
-    posts.map((post) => formatPostListItem(post, commentCounts, isUnread)),
+    posts.map((post) => formatPostListItem(post, commentCounts, viewCounts, isUnread)),
     { headers: corsHeaders },
   );
 }
@@ -235,7 +252,12 @@ export async function POST(
 
   const body = (await request.json()) as CreatePostFields;
 
-  if (!body.title || !body.body || !body.post_type || !daoGroupId) {
+  if (
+    !body.title ||
+    !hasMeaningfulForumContent(body.body) ||
+    !body.post_type ||
+    !daoGroupId
+  ) {
     return NextResponse.json(
       { error: "Missing required fields" },
       { status: 400, headers: corsHeaders },

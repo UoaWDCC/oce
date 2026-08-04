@@ -1,4 +1,5 @@
 import { authenticateUser } from "@/utils/authHelper";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import type { Post, UpdatePostFields } from "@app-types/dao-forum";
 import { NextResponse } from "next/server";
 
@@ -55,7 +56,7 @@ export async function PATCH(
 
   if (
     !body.title ||
-    !body.body ||
+    !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
     body.anonymous === undefined ||
     body.is_pinned === undefined

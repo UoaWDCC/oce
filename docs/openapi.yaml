@@ -1026,7 +1026,68 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
+  /api/ai-tutor/token-usage:
+    get:
+      summary: Get AI tutor token usage
+      description: Returns the user's AI tutor token usage for the current usage window.
+      tags:
+        - AI Tutor
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Token usage retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  availableTokens:
+                    type: integer
+                    description: Number of tokens remaining in the current usage window.
+                    example: 8450
+                  usedTokens:
+                    type: integer
+                    description: Number of tokens used in the current usage window.
+                    example: 1550
+                  totalTokens:
+                    type: integer
+                    description: Maximum number of tokens allowed in the current usage window.
+                    example: 10000
+                  oldestMessage:
+                    type: string
+                    format: date-time
+                    nullable: true
+                    description: Timestamp of the oldest message counted towards the current usage window.
+                    example: "2026-08-02T08:15:42.123Z"
+        "401":
+          description: Invalid or missing authentication token.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Invalid auth token
+        "500":
+          description: Failed to load token usage.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: Failed to load token usage
+    options:
+      summary: CORS preflight
+      description: Responds to CORS preflight requests for this endpoint.
+      tags:
+        - AI Tutor
+      responses:
+        "204":
+          description: No content.
   /api/ai-tutor/chat/stream:
     post:
       tags:
@@ -1037,7 +1098,8 @@ paths:
         Streams incremental AI response chunks from
         /api/ai-tutor/chat/stream using Server-Sent Events. In local
         development, the route may also accept Authorization: dev when
-        the dev-only bypass is enabled in code.
+        the dev-only bypass is enabled in code. The AI Tutor's system
+        instruction is managed by the application.
       security:
         - bearerAuth: []
       requestBody:
@@ -1084,8 +1146,6 @@ paths:
                         type: string
             example:
               messages:
-                - role: system
-                  content: You are a helpful AI tutor for blockchain and DAO learning.
                 - role: user
                   content: Explain what a DAO is in three concise bullet points.
               config:
@@ -1126,6 +1186,70 @@ paths:
                 $ref: "#/components/schemas/ErrorResponse"
               example:
                 error: LLM provider error
+
+  /api/ai-tutor/conversations:
+    get:
+      tags:
+        - AI Tutor
+      summary: List (or search) the authenticated user's AI Tutor conversations
+      operationId: listAiTutorConversations
+      description: >
+        Returns active (non-ended) conversations owned by the authenticated
+        user, ordered by most recently updated. When q is provided, results
+        are filtered to conversations whose title case-insensitively contains
+        q; an empty or whitespace-only q is treated the same as omitting it.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+          description: >
+            Optional case-insensitive partial match on conversation title.
+            Empty, whitespace-only, or omitted returns the normal
+            unfiltered list.
+      responses:
+        "200":
+          description: Conversations for the authenticated user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Conversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - AI Tutor
+      summary: Create a new AI Tutor conversation
+      operationId: createAiTutorConversation
+      description: >
+        Creates a new active conversation for the authenticated user. The
+        title is set later once generated.
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversation:
+                    $ref: "#/components/schemas/Conversation"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
 
 components:
   securitySchemes:
@@ -1730,5 +1854,26 @@ components:
           type: string
           format: date-time
         UpdatedAt:
+          type: string
+          format: date-time
+
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        title:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
           type: string
           format: date-time

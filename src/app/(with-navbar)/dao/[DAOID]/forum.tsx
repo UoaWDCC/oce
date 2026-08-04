@@ -79,6 +79,8 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     }
   };
 
+  const { recordView } = useRecordPostView();
+
   const handleSubmitPost = async (
     payload: PostSubmitPayload,
   ): Promise<void> => {
@@ -102,6 +104,16 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
 
     if (succeeded) {
       await refetchComments();
+    }
+  };
+
+  const handleSelectPost = async (postId: string | null): Promise<void> => {
+    setSelectedPostId(postId);
+    if (postId) {
+      const succeeded = await recordView(postId);
+      if (succeeded) {
+        await refetchPosts();
+      }
     }
   };
 

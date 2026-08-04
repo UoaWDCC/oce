@@ -10,7 +10,10 @@ export interface UseDaoForumPostsResult {
   refetch: () => void;
 }
 
-export function useDaoForumPosts(daoGroupId: string | undefined | null, token?: string,): UseDaoForumPostsResult {
+export function useDaoForumPosts(
+  daoGroupId: string | undefined | null,
+  token?: string,
+): UseDaoForumPostsResult {
   const [posts, setPosts] = useState<ForumPostPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
@@ -45,7 +48,11 @@ export function useDaoForumPosts(daoGroupId: string | undefined | null, token?: 
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
-      setError(err instanceof Error ? err : new Error("Failed to load DAO forum posts"));
+      setError(
+        err instanceof Error
+          ? err
+          : new Error("Failed to load DAO forum posts"),
+      );
     } finally {
       if (currentRequestId === requestIdRef.current) {
         setIsLoading(false);

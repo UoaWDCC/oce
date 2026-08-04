@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { getSupabaseClient } from "@/utils/supabase/client";
-import type { TutorRequest } from "../types";
+import { getTutorRequests } from "../api/tutorRequests";
 
 // Mirrors the DB default for tutor_requests.status
 export const PENDING_STATUS = "pending";
@@ -22,26 +21,14 @@ export function usePendingTutorRequest(
     if (!conversationId) return;
     setLoading(true);
     try {
-      const supabase = getSupabaseClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const res = await fetch("/api/ai-tutor/tutor-requests", {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-      if (!res.ok) return;
-
-      const data = (await res.json().catch(() => null)) as {
-        tutor_requests?: TutorRequest[];
-      } | null;
-
-      const pending = (data?.tutor_requests ?? []).some(
+      const tutorRequests = await getTutorRequests();
+      const pending = tutorRequests.some(
         (r) =>
           r.conversation_id === conversationId && r.status === PENDING_STATUS,
       );
       setHasPending(pending);
+    } catch {
+      // Preserve the current state when a refresh fails.
     } finally {
       setLoading(false);
     }

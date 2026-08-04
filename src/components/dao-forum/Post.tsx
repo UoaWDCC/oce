@@ -5,6 +5,7 @@ import React from "react";
 import { MessageCircle } from "lucide-react";
 import Tag from "./Tag";
 import StudentAvatar, { Timestamp } from "../common/StudentAvatar";
+import { forumContentToPlainText } from "@/utils/forumContent";
 import type { PostType } from "@app-types/dao-forum";
 
 export type PostCardProps = {
@@ -76,7 +77,7 @@ function PostCardContent({
             WebkitLineClamp: 2,
           }}
         >
-          {excerpt}
+          {forumContentToPlainText(excerpt)}
         </p>
       )}
 

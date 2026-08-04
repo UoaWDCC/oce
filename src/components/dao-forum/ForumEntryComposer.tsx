@@ -1,9 +1,16 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2 } from "lucide-react";
 import { hasMeaningfulForumContent } from "@/utils/forumContent";
-import FormattingToolbar from "./FormattingToolbar";
+import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
+
+const FORMAT_COMMANDS: Record<FormatType, string> = {
+  bold: "bold",
+  italic: "italic",
+  underline: "underline",
+  bullet: "insertUnorderedList",
+};
 
 export type ForumEntryComposerState = {
   body: string;
@@ -49,20 +56,53 @@ export default function ForumEntryComposer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [activeFormats, setActiveFormats] = useState<FormatType[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const applyFormat = (type: "bold" | "italic" | "underline" | "bullet") => {
+  const updateActiveFormats = useCallback(() => {
+    const editor = editorRef.current;
+    const selection = document.getSelection();
+
+    if (
+      !editor ||
+      !selection?.anchorNode ||
+      !editor.contains(selection.anchorNode)
+    ) {
+      setActiveFormats([]);
+      return;
+    }
+
+    const nextFormats = (Object.keys(FORMAT_COMMANDS) as FormatType[]).filter(
+      (type) => document.queryCommandState(FORMAT_COMMANDS[type]),
+    );
+
+    setActiveFormats((currentFormats) =>
+      currentFormats.length === nextFormats.length &&
+      currentFormats.every((format, index) => format === nextFormats[index])
+        ? currentFormats
+        : nextFormats,
+    );
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("selectionchange", updateActiveFormats);
+    return () =>
+      document.removeEventListener("selectionchange", updateActiveFormats);
+  }, [updateActiveFormats]);
+
+  const applyFormat = (type: FormatType) => {
     const editor = editorRef.current;
     if (!editor) return;
 
     editor.focus();
-    const command = type === "bullet" ? "insertUnorderedList" : type;
-    document.execCommand(command);
+    document.execCommand(FORMAT_COMMANDS[type]);
     setBody(editor.innerHTML);
+    updateActiveFormats();
   };
 
   const handleEditorInput = () => {
     setBody(editorRef.current?.innerHTML ?? "");
+    updateActiveFormats();
   };
 
   const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
@@ -95,6 +135,7 @@ export default function ForumEntryComposer({
     try {
       await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
       setBody("");
+      setActiveFormats([]);
       if (editorRef.current) editorRef.current.innerHTML = "";
       setImageUrl(null);
       setError(null);
@@ -132,7 +173,11 @@ export default function ForumEntryComposer({
           isFullVariant && "rounded-lg border border-slate-200 bg-white p-3",
         )}
       >
-        <FormattingToolbar onFormat={applyFormat} disabled={isDisabled} />
+        <FormattingToolbar
+          activeFormats={activeFormats}
+          disabled={isDisabled}
+          onFormat={applyFormat}
+        />
 
         <div
           ref={editorRef}
@@ -142,6 +187,8 @@ export default function ForumEntryComposer({
           contentEditable={!isDisabled}
           data-placeholder={placeholder}
           onInput={handleEditorInput}
+          onKeyUp={updateActiveFormats}
+          onMouseUp={updateActiveFormats}
           onPaste={handlePaste}
           role="textbox"
           suppressContentEditableWarning

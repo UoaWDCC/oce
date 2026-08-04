@@ -3,10 +3,11 @@
 import React from "react";
 import { Bold, Italic, Underline, List } from "lucide-react";
 
-type FormatType = "bold" | "italic" | "underline" | "bullet";
+export type FormatType = "bold" | "italic" | "underline" | "bullet";
 
 type FormattingToolbarProps = {
   onFormat: (type: FormatType) => void;
+  activeFormats?: FormatType[];
   disabled?: boolean;
 };
 
@@ -16,6 +17,7 @@ function classNames(...classes: Array<string | false | null | undefined>) {
 
 export default function FormattingToolbar({
   onFormat,
+  activeFormats = [],
   disabled,
 }: FormattingToolbarProps) {
   const buttons: { type: FormatType; icon: typeof Bold; label: string }[] = [
@@ -31,6 +33,7 @@ export default function FormattingToolbar({
         <button
           key={type}
           type="button"
+          aria-pressed={activeFormats.includes(type)}
           onMouseDown={(event) => event.preventDefault()}
           onClick={() => onFormat(type)}
           disabled={disabled}
@@ -38,6 +41,8 @@ export default function FormattingToolbar({
           aria-label={label}
           className={classNames(
             "rounded p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500",
+            activeFormats.includes(type) &&
+              "bg-violet-100 text-violet-700 shadow-inner",
             disabled && "cursor-not-allowed opacity-50",
           )}
         >

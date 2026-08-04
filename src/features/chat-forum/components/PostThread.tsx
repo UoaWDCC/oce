@@ -1,9 +1,12 @@
 "use client";
 
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
   ArrowLeft,
   BookOpen,
+  Eye,
   Heart,
   MessageCircle,
   Reply,
@@ -49,11 +52,26 @@ function MarkdownContent({ content }: { content: string }) {
   return (
     <div className="space-y-4 text-[15px] leading-7 text-slate-700 sm:text-base">
       <ReactMarkdown
+        rehypePlugins={[
+          rehypeRaw,
+          [
+            rehypeSanitize,
+            {
+              ...defaultSchema,
+              tagNames: [...(defaultSchema.tagNames ?? []), "u"],
+            },
+          ],
+        ]}
         components={{
           p: ({ children }) => <p>{children}</p>,
           strong: ({ children }) => (
             <strong className="font-bold text-slate-900">{children}</strong>
           ),
+          u: ({ children }) => <u className="underline">{children}</u>,
+          ul: ({ children }) => (
+            <ul className="list-disc space-y-1 pl-6">{children}</ul>
+          ),
+          li: ({ children }) => <li className="pl-1">{children}</li>,
           pre: ({ children }) => (
             <pre className="overflow-x-auto rounded-xl bg-indigo-950 p-4 text-sm leading-6 text-purple-100 sm:p-5 [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-purple-100">
               {children}
@@ -118,12 +136,18 @@ type ThreadCommentProps = {
   comment: ForumThreadComment;
   onLikeComment?: (commentId: string) => void;
   onReplyToComment?: (commentId: string) => void;
+  replyingTo?: { id: string; authorName: string } | null;
+  onCancelReply?: () => void;
+  onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
 };
 
 function ThreadComment({
   comment,
   onLikeComment,
   onReplyToComment,
+  replyingTo,
+  onCancelReply,
+  onSubmitComment,
 }: ThreadCommentProps) {
   return (
     <div>
@@ -182,14 +206,43 @@ function ThreadComment({
         </div>
       </article>
 
-      {comment.replies && comment.replies.length > 0 && (
+      {(replyingTo?.id === comment.id ||
+        (comment.replies && comment.replies.length > 0)) && (
         <div className="mt-3 space-y-3 border-l-2 border-purple-200 pl-3 sm:pl-6">
-          {comment.replies.map((reply) => (
+          {replyingTo?.id === comment.id && (
+            <div>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
+                <span>Replying to {replyingTo.authorName}</span>
+                {onCancelReply && (
+                  <button
+                    aria-label="Cancel reply"
+                    className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                    onClick={onCancelReply}
+                    type="button"
+                  >
+                    <X aria-hidden="true" className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <CommentEntryComposer
+                className="mt-2 border-purple-100"
+                disabled={!onSubmitComment}
+                onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+                parentCommentId={replyingTo.id}
+                showAttachment
+                autoFocus
+              />
+            </div>
+          )}
+          {comment.replies?.map((reply) => (
             <ThreadComment
               key={reply.id}
               comment={reply}
               onLikeComment={onLikeComment}
               onReplyToComment={onReplyToComment}
+              replyingTo={replyingTo}
+              onCancelReply={onCancelReply}
+              onSubmitComment={onSubmitComment}
             />
           ))}
         </div>
@@ -221,6 +274,7 @@ export default function PostThread({
   className,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
+  const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
 
   return (
     <section
@@ -274,18 +328,23 @@ export default function PostThread({
               </h1>
             </div>
 
-            <StudentAvatar
-              avatarColor={post.author.avatarColor}
-              className="mt-6"
-              displayName={post.author.name}
-              profileImageUrl={post.author.profileImageUrl}
-              size="sm"
-              timestamp={{
-                label: post.createdAtLabel,
-                dateTime: post.createdAt,
-              }}
-              walletAddress={post.author.walletAddress}
-            />
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <StudentAvatar
+                avatarColor={post.author.avatarColor}
+                displayName={post.author.name}
+                profileImageUrl={post.author.profileImageUrl}
+                size="sm"
+                timestamp={{
+                  label: post.createdAtLabel,
+                  dateTime: post.createdAt,
+                }}
+                walletAddress={post.author.walletAddress}
+              />
+              <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-500">
+                <Eye aria-hidden="true" className="h-4 w-4" />
+                {viewLabel}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -321,29 +380,14 @@ export default function PostThread({
         </label>
       </div>
 
-      {replyingTo && (
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
-          <span>Replying to {replyingTo.authorName}</span>
-          {onCancelReply && (
-            <button
-              aria-label="Cancel reply"
-              className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-              onClick={onCancelReply}
-              type="button"
-            >
-              <X aria-hidden="true" className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+      {!replyingTo && (
+        <CommentEntryComposer
+          className="mt-4 border-purple-100"
+          disabled={!onSubmitComment}
+          onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+          showAttachment
+        />
       )}
-
-      <CommentEntryComposer
-        className="mt-4 border-purple-100"
-        disabled={!onSubmitComment}
-        onSubmit={onSubmitComment ?? (() => Promise.resolve())}
-        parentCommentId={replyingTo?.id}
-        showAttachment
-      />
 
       <div className="mt-5 space-y-4">
         {commentsError ? (
@@ -369,6 +413,9 @@ export default function PostThread({
               comment={comment}
               onLikeComment={onLikeComment}
               onReplyToComment={onReplyToComment}
+              replyingTo={replyingTo}
+              onCancelReply={onCancelReply}
+              onSubmitComment={onSubmitComment}
             />
           ))
         ) : (

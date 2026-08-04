@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import type { UpdateCommentFields } from "@app-types/dao-forum";
 
 const corsHeaders = {
@@ -66,7 +67,10 @@ export async function PATCH(
     updates.image_url = json.image_url === null ? null : json.image_url.trim();
   }
 
-  if (updates.body === "") {
+  if (
+    typeof updates.body === "string" &&
+    !hasMeaningfulForumContent(updates.body)
+  ) {
     return NextResponse.json(
       { error: "Comment body cannot be empty" },
       { status: 400, headers: corsHeaders },

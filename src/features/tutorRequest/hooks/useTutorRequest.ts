@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
-import { getSupabaseClient } from "@/utils/supabase/client";
 import type { TutorRequest, TutorRequestStatus } from "../types";
+import { createTutorRequest } from "../api/tutorRequests";
 
 interface SubmitArgs {
   conversationId: string;
@@ -33,45 +33,15 @@ export function useTutorRequest(): UseTutorRequest {
     setError(null);
 
     try {
-      const supabase = getSupabaseClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
-      if (!session) {
-        setStatus("error");
-        setError("You need to be signed in to request a tutor.");
-        return;
-      }
-
-      const res = await fetch("/api/ai-tutor/tutor-requests", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
-          conversation_id: conversationId,
-          question: trimmed,
-        }),
-      });
-
-      const data = (await res.json().catch(() => null)) as {
-        tutor_request?: TutorRequest;
-        error?: string;
-      } | null;
-
-      if (!res.ok) {
-        setStatus("error");
-        setError(data?.error ?? "Could not send your request. Try again.");
-        return;
-      }
-
-      setTutorRequest(data?.tutor_request ?? null);
+      setTutorRequest(await createTutorRequest(conversationId, trimmed));
       setStatus("success");
-    } catch {
+    } catch (error) {
       setStatus("error");
-      setError("Could not reach the server. Check your connection and retry.");
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not send your request. Try again.",
+      );
     }
   }
 

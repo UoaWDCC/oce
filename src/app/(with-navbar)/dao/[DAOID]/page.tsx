@@ -180,7 +180,15 @@ export default function DaoDetailsPage() {
         });
 
         if (!res.ok) {
-          throw new Error(`Failed to fetch DAO info: ${res.status}`);
+          const errorBody = (await res.json().catch(() => null)) as {
+            error?: string;
+            details?: string;
+          } | null;
+          throw new Error(
+            errorBody?.details ??
+              errorBody?.error ??
+              `Failed to fetch DAO info: ${res.status}`,
+          );
         }
 
         const data = (await res.json()) as DaohausApiResponse;

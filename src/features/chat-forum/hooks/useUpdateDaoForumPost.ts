@@ -47,7 +47,11 @@ export function useUpdateDaoForumPost(
         setError(null);
         return updatedPost;
       } catch (err) {
-        setError(err instanceof Error ? err : new Error("Failed to update DAO forum post"));
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("Failed to update DAO forum post"),
+        );
         return null;
       } finally {
         isSubmittingRef.current = false;

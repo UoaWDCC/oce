@@ -1,8 +1,28 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
+import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
+
+const FORMAT_COMMANDS: Record<FormatType, string> = {
+  bold: "bold",
+  italic: "italic",
+  underline: "underline",
+  bullet: "insertUnorderedList",
+};
+
+export type ForumEntryComposerState = {
+  body: string;
+  setBody: (body: string) => void;
+  imageUrl: string | null;
+  setImageUrl: (url: string | null) => void;
+  isSubmitting: boolean;
+  error: string | null;
+  validationError: string | null;
+};
 
 export type ForumEntryComposerProps = {
   placeholder?: string;
@@ -15,6 +35,7 @@ export type ForumEntryComposerProps = {
   showAttachButton?: boolean;
   showCancelButton?: boolean;
   variant?: "compact" | "full";
+  autoFocus?: boolean;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -32,6 +53,7 @@ export default function ForumEntryComposer({
   showAttachButton = true,
   showCancelButton = false,
   variant = "compact",
+  autoFocus = false,
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -51,14 +73,70 @@ export default function ForumEntryComposer({
     validateFile,
     clearError: clearUploadError,
   } = useForumImageUpload();
+  const [activeFormats, setActiveFormats] = useState<FormatType[]>([]);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const updateActiveFormats = useCallback(() => {
+    const editor = editorRef.current;
+    const selection = document.getSelection();
+
+    if (
+      !editor ||
+      !selection?.anchorNode ||
+      !editor.contains(selection.anchorNode)
+    ) {
+      setActiveFormats([]);
+      return;
+    }
+
+    const nextFormats = (Object.keys(FORMAT_COMMANDS) as FormatType[]).filter(
+      (type) => document.queryCommandState(FORMAT_COMMANDS[type]),
+    );
+
+    setActiveFormats((currentFormats) =>
+      currentFormats.length === nextFormats.length &&
+      currentFormats.every((format, index) => format === nextFormats[index])
+        ? currentFormats
+        : nextFormats,
+    );
+  }, []);
 
   useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const maxHeight = variant === "full" ? 300 : 150;
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-  }, [body, variant]);
+    document.addEventListener("selectionchange", updateActiveFormats);
+    return () =>
+      document.removeEventListener("selectionchange", updateActiveFormats);
+  }, [updateActiveFormats]);
+
+  const applyFormat = (type: FormatType) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    editor.focus();
+    document.execCommand(FORMAT_COMMANDS[type]);
+    setBody(editor.innerHTML);
+    updateActiveFormats();
+  };
+
+  const handleEditorInput = () => {
+    setBody(editorRef.current?.innerHTML ?? "");
+    updateActiveFormats();
+  };
+
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    document.execCommand(
+      "insertText",
+      false,
+      event.clipboardData.getData("text/plain"),
+    );
+    handleEditorInput();
+  };
+
+  useEffect(() => {
+    if (autoFocus) {
+      editorRef.current?.focus();
+    }
+  }, [autoFocus]);
 
   useEffect(() => {
     return () => {
@@ -120,12 +198,17 @@ export default function ForumEntryComposer({
     clearUploadError();
     onCancel?.();
   };
+    const url = prompt("Enter image URL:");
+    if (url) setImageUrl(url);
+  };
+
+  const handleRemoveImage = () => setImageUrl(null);
 
   const handleSubmit = async () => {
     setValidationError(null);
     setError(null);
 
-    if (!body.trim()) {
+    if (!hasMeaningfulForumContent(body)) {
       setValidationError("Content cannot be empty");
       return;
     }
@@ -150,6 +233,13 @@ export default function ForumEntryComposer({
       if (uploadedImage) {
         await removeImage(uploadedImage.path);
       }
+      await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
+      setBody("");
+      setActiveFormats([]);
+      if (editorRef.current) editorRef.current.innerHTML = "";
+      setImageUrl(null);
+      setError(null);
+    } catch (err) {
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setIsSubmitting(false);
@@ -159,6 +249,7 @@ export default function ForumEntryComposer({
   const isDisabled = disabled || isSubmitting || isUploading;
   const isFullVariant = variant === "full";
   const displayError = error ?? uploadError;
+  const hasContent = hasMeaningfulForumContent(body);
 
   return (
     <div
@@ -193,16 +284,30 @@ export default function ForumEntryComposer({
           isFullVariant && "rounded-lg border border-slate-200 bg-white p-3",
         )}
       >
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={placeholder}
+        <FormattingToolbar
+          activeFormats={activeFormats}
           disabled={isDisabled}
-          rows={isFullVariant ? 5 : 3}
+          onFormat={applyFormat}
+        />
+
+        <div
+          ref={editorRef}
+          aria-disabled={isDisabled}
+          aria-label={placeholder}
+          aria-multiline="true"
+          contentEditable={!isDisabled}
+          data-placeholder={placeholder}
+          onInput={handleEditorInput}
+          onKeyUp={updateActiveFormats}
+          onMouseUp={updateActiveFormats}
+          onPaste={handlePaste}
+          role="textbox"
+          suppressContentEditableWarning
           className={classNames(
-            "w-full resize-none border-0 bg-transparent text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0",
-            isFullVariant ? "px-0" : "rounded-lg px-0",
+            "w-full overflow-y-auto border-0 bg-transparent text-sm leading-6 text-slate-900 focus:outline-none focus:ring-0 [&:empty:before]:pointer-events-none [&:empty:before]:text-slate-400 [&:empty:before]:content-[attr(data-placeholder)] [&_ul]:list-disc [&_ul]:pl-6",
+            isFullVariant
+              ? "min-h-[120px] max-h-[300px]"
+              : "min-h-[72px] max-h-[150px] rounded-lg",
             isDisabled && "cursor-not-allowed opacity-50",
           )}
         />
@@ -273,10 +378,10 @@ export default function ForumEntryComposer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isDisabled || !body.trim()}
+            disabled={isDisabled || !hasContent}
             className={classNames(
               "rounded-full bg-violet-200 px-5 py-2 text-sm font-semibold text-violet-700 transition-colors hover:bg-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
-              (isDisabled || !body.trim()) && "cursor-not-allowed opacity-50",
+              (isDisabled || !hasContent) && "cursor-not-allowed opacity-50",
             )}
           >
             {isSubmitting ? (
@@ -321,10 +426,10 @@ export default function ForumEntryComposer({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isDisabled || !body.trim()}
+              disabled={isDisabled || !hasContent}
               className={classNames(
                 "rounded-full bg-violet-400 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
-                (isDisabled || !body.trim()) && "cursor-not-allowed opacity-50",
+                (isDisabled || !hasContent) && "cursor-not-allowed opacity-50",
               )}
             >
               {isSubmitting ? (

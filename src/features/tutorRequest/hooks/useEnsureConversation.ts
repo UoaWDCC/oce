@@ -1,10 +1,6 @@
 "use client";
 import { useState } from "react";
-import { getSupabaseClient } from "@/utils/supabase/client";
-
-interface Conversation {
-  id: string;
-}
+import { createConversation } from "@/features/chatbot/api/conversations";
 
 interface UseEnsureConversation {
   conversationId: string | null;
@@ -26,27 +22,12 @@ export function useEnsureConversation(): UseEnsureConversation {
     if (conversationId) return conversationId;
     setEnsuring(true);
     try {
-      const supabase = getSupabaseClient();
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) return null;
-
-      const res = await fetch("/api/ai-tutor/conversations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-      if (!res.ok) return null;
-
-      const data = (await res.json().catch(() => null)) as {
-        conversation?: Conversation;
-      } | null;
-      const id = data?.conversation?.id ?? null;
+      const conversation = await createConversation();
+      const id = conversation.id;
       setConversationId(id);
       return id;
+    } catch {
+      return null;
     } finally {
       setEnsuring(false);
     }

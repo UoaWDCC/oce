@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useState } from "react";
 import { Paperclip, X, Loader2 } from "lucide-react";
+import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import FormattingToolbar from "./FormattingToolbar";
 
 export type ForumEntryComposerState = {
@@ -48,92 +49,30 @@ export default function ForumEntryComposer({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const el = textareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const maxHeight = variant === "full" ? 300 : 150;
-    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-  }, [body, variant]);
+  const editorRef = useRef<HTMLDivElement>(null);
 
   const applyFormat = (type: "bold" | "italic" | "underline" | "bullet") => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
+    const editor = editorRef.current;
+    if (!editor) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = body.slice(start, end);
-    const hasSelection = start !== end;
+    editor.focus();
+    const command = type === "bullet" ? "insertUnorderedList" : type;
+    document.execCommand(command);
+    setBody(editor.innerHTML);
+  };
 
-    let newBody = body;
-    let newCursorStart = start;
-    let newCursorEnd = end;
+  const handleEditorInput = () => {
+    setBody(editorRef.current?.innerHTML ?? "");
+  };
 
-    switch (type) {
-      case "bold": {
-        if (hasSelection) {
-          const replacement = `**${selectedText}**`;
-          newBody = body.slice(0, start) + replacement + body.slice(end);
-          newCursorStart = start;
-          newCursorEnd = start + replacement.length;
-        } else {
-          newBody = body.slice(0, start) + "****" + body.slice(start);
-          newCursorStart = start + 2;
-          newCursorEnd = start + 2;
-        }
-        break;
-      }
-      case "italic": {
-        if (hasSelection) {
-          const replacement = `*${selectedText}*`;
-          newBody = body.slice(0, start) + replacement + body.slice(end);
-          newCursorStart = start;
-          newCursorEnd = start + replacement.length;
-        } else {
-          newBody = body.slice(0, start) + "**" + body.slice(start);
-          newCursorStart = start + 1;
-          newCursorEnd = start + 1;
-        }
-        break;
-      }
-      case "underline": {
-        if (hasSelection) {
-          const replacement = `<u>${selectedText}</u>`;
-          newBody = body.slice(0, start) + replacement + body.slice(end);
-          newCursorStart = start;
-          newCursorEnd = start + replacement.length;
-        } else {
-          newBody = body.slice(0, start) + "<u></u>" + body.slice(start);
-          newCursorStart = start + 3;
-          newCursorEnd = start + 3;
-        }
-        break;
-      }
-      case "bullet": {
-        if (hasSelection) {
-          const lines = selectedText.split("\n");
-          const bulleted = lines.map((line) => `- ${line}`).join("\n");
-          newBody = body.slice(0, start) + bulleted + body.slice(end);
-          newCursorStart = start;
-          newCursorEnd = start + bulleted.length;
-        } else {
-          const bullet = "- ";
-          newBody = body.slice(0, start) + bullet + body.slice(start);
-          newCursorStart = start + bullet.length;
-          newCursorEnd = start + bullet.length;
-        }
-        break;
-      }
-    }
-
-    setBody(newBody);
-
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(newCursorStart, newCursorEnd);
-    });
+  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    document.execCommand(
+      "insertText",
+      false,
+      event.clipboardData.getData("text/plain"),
+    );
+    handleEditorInput();
   };
 
   const handleImageAttach = () => {
@@ -147,7 +86,7 @@ export default function ForumEntryComposer({
     setValidationError(null);
     setError(null);
 
-    if (!body.trim()) {
+    if (!hasMeaningfulForumContent(body)) {
       setValidationError("Content cannot be empty");
       return;
     }
@@ -156,6 +95,7 @@ export default function ForumEntryComposer({
     try {
       await onSubmit({ body: body.trim(), imageUrl: imageUrl ?? undefined });
       setBody("");
+      if (editorRef.current) editorRef.current.innerHTML = "";
       setImageUrl(null);
       setError(null);
     } catch (err) {
@@ -167,6 +107,7 @@ export default function ForumEntryComposer({
 
   const isDisabled = disabled || isSubmitting;
   const isFullVariant = variant === "full";
+  const hasContent = hasMeaningfulForumContent(body);
 
   return (
     <div
@@ -191,19 +132,24 @@ export default function ForumEntryComposer({
           isFullVariant && "rounded-lg border border-slate-200 bg-white p-3",
         )}
       >
-        {/* ── Formatting toolbar ── */}
         <FormattingToolbar onFormat={applyFormat} disabled={isDisabled} />
 
-        <textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder={placeholder}
-          disabled={isDisabled}
-          rows={isFullVariant ? 5 : 3}
+        <div
+          ref={editorRef}
+          aria-disabled={isDisabled}
+          aria-label={placeholder}
+          aria-multiline="true"
+          contentEditable={!isDisabled}
+          data-placeholder={placeholder}
+          onInput={handleEditorInput}
+          onPaste={handlePaste}
+          role="textbox"
+          suppressContentEditableWarning
           className={classNames(
-            "w-full resize-none border-0 bg-transparent text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-0",
-            isFullVariant ? "px-0" : "rounded-lg px-0",
+            "w-full overflow-y-auto border-0 bg-transparent text-sm leading-6 text-slate-900 focus:outline-none focus:ring-0 [&:empty:before]:pointer-events-none [&:empty:before]:text-slate-400 [&:empty:before]:content-[attr(data-placeholder)] [&_ul]:list-disc [&_ul]:pl-6",
+            isFullVariant
+              ? "min-h-[120px] max-h-[300px]"
+              : "min-h-[72px] max-h-[150px] rounded-lg",
             isDisabled && "cursor-not-allowed opacity-50",
           )}
         />
@@ -258,10 +204,10 @@ export default function ForumEntryComposer({
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={isDisabled || !body.trim()}
+            disabled={isDisabled || !hasContent}
             className={classNames(
               "rounded-full bg-violet-200 px-5 py-2 text-sm font-semibold text-violet-700 transition-colors hover:bg-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
-              (isDisabled || !body.trim()) && "cursor-not-allowed opacity-50",
+              (isDisabled || !hasContent) && "cursor-not-allowed opacity-50",
             )}
           >
             {isSubmitting ? (
@@ -306,10 +252,10 @@ export default function ForumEntryComposer({
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={isDisabled || !body.trim()}
+              disabled={isDisabled || !hasContent}
               className={classNames(
                 "rounded-full bg-violet-400 px-6 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2",
-                (isDisabled || !body.trim()) && "cursor-not-allowed opacity-50",
+                (isDisabled || !hasContent) && "cursor-not-allowed opacity-50",
               )}
             >
               {isSubmitting ? (

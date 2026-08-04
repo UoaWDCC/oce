@@ -5,6 +5,7 @@ import React from "react";
 import { MessageCircle } from "lucide-react";
 import Tag from "./Tag";
 import StudentAvatar, { Timestamp } from "../common/StudentAvatar";
+import { forumContentToPlainText } from "@/utils/forumContent";
 import type { PostType } from "@app-types/dao-forum";
 
 export type PostCardProps = {
@@ -21,15 +22,6 @@ export type PostCardProps = {
   onSelect?: () => void;
   className?: string;
 };
-
-function stripMarkdown(text: string): string {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, "$1")  // bold
-    .replace(/\*(.*?)\*/g, "$1")       // italic
-    .replace(/<u>(.*?)<\/u>/g, "$1")  // underline
-    .replace(/^- /gm, "")              // bullets
-    .trim();
-}
 
 function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -85,7 +77,7 @@ function PostCardContent({
             WebkitLineClamp: 2,
           }}
         >
-          {stripMarkdown(excerpt)}
+          {forumContentToPlainText(excerpt)}
         </p>
       )}
 

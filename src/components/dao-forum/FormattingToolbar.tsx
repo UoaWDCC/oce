@@ -14,7 +14,10 @@ function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export default function FormattingToolbar({ onFormat, disabled }: FormattingToolbarProps) {
+export default function FormattingToolbar({
+  onFormat,
+  disabled,
+}: FormattingToolbarProps) {
   const buttons: { type: FormatType; icon: typeof Bold; label: string }[] = [
     { type: "bold", icon: Bold, label: "Bold" },
     { type: "italic", icon: Italic, label: "Italic" },
@@ -28,6 +31,7 @@ export default function FormattingToolbar({ onFormat, disabled }: FormattingTool
         <button
           key={type}
           type="button"
+          onMouseDown={(event) => event.preventDefault()}
           onClick={() => onFormat(type)}
           disabled={disabled}
           title={label}
@@ -42,4 +46,4 @@ export default function FormattingToolbar({ onFormat, disabled }: FormattingTool
       ))}
     </div>
   );
-}   
+}

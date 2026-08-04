@@ -66,9 +66,11 @@ function MarkdownContent({ content }: { content: string }) {
           strong: ({ children }) => (
             <strong className="font-bold text-slate-900">{children}</strong>
           ),
-          u: ({ children }) => (
-            <u className="underline">{children}</u>
+          u: ({ children }) => <u className="underline">{children}</u>,
+          ul: ({ children }) => (
+            <ul className="list-disc space-y-1 pl-6">{children}</ul>
           ),
+          li: ({ children }) => <li className="pl-1">{children}</li>,
           pre: ({ children }) => (
             <pre className="overflow-x-auto rounded-xl bg-indigo-950 p-4 text-sm leading-6 text-purple-100 sm:p-5 [&>code]:bg-transparent [&>code]:p-0 [&>code]:text-purple-100">
               {children}

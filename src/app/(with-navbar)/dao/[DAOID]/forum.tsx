@@ -8,6 +8,7 @@ import { useDaoForumComments } from "@/features/chat-forum/hooks/useDaoForumComm
 import { useCreateDaoForumPost } from "@/features/chat-forum/hooks/useCreateDaoForumPost";
 import { useCreateDaoForumComment } from "@/features/chat-forum/hooks/useCreateDaoForumComment";
 import { useDaoForumCommentLike } from "@/features/chat-forum/hooks/useDaoForumCommentLike";
+import { useRecordPostView } from "@/features/chat-forum/hooks/useRecordPostView";
 import {
   submitForumComment,
   submitForumPost,
@@ -66,6 +67,8 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     error: commentLikeError,
   } = useDaoForumCommentLike();
 
+  const { recordView } = useRecordPostView();
+
   const handleSubmitPost = async (
     payload: PostSubmitPayload,
   ): Promise<void> => {
@@ -92,6 +95,16 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     }
   };
 
+  const handleSelectPost = async (postId: string | null): Promise<void> => {
+    setSelectedPostId(postId);
+    if (postId) {
+      const succeeded = await recordView(postId);
+      if (succeeded) {
+        await refetchPosts();
+      }
+    }
+  };
+
   const postsError = error?.message ?? createPostError?.message;
   const threadError =
     commentsError?.message ??
@@ -110,7 +123,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       isLoading={isLoading}
       onCommentSortChange={setCommentSort}
       onLikeComment={handleLikeComment}
-      onSelectPost={setSelectedPostId}
+      onSelectPost={handleSelectPost}
       onSubmitPost={handleSubmitPost}
       onSubmitComment={handleSubmitComment}
       posts={posts}

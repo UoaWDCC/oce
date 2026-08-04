@@ -36,6 +36,7 @@ export interface PostListItem {
   created_at: string;
   updated_at: string | null;
   comment_count: number;
+  view_count: number;
   author: {
     id: string;
     username: string | null;
@@ -154,6 +155,7 @@ export interface ForumPostPreview {
   createdAt: string;
   createdAtLabel: string;
   commentCount: number;
+  viewCount: number;
   types: PostType[];
   tags: string[];
   isPinned?: boolean;

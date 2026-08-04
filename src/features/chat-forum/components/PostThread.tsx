@@ -6,6 +6,7 @@ import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
   ArrowLeft,
   BookOpen,
+  Eye,
   Heart,
   MessageCircle,
   Reply,
@@ -257,6 +258,7 @@ export default function PostThread({
   className,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
+  const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
 
   return (
     <section
@@ -310,18 +312,23 @@ export default function PostThread({
               </h1>
             </div>
 
-            <StudentAvatar
-              avatarColor={post.author.avatarColor}
-              className="mt-6"
-              displayName={post.author.name}
-              profileImageUrl={post.author.profileImageUrl}
-              size="sm"
-              timestamp={{
-                label: post.createdAtLabel,
-                dateTime: post.createdAt,
-              }}
-              walletAddress={post.author.walletAddress}
-            />
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+              <StudentAvatar
+                avatarColor={post.author.avatarColor}
+                displayName={post.author.name}
+                profileImageUrl={post.author.profileImageUrl}
+                size="sm"
+                timestamp={{
+                  label: post.createdAtLabel,
+                  dateTime: post.createdAt,
+                }}
+                walletAddress={post.author.walletAddress}
+              />
+              <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-500">
+                <Eye aria-hidden="true" className="h-4 w-4" />
+                {viewLabel}
+              </span>
+            </div>
           </div>
         </div>
 

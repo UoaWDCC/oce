@@ -1,5 +1,5 @@
 "use client";
-import React, { ReactNode } from "react";
+import { ReactNode } from "react";
 
 interface ChatMessageProps {
   children: string;
@@ -7,9 +7,11 @@ interface ChatMessageProps {
 
 export default function ChatMessage({ children }: ChatMessageProps): ReactNode {
   return (
-    <div className="flex justify-end w-full px-2">
-      <div className="bg-message-grey text-sm px-5 py-3 inline-block rounded-tr-3xl rounded-tl-3xl rounded-bl-3xl rounded-br-sm max-w-full float-left wrap-normal md:wrap-break-word">
-        <p className="whitespace-pre-line">{children}</p>
+    <div className="flex w-full min-w-0 justify-end">
+      <div className="max-w-[85%] overflow-hidden rounded-2xl rounded-br-sm border border-purple-200 bg-purple-100 px-4 py-3 text-sm leading-6 text-slate-800 shadow-sm">
+        <p className="whitespace-pre-line break-words [overflow-wrap:anywhere]">
+          {children}
+        </p>
       </div>
     </div>
   );

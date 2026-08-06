@@ -4,19 +4,23 @@ interface ConversationPropsType {
   name: string;
   isSelected: boolean;
   onSelect: () => void;
-  onEnd: () => void;
+  onRequestEnd: (trigger: HTMLButtonElement) => void;
   isEnding: boolean;
 }
 export default function Conversation({
   name,
   isSelected,
   onSelect,
-  onEnd,
+  onRequestEnd,
   isEnding,
 }: ConversationPropsType) {
   return (
     <div
-      className={`group flex items-center min-w-0 outline outline-message-grey rounded-2xl w-full p-2 text-sm font-bold cursor-pointer ${isSelected ? "bg-message-grey" : "hover:bg-message-grey"}`}
+      className={`group flex min-w-0 w-full cursor-pointer items-center rounded-xl border px-2 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 ${
+        isSelected
+          ? "border-purple-200 bg-purple-100 text-purple-700"
+          : "border-transparent bg-white text-slate-600 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900"
+      }`}
       onClick={onSelect}
       onKeyDown={(e) => {
         if (
@@ -31,17 +35,19 @@ export default function Conversation({
       tabIndex={0}
       title={name}
     >
-      <span className="truncate flex-1">{name}</span>
+      <span className="min-w-0 flex-1 truncate">{name}</span>
       <button
-        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0 ml-2 text-gray-400 hover:text-[#5e00b2]"
+        type="button"
+        aria-label="End conversation"
+        className="ml-2 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-colors hover:bg-red-50 hover:text-red-600 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
         onClick={(e) => {
           e.stopPropagation();
-          if (window.confirm("End this conversation?")) onEnd();
+          onRequestEnd(e.currentTarget);
         }}
         title="End conversation"
         disabled={isEnding}
       >
-        <Trash2 size={14} />
+        <Trash2 aria-hidden="true" className="h-5 w-5" />
       </button>
     </div>
   );

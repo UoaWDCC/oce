@@ -8,12 +8,14 @@ export default function ChatArea() {
 
   return (
     <div
-      className={`${open ? `` : `hidden`} fixed top-0 left-0 h-full w-full p-0 z-100 bg-white`}
+      className={`${open ? `` : `hidden`} fixed top-0 left-0 h-full w-full p-0 z-100 bg-slate-50`}
     >
       <div className="flex h-full w-full p-5">
-        <div className="w-full flex gap-3">
+        <div className="grid h-full w-full grid-cols-[minmax(0,260px)_minmax(0,1fr)] gap-3 md:grid-cols-[260px_minmax(0,1fr)]">
           <ConversationsList />
-          <ChatFullscreen />
+          <div className="min-h-0 min-w-0">
+            <ChatFullscreen />
+          </div>
         </div>
       </div>
     </div>

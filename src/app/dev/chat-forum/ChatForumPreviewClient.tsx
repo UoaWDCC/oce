@@ -204,7 +204,6 @@ export default function ChatForumPreviewClient() {
       daoId: PREVIEW_DAO_ID,
       title: payload.title,
       excerpt: payload.body,
-      authorId: "preview-user",
       authorName: "You (preview)",
       createdAt: new Date().toISOString(),
       createdAtLabel: "just now",
@@ -212,52 +211,9 @@ export default function ChatForumPreviewClient() {
       viewCount: 0,
       types: [payload.postType],
       tags: [],
-      anonymous: payload.anonymous,
       isPinned: payload.isPinned,
-      imageUrl: payload.imageUrl,
     };
     setForumPanelPosts((prev) => [newPost, ...prev]);
-  };
-
-  const handlePreviewUpdatePost = async (
-    postId: string,
-    payload: PostSubmitPayload,
-  ) => {
-    await simulateLatency();
-    if (simulateFailure) {
-      setPreviewError("Simulated failure: could not update post.");
-      throw new Error("Simulated failure: could not update post.");
-    }
-    setPreviewError(null);
-    setForumPanelPosts((prev) =>
-      prev.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              title: payload.title,
-              excerpt: payload.body,
-              types: [payload.postType],
-              anonymous: payload.anonymous,
-              isPinned: payload.isPinned,
-              imageUrl: payload.imageUrl,
-            }
-          : post,
-      ),
-    );
-  };
-
-  const handlePreviewDeletePost = async (postId: string) => {
-    await simulateLatency();
-    if (simulateFailure) {
-      setPreviewError("Simulated failure: could not delete post.");
-      return false;
-    }
-    setPreviewError(null);
-    setForumPanelPosts((prev) => prev.filter((post) => post.id !== postId));
-    setForumPanelComments((prev) =>
-      prev.filter((comment) => comment.postId !== postId),
-    );
-    return true;
   };
 
   const handlePreviewSubmitComment = async (
@@ -309,16 +265,13 @@ export default function ChatForumPreviewClient() {
           </label>
           <ForumPanel
             comments={forumPanelComments}
-            currentUserId="preview-user"
             daoGroupId="00000000-0000-4000-8000-000000000001"
             daoName="WDCC DAO"
             posts={forumPanelPosts}
             error={previewError}
-            onDeletePost={handlePreviewDeletePost}
             onSelectPost={() => setPreviewError(null)}
             onSubmitPost={handlePreviewSubmitPost}
             onSubmitComment={handlePreviewSubmitComment}
-            onUpdatePost={handlePreviewUpdatePost}
           />
         </section>
 
@@ -402,11 +355,6 @@ export default function ChatForumPreviewClient() {
           <PostThread
             comments={mockForumThreadComments}
             onBack={() => console.log("Back to forum")}
-            onDeletePost={async () => {
-              console.log("Delete post");
-              await simulateLatency();
-              return true;
-            }}
             onLikeComment={(commentId) =>
               console.log(`Like comment ${commentId}`)
             }
@@ -416,10 +364,6 @@ export default function ChatForumPreviewClient() {
             onSortChange={setThreadSort}
             onSubmitComment={async (payload) => {
               console.log("Thread comment submitted:", payload);
-              await simulateLatency();
-            }}
-            onUpdatePost={async (payload) => {
-              console.log("Thread post updated:", payload);
               await simulateLatency();
             }}
             post={mockForumThreadPost}

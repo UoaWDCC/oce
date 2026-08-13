@@ -72,7 +72,7 @@ export type PostSubmitPayload = {
   postType: PostType;
   anonymous: boolean;
   isPinned: boolean;
-  imageUrl?: string;
+  imageUrl?: string | null;
 };
 
 export interface CreateCommentFields {
@@ -150,6 +150,7 @@ export interface ForumPostPreview {
   daoId: string;
   title: string;
   excerpt: string;
+  authorId?: string;
   authorName: string;
   authorWallet?: string;
   createdAt: string;
@@ -158,8 +159,10 @@ export interface ForumPostPreview {
   viewCount: number;
   types: PostType[];
   tags: string[];
+  anonymous?: boolean;
   isPinned?: boolean;
   isUnread?: boolean;
+  isOwnPost?: boolean;
   imageUrl?: string | null;
 }
 

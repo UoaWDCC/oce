@@ -7,12 +7,17 @@ import { useDaoForumPosts } from "@/features/chat-forum/hooks/useDaoForumPosts";
 import { useDaoForumComments } from "@/features/chat-forum/hooks/useDaoForumComments";
 import { useCreateDaoForumPost } from "@/features/chat-forum/hooks/useCreateDaoForumPost";
 import { useCreateDaoForumComment } from "@/features/chat-forum/hooks/useCreateDaoForumComment";
+import { useUpdateDaoForumPost } from "@/features/chat-forum/hooks/useUpdateDaoForumPost";
+import { useDeleteDaoForumPost } from "@/features/chat-forum/hooks/useDeleteDaoForumPost";
 import { useDaoForumCommentLike } from "@/features/chat-forum/hooks/useDaoForumCommentLike";
 import { useRecordPostView } from "@/features/chat-forum/hooks/useRecordPostView";
 import {
   submitForumComment,
   submitForumPost,
+  submitForumPostDelete,
+  submitForumPostUpdate,
 } from "@/features/chat-forum/submitHandlers";
+import { applyUpdatedPostToPreview } from "@/features/chat-forum/mappers";
 import type {
   CommentSubmitPayload,
   PostSubmitPayload,
@@ -27,6 +32,7 @@ type DaoForumProps = {
 export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const supabase = createClient();
   const [token, setToken] = useState<string | undefined>(undefined);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [commentSort, setCommentSort] = useState<ForumThreadSort>("latest");
 
@@ -35,6 +41,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       const { data: sessionData } = await supabase.auth.getSession();
       const accessToken = sessionData?.session?.access_token;
       setToken(accessToken);
+      setCurrentUserId(sessionData?.session?.user?.id ?? null);
     }
     fetchToken();
   }, []);
@@ -44,6 +51,8 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     isLoading,
     error,
     refetch: refetchPosts,
+    replacePost,
+    removePost,
   } = useDaoForumPosts(daoGroupId, token);
   const {
     comments,
@@ -56,6 +65,16 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     daoGroupId,
     token,
   );
+  const {
+    updatePost,
+    error: updatePostError,
+    isSubmitting: isUpdatingPost,
+  } = useUpdateDaoForumPost(daoGroupId, selectedPostId, token);
+  const {
+    deletePost,
+    error: deletePostError,
+    isSubmitting: isDeletingPost,
+  } = useDeleteDaoForumPost(daoGroupId, selectedPostId, token);
   const { createComment, error: createCommentError } = useCreateDaoForumComment(
     daoGroupId,
     selectedPostId,
@@ -73,6 +92,34 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     payload: PostSubmitPayload,
   ): Promise<void> => {
     await submitForumPost({ createPost, refetchPosts }, payload);
+  };
+
+  const handleUpdatePost = async (
+    postId: string,
+    payload: PostSubmitPayload,
+  ): Promise<void> => {
+    await submitForumPostUpdate(
+      {
+        updatePost,
+        applyUpdatedPost: (updated) => {
+          const existing = posts.find((post) => post.id === postId);
+          if (!existing) return;
+          replacePost(
+            applyUpdatedPostToPreview(existing, updated, currentUserId),
+          );
+        },
+        refetchPosts,
+      },
+      payload,
+    );
+  };
+
+  const handleDeletePost = async (postId: string): Promise<boolean> => {
+    return submitForumPostDelete({
+      deletePost,
+      removePost: () => removePost(postId),
+      refetchPosts,
+    });
   };
 
   const handleSubmitComment = async (
@@ -110,22 +157,29 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     commentsError?.message ??
     createCommentError?.message ??
     commentLikeError?.message;
+  const mutationError = updatePostError?.message ?? deletePostError?.message;
 
   return (
     <ForumPanel
       comments={comments}
+      currentUserId={currentUserId}
       daoGroupId={daoGroupId}
       daoName={dao.Name}
       commentSort={commentSort}
       commentsError={threadError}
       error={postsError}
       isCommentsLoading={isCommentsLoading}
+      isDeletingPost={isDeletingPost}
       isLoading={isLoading}
+      isUpdatingPost={isUpdatingPost}
+      mutationError={mutationError}
       onCommentSortChange={setCommentSort}
+      onDeletePost={handleDeletePost}
       onLikeComment={handleLikeComment}
       onSelectPost={handleSelectPost}
       onSubmitPost={handleSubmitPost}
       onSubmitComment={handleSubmitComment}
+      onUpdatePost={handleUpdatePost}
       posts={posts}
     />
   );

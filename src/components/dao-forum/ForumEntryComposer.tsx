@@ -46,7 +46,7 @@ export default function ForumEntryComposer({
   showCancelButton = false,
   variant = "compact",
   autoFocus = false,
-  limitKey = "POST_BODY", // Fixed: Destructured directly from props
+  limitKey = "POST_BODY",
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState("");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

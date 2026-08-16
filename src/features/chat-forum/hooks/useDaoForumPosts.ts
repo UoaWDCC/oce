@@ -13,6 +13,7 @@ export interface UseDaoForumPostsResult {
 export function useDaoForumPosts(
   daoGroupId: string | undefined | null,
   token?: string,
+  enabled = true,
 ): UseDaoForumPostsResult {
   const [posts, setPosts] = useState<ForumPostPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -20,8 +21,8 @@ export function useDaoForumPosts(
   const requestIdRef = useRef(0);
 
   const fetchPosts = useCallback(async () => {
-    if (!daoGroupId) {
-      // No id to fetch with: reset to the "untouched" state and bail.
+    if (!daoGroupId || !enabled) {
+      // No id, or not yet allowed to fetch: reset to the "untouched" state and bail.
       requestIdRef.current += 1;
       setPosts([]);
       setIsLoading(false);
@@ -58,7 +59,7 @@ export function useDaoForumPosts(
         setIsLoading(false);
       }
     }
-  }, [daoGroupId, token]);
+  }, [daoGroupId, token, enabled]);
 
   useEffect(() => {
     fetchPosts();

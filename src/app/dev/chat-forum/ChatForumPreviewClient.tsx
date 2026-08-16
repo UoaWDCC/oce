@@ -24,6 +24,8 @@ import {
 } from "@/features/chat-forum/mocks";
 
 const PREVIEW_DAO_ID = "0x333B47F13128A1225A434d9f403A3e850B0B48D";
+const PREVIEW_USER_ID = "preview-user-001";
+const PREVIEW_DAO_GROUP_ID = "00000000-0000-4000-8000-000000000001";
 
 // Fake latency so the composer's "submitting" state is visible when clicking
 // through the preview.
@@ -179,9 +181,6 @@ function PlaceholderStateCard({
 }
 
 export default function ChatForumPreviewClient() {
-  // In-memory store so the live ForumPanel below can create posts/comments with
-  // no backend — useful for testing the #122 submission wiring before the
-  // DAOID -> dao_groups UUID resolver lands.
   const [forumPanelPosts, setForumPanelPosts] = useState<ForumPostPreview[]>(
     mockForumPostPreviews,
   );
@@ -264,8 +263,9 @@ export default function ChatForumPreviewClient() {
             Simulate submission failure (exercise error + submitting states)
           </label>
           <ForumPanel
+            userId={PREVIEW_USER_ID}
             comments={forumPanelComments}
-            daoGroupId="00000000-0000-4000-8000-000000000001"
+            daoGroupId={PREVIEW_DAO_GROUP_ID}
             daoName="WDCC DAO"
             posts={forumPanelPosts}
             error={previewError}
@@ -390,6 +390,8 @@ export default function ChatForumPreviewClient() {
           </p>
           <div className="max-w-2xl">
             <PostEntryComposer
+              userId={PREVIEW_USER_ID}
+              daoGroupId={PREVIEW_DAO_GROUP_ID}
               daoName="WDCC DAO"
               onSubmit={async (payload) => {
                 console.log("Post submitted:", payload);

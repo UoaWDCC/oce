@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   X,
   Megaphone,
@@ -15,6 +15,7 @@ import {
   type PostType,
 } from "@app-types/dao-forum";
 import ForumEntryComposer from "./ForumEntryComposer";
+import { usePostDraft } from "@/features/chat-forum/hooks/usePostDraft";
 
 const POST_TYPE_CONFIG: Record<
   PostType,
@@ -43,6 +44,8 @@ const POST_TYPE_CONFIG: Record<
 };
 
 export type PostEntryComposerProps = {
+  userId: string;
+  daoGroupId: string;
   daoName?: string;
   onSubmit: (payload: PostSubmitPayload) => Promise<void>;
   onCancel?: () => void;
@@ -58,6 +61,8 @@ function classNames(...classes: Array<string | false | null | undefined>) {
 }
 
 export default function PostEntryComposer({
+  userId,
+  daoGroupId,
   daoName = "the DAO",
   onSubmit,
   onCancel,
@@ -67,11 +72,56 @@ export default function PostEntryComposer({
   disabled = false,
   className = "",
 }: PostEntryComposerProps) {
+  const { draft, isLoaded, saveDraft, clearDraft } = usePostDraft(
+    userId,
+    daoGroupId,
+  );
+
   const [title, setTitle] = useState("");
   const [postType, setPostType] = useState<PostType>(POST_TYPE.Discussion);
   const [anonymous, setAnonymous] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && draft) {
+      setTitle(draft.title);
+      if (
+        draft.postType &&
+        Object.values(POST_TYPE).includes(draft.postType as PostType)
+      ) {
+        setPostType(draft.postType as PostType);
+      }
+      setAnonymous(draft.anonymous);
+    }
+  }, [isLoaded, draft]);
+
+  const handleFieldChange = (
+    newTitle: string,
+    newPostType: PostType,
+    newAnonymous: boolean,
+    currentBody: string = draft?.body ?? "",
+  ) => {
+    setTitle(newTitle);
+    setPostType(newPostType);
+    setAnonymous(newAnonymous);
+
+    saveDraft({
+      title: newTitle,
+      body: currentBody,
+      postType: newPostType,
+      anonymous: newAnonymous,
+    });
+  };
+
+  const handleBodyChange = (newBody: string) => {
+    saveDraft({
+      title,
+      body: newBody,
+      postType,
+      anonymous,
+    });
+  };
 
   const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
     setTitleError(null);
@@ -91,19 +141,24 @@ export default function PostEntryComposer({
         imageUrl: data.imageUrl,
       });
 
-      // Only clear form after successful submission
+      clearDraft();
       setTitle("");
       setPostType(POST_TYPE.Discussion);
       setAnonymous(false);
       setIsPinned(false);
     } catch (err) {
-      // Keep form data when submission fails so user can retry
-      // Error will be caught and displayed by ForumEntryComposer
       throw err;
     }
   };
 
+  const handleCancel = () => {
+    clearDraft();
+    onCancel?.();
+  };
+
   const postTypes = Object.values(POST_TYPE);
+
+  if (!isLoaded) return null;
 
   return (
     <div
@@ -139,7 +194,9 @@ export default function PostEntryComposer({
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) =>
+              handleFieldChange(e.target.value, postType, anonymous)
+            }
             placeholder="Enter a descriptive title..."
             disabled={disabled}
             className={classNames(
@@ -168,7 +225,7 @@ export default function PostEntryComposer({
                   key={type}
                   type="button"
                   aria-pressed={isSelected}
-                  onClick={() => setPostType(type)}
+                  onClick={() => handleFieldChange(title, type, anonymous)}
                   disabled={disabled}
                   className={classNames(
                     "flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors",
@@ -207,7 +264,9 @@ export default function PostEntryComposer({
                 <input
                   type="checkbox"
                   checked={anonymous}
-                  onChange={(e) => setAnonymous(e.target.checked)}
+                  onChange={(e) =>
+                    handleFieldChange(title, postType, e.target.checked)
+                  }
                   disabled={disabled}
                   className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                 />
@@ -231,10 +290,12 @@ export default function PostEntryComposer({
         )}
 
         <ForumEntryComposer
+          initialValue={draft?.body ?? ""}
+          onChange={handleBodyChange}
           placeholder="Write your post content here..."
           submitLabel="Publish Post"
           onSubmit={handleSubmit}
-          onCancel={onCancel}
+          onCancel={onCancel ? handleCancel : undefined}
           disabled={disabled}
           showCancelButton={!!onCancel}
           variant="full"

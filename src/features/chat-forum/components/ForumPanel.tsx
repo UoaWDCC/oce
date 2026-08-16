@@ -28,6 +28,7 @@ import type {
 } from "@app-types/dao-forum";
 
 type ForumPanelProps = {
+  userId: string;
   daoGroupId: string;
   daoName: string;
   posts: ForumPostPreview[];
@@ -107,6 +108,7 @@ function PostPreview({
 }
 
 export default function ForumPanel({
+  userId, // <-- Destructured userId here
   daoGroupId,
   daoName,
   posts,
@@ -368,6 +370,8 @@ export default function ForumPanel({
           <section className="mb-6" aria-label="Create a post">
             <PostEntryComposer
               className="border border-purple-200 shadow-sm"
+              userId={userId}
+              daoGroupId={daoGroupId}
               daoName={daoName}
               onCancel={() => setIsComposerOpen(false)}
               onClose={() => setIsComposerOpen(false)}

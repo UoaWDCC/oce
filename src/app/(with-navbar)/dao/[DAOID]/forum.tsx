@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ForumPanel } from "@/features/chat-forum";
 import { DAO } from "./types";
-import { createClient } from "@/utils/supabase/client";
+import { useDaoForumAuthSession } from "@/features/chat-forum/hooks/useDaoForumAuthSession";
 import { useDaoForumPosts } from "@/features/chat-forum/hooks/useDaoForumPosts";
 import { useDaoForumComments } from "@/features/chat-forum/hooks/useDaoForumComments";
 import { useCreateDaoForumPost } from "@/features/chat-forum/hooks/useCreateDaoForumPost";
@@ -25,32 +25,30 @@ type DaoForumProps = {
 };
 
 export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
-  const supabase = createClient();
-  const [token, setToken] = useState<string | undefined>(undefined);
+  const authSession = useDaoForumAuthSession();
+  const token = authSession.token;
+  const isAuthenticated = authSession.status === "authenticated";
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [commentSort, setCommentSort] = useState<ForumThreadSort>("latest");
-
-  useEffect(() => {
-    async function fetchToken() {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      setToken(accessToken);
-    }
-    fetchToken();
-  }, []);
 
   const {
     posts,
     isLoading,
     error,
     refetch: refetchPosts,
-  } = useDaoForumPosts(daoGroupId, token);
+  } = useDaoForumPosts(daoGroupId, token, isAuthenticated);
   const {
     comments,
     isLoading: isCommentsLoading,
     error: commentsError,
     refetch: refetchComments,
-  } = useDaoForumComments(daoGroupId, selectedPostId, token, commentSort);
+  } = useDaoForumComments(
+    daoGroupId,
+    selectedPostId,
+    token,
+    commentSort,
+    isAuthenticated,
+  );
 
   const { createPost, error: createPostError } = useCreateDaoForumPost(
     daoGroupId,

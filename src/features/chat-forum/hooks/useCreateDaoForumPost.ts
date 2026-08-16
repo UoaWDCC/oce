@@ -28,6 +28,12 @@ export function useCreateDaoForumPost(
         throw err;
       }
 
+      if (!token) {
+        const err = new Error("Cannot create a post: not signed in.");
+        setError(err);
+        throw err;
+      }
+
       if (isSubmittingRef.current) {
         return null;
       }

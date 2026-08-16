@@ -22,8 +22,11 @@ export function useDaoForumComments(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchComments = useCallback(async () => {
+    abortControllerRef.current?.abort();
+
     if (!daoGroupId || !postId || !enabled) {
       requestIdRef.current += 1;
       setComments([]);
@@ -31,6 +34,9 @@ export function useDaoForumComments(
       setError(null);
       return;
     }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
 
@@ -40,6 +46,7 @@ export function useDaoForumComments(
         postId,
         sort,
         token,
+        controller.signal,
       );
       if (currentRequestId !== requestIdRef.current) {
         return;
@@ -50,6 +57,9 @@ export function useDaoForumComments(
       setComments(mapped);
       setError(null);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
@@ -67,6 +77,9 @@ export function useDaoForumComments(
 
   useEffect(() => {
     fetchComments();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [fetchComments]);
 
   const refetch = useCallback(() => {

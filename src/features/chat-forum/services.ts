@@ -56,7 +56,10 @@ async function request(
         ...options.headers,
       },
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err;
+    }
     // fetch only rejects when the request never reached the server.
     throw new Error(NETWORK_ERROR_MESSAGE);
   }

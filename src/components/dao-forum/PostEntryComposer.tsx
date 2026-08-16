@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   X,
   Megaphone,
@@ -14,7 +14,9 @@ import {
   type PostSubmitPayload,
   type PostType,
 } from "@app-types/dao-forum";
-import ForumEntryComposer from "./ForumEntryComposer";
+import ForumEntryComposer, {
+  type ForumEntryComposerHandle,
+} from "./ForumEntryComposer";
 import { usePostDraft } from "@/features/chat-forum/hooks/usePostDraft";
 
 const POST_TYPE_CONFIG: Record<
@@ -77,24 +79,27 @@ export default function PostEntryComposer({
     daoGroupId,
   );
 
+  const composerRef = useRef<ForumEntryComposerHandle>(null);
+
   const [title, setTitle] = useState("");
   const [postType, setPostType] = useState<PostType>(POST_TYPE.Discussion);
   const [anonymous, setAnonymous] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [titleError, setTitleError] = useState<string | null>(null);
 
+  // Hydrate form from saved draft ONLY ONCE when component finishes loading
   useEffect(() => {
     if (isLoaded && draft) {
-      setTitle(draft.title);
+      setTitle(draft.title ?? "");
       if (
         draft.postType &&
         Object.values(POST_TYPE).includes(draft.postType as PostType)
       ) {
         setPostType(draft.postType as PostType);
       }
-      setAnonymous(draft.anonymous);
+      setAnonymous(draft.anonymous ?? false);
     }
-  }, [isLoaded, draft]);
+  }, [isLoaded]);
 
   const handleFieldChange = (
     newTitle: string,
@@ -141,11 +146,17 @@ export default function PostEntryComposer({
         imageUrl: data.imageUrl,
       });
 
+      // Clear local storage draft first
       clearDraft();
+
+      // Reset parent states
       setTitle("");
       setPostType(POST_TYPE.Discussion);
       setAnonymous(false);
       setIsPinned(false);
+
+      // Directly trigger child composer state reset
+      composerRef.current?.clear();
     } catch (err) {
       throw err;
     }
@@ -153,6 +164,7 @@ export default function PostEntryComposer({
 
   const handleCancel = () => {
     clearDraft();
+    composerRef.current?.clear();
     onCancel?.();
   };
 
@@ -290,6 +302,7 @@ export default function PostEntryComposer({
         )}
 
         <ForumEntryComposer
+          ref={composerRef}
           initialValue={draft?.body ?? ""}
           onChange={handleBodyChange}
           placeholder="Write your post content here..."

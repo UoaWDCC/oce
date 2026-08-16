@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+  forwardRef,
+} from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
 import { hasMeaningfulForumContent } from "@/utils/forumContent";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
@@ -11,6 +18,10 @@ const FORMAT_COMMANDS: Record<FormatType, string> = {
   italic: "italic",
   underline: "underline",
   bullet: "insertUnorderedList",
+};
+
+export type ForumEntryComposerHandle = {
+  clear: () => void;
 };
 
 export type ForumEntryComposerProps = {
@@ -33,21 +44,27 @@ function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-export default function ForumEntryComposer({
-  initialValue = "",
-  onChange,
-  placeholder = "Write something...",
-  submitLabel = "Submit",
-  onSubmit,
-  onCancel,
-  disabled = false,
-  className = "",
-  children,
-  showAttachButton = true,
-  showCancelButton = false,
-  variant = "compact",
-  autoFocus = false,
-}: ForumEntryComposerProps) {
+const ForumEntryComposer = forwardRef<
+  ForumEntryComposerHandle,
+  ForumEntryComposerProps
+>(function ForumEntryComposer(
+  {
+    initialValue = "",
+    onChange,
+    placeholder = "Write something...",
+    submitLabel = "Submit",
+    onSubmit,
+    onCancel,
+    disabled = false,
+    className = "",
+    children,
+    showAttachButton = true,
+    showCancelButton = false,
+    variant = "compact",
+    autoFocus = false,
+  },
+  ref,
+) {
   const [body, setBody] = useState(initialValue);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -68,7 +85,34 @@ export default function ForumEntryComposer({
   const [activeFormats, setActiveFormats] = useState<FormatType[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  // Sync editor content whenever initialValue explicitly changes from parent
+  const clearSelectedImage = useCallback(() => {
+    if (imagePreviewRef.current) {
+      URL.revokeObjectURL(imagePreviewRef.current);
+      imagePreviewRef.current = null;
+    }
+    setSelectedFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const clear = useCallback(() => {
+    setBody("");
+    setActiveFormats([]);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "";
+    }
+    clearSelectedImage();
+    setError(null);
+    setValidationError(null);
+    clearUploadError();
+  }, [clearSelectedImage, clearUploadError]);
+
+  useImperativeHandle(ref, () => ({
+    clear,
+  }));
+
   useEffect(() => {
     if (editorRef.current && initialValue !== editorRef.current.innerHTML) {
       setBody(initialValue);
@@ -154,18 +198,6 @@ export default function ForumEntryComposer({
     fileInputRef.current?.click();
   };
 
-  const clearSelectedImage = () => {
-    if (imagePreviewRef.current) {
-      URL.revokeObjectURL(imagePreviewRef.current);
-      imagePreviewRef.current = null;
-    }
-    setSelectedFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -224,15 +256,7 @@ export default function ForumEntryComposer({
         imageUrl: uploadedImage?.publicUrl,
       });
 
-      // Clear internal state & DOM element
-      setBody("");
-      onChange?.("");
-      setActiveFormats([]);
-      if (editorRef.current) {
-        editorRef.current.innerHTML = "";
-      }
-      clearSelectedImage();
-      setError(null);
+      clear();
     } catch (err) {
       if (uploadedImage) {
         await removeImage(uploadedImage.path);
@@ -441,4 +465,8 @@ export default function ForumEntryComposer({
       )}
     </div>
   );
-}
+});
+
+ForumEntryComposer.displayName = "ForumEntryComposer";
+
+export default ForumEntryComposer;

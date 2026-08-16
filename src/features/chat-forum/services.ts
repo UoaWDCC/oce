@@ -161,10 +161,11 @@ export async function getPostComments(
   postId: string,
   sort = "oldest",
   token?: string,
+  signal?: AbortSignal,
 ) {
   const data = (await request(
     `/dao-forum/${daoGroupId}/posts/${postId}/comments?sort=${sort}`,
-    {},
+    { signal },
     token,
   )) as FormattedComment[];
   return data;

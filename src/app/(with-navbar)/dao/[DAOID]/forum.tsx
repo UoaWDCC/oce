@@ -103,11 +103,17 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     }
   };
 
-  const postsError = error?.message ?? createPostError?.message;
-  const threadError =
-    commentsError?.message ??
-    createCommentError?.message ??
-    commentLikeError?.message;
+  const isUnauthenticated = authSession.status === "unauthenticated";
+  const signInMessage = "Sign in to view the DAO forum.";
+
+  const postsError = isUnauthenticated
+    ? signInMessage
+    : (error?.message ?? createPostError?.message);
+  const threadError = isUnauthenticated
+    ? signInMessage
+    : (commentsError?.message ??
+      createCommentError?.message ??
+      commentLikeError?.message);
 
   return (
     <ForumPanel
@@ -118,7 +124,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       commentsError={threadError}
       error={postsError}
       isCommentsLoading={isCommentsLoading}
-      isLoading={isLoading}
+      isLoading={authSession.status === "loading" || isLoading}
       onCommentSortChange={setCommentSort}
       onLikeComment={handleLikeComment}
       onSelectPost={handleSelectPost}

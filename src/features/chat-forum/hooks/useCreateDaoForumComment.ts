@@ -35,6 +35,12 @@ export function useCreateDaoForumComment(
         setError(err);
         throw err;
       }
+
+      if (!token) {
+        const err = new Error("Cannot create comment: not signed in.");
+        setError(err);
+        throw err;
+      }
       if (isSubmittingRef.current) {
         return undefined;
       }

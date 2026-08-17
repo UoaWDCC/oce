@@ -14,6 +14,15 @@ export interface Conversation {
   updated_at: string;
 }
 
+// Response of GET /api/ai-tutor/token-usage. Named "Summary" to stay distinct
+// from the per-request TokenUsage in @/llm/types/TokenUsage.
+export interface TokenUsageSummary {
+  availableTokens: number;
+  usedTokens: number;
+  totalTokens: number;
+  oldestMessage: string | null;
+}
+
 export interface TutorMessage {
   id: string;
   conversation_id: string;

@@ -6,12 +6,16 @@ interface TextAreaPropsType {
   submitMessage(message: string): Promise<void> | void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
+  disabled?: boolean;
+  placeholder?: string;
 }
 
 export default function TextArea({
   submitMessage,
   isSubmitting = false,
   errorMessage = null,
+  disabled = false,
+  placeholder,
 }: TextAreaPropsType): ReactNode {
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
   const [inputValue, setInputValue] = useState<string>("");
@@ -30,7 +34,7 @@ export default function TextArea({
   async function handleSubmit() {
     const message = inputValue.trim();
 
-    if (!message || isSubmitting) {
+    if (!message || isSubmitting || disabled) {
       return;
     }
 
@@ -58,7 +62,8 @@ export default function TextArea({
           value={inputValue}
           onChange={updateInputValue}
           aria-label="Message AI Tutor"
-          disabled={isSubmitting}
+          placeholder={placeholder}
+          disabled={isSubmitting || disabled}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               if (e.shiftKey) {
@@ -73,7 +78,7 @@ export default function TextArea({
           type="button"
           aria-label="Send message"
           className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-[#5e00b2] transition-colors hover:bg-purple-200 active:bg-purple-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
-          disabled={isSubmitting || inputValue.trim().length === 0}
+          disabled={isSubmitting || disabled || inputValue.trim().length === 0}
           onClick={() => {
             void handleSubmit();
           }}

@@ -17,6 +17,7 @@ import PostThread from "./PostThread";
 import {
   buildForumThreadComments,
   mapForumPostPreviewToThreadPost,
+  withOwnPostCapability,
 } from "../mappers";
 import type { ForumThreadSort } from "../types";
 import type {
@@ -28,18 +29,26 @@ import type {
 } from "@app-types/dao-forum";
 
 type ForumPanelProps = {
-  userId: string;
   daoGroupId: string;
   daoName: string;
   posts: ForumPostPreview[];
   comments?: ForumCommentPreview[];
+  currentUserId?: string | null;
   isLoading?: boolean;
   isCommentsLoading?: boolean;
   error?: string | null;
   commentsError?: string | null;
+  mutationError?: string | null;
   commentSort?: ForumThreadSort;
+  isUpdatingPost?: boolean;
+  isDeletingPost?: boolean;
   onCreatePost?: () => void;
   onSubmitPost?: (payload: PostSubmitPayload) => Promise<void> | void;
+  onUpdatePost?: (
+    postId: string,
+    payload: PostSubmitPayload,
+  ) => Promise<void> | void;
+  onDeletePost?: (postId: string) => Promise<boolean> | boolean;
   onSelectPost?: (postId: string | null) => void;
   onSubmitComment?: (
     postId: string,
@@ -108,18 +117,23 @@ function PostPreview({
 }
 
 export default function ForumPanel({
-  userId, // <-- Destructured userId here
   daoGroupId,
   daoName,
   posts,
   comments = [],
+  currentUserId = null,
   isLoading = false,
   isCommentsLoading = false,
   error = null,
   commentsError = null,
+  mutationError = null,
   commentSort = "latest",
+  isUpdatingPost = false,
+  isDeletingPost = false,
   onCreatePost,
   onSubmitPost,
+  onUpdatePost,
+  onDeletePost,
   onSelectPost,
   onSubmitComment,
   onLikeComment,
@@ -134,14 +148,19 @@ export default function ForumPanel({
   );
   const [isComposerOpen, setIsComposerOpen] = useState(false);
 
+  const ownedPosts = useMemo(
+    () => posts.map((post) => withOwnPostCapability(post, currentUserId)),
+    [currentUserId, posts],
+  );
+
   const tags = useMemo(
-    () => Array.from(new Set(posts.flatMap((post) => post.tags))),
-    [posts],
+    () => Array.from(new Set(ownedPosts.flatMap((post) => post.tags))),
+    [ownedPosts],
   );
 
   const filteredPosts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const filtered = posts.filter((post) => {
+    const filtered = ownedPosts.filter((post) => {
       const matchesQuery =
         !normalizedQuery ||
         post.title.toLowerCase().includes(normalizedQuery) ||
@@ -153,11 +172,11 @@ export default function ForumPanel({
     return [...filtered].sort((left, right) => {
       return Date.parse(right.createdAt) - Date.parse(left.createdAt);
     });
-  }, [postType, posts, query, unreadOnly]);
+  }, [ownedPosts, postType, query, unreadOnly]);
 
   const pinnedPosts = filteredPosts.filter((post) => post.isPinned);
   const regularPosts = filteredPosts.filter((post) => !post.isPinned);
-  const selectedPost = posts.find((post) => post.id === selectedPostId);
+  const selectedPost = ownedPosts.find((post) => post.id === selectedPostId);
   const selectedComments = useMemo(
     () => comments.filter((comment) => comment.postId === selectedPostId),
     [comments, selectedPostId],
@@ -172,7 +191,7 @@ export default function ForumPanel({
   const replyingToComment = selectedComments.find(
     (comment) => comment.id === replyingToCommentId,
   );
-  const unreadCount = posts.filter((post) => post.isUnread).length;
+  const unreadCount = ownedPosts.filter((post) => post.isUnread).length;
 
   const selectPost = (postId: string) => {
     setReplyingToCommentId(null);
@@ -212,18 +231,38 @@ export default function ForumPanel({
     setReplyingToCommentId(null);
   };
 
+  const submitUpdatedPost = async (payload: PostSubmitPayload) => {
+    if (!selectedPost) return;
+    await onUpdatePost?.(selectedPost.id, payload);
+  };
+
+  const deleteSelectedPost = async () => {
+    if (!selectedPost) return false;
+    const deleted = await onDeletePost?.(selectedPost.id);
+    if (deleted) {
+      closeThread();
+    }
+    return Boolean(deleted);
+  };
+
   if (threadPost) {
     return (
       <PostThread
         comments={threadComments}
         commentsError={commentsError}
+        daoName={daoName}
+        isDeletingPost={isDeletingPost}
         isLoadingComments={isCommentsLoading}
+        isUpdatingPost={isUpdatingPost}
+        mutationError={mutationError}
         onBack={closeThread}
         onCancelReply={() => setReplyingToCommentId(null)}
+        onDeletePost={onDeletePost ? deleteSelectedPost : undefined}
         onLikeComment={onLikeComment}
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
         onSubmitComment={submitComment}
+        onUpdatePost={onUpdatePost ? submitUpdatedPost : undefined}
         post={threadPost}
         replyingTo={
           replyingToComment
@@ -370,7 +409,7 @@ export default function ForumPanel({
           <section className="mb-6" aria-label="Create a post">
             <PostEntryComposer
               className="border border-purple-200 shadow-sm"
-              userId={userId}
+              userId={currentUserId}
               daoGroupId={daoGroupId}
               daoName={daoName}
               onCancel={() => setIsComposerOpen(false)}

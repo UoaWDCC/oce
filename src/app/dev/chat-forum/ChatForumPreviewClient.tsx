@@ -194,8 +194,9 @@ export default function ChatForumPreviewClient() {
   const handlePreviewSubmitPost = async (payload: PostSubmitPayload) => {
     await simulateLatency();
     if (simulateFailure) {
-      setPreviewError("Simulated failure: could not create post.");
-      return;
+      const message = "Simulated failure: could not create post.";
+      setPreviewError(message);
+      throw new Error(message);
     }
     setPreviewError(null);
     const newPost: ForumPostPreview = {
@@ -221,8 +222,9 @@ export default function ChatForumPreviewClient() {
   ) => {
     await simulateLatency();
     if (simulateFailure) {
-      setPreviewError("Simulated failure: could not create comment.");
-      return;
+      const message = "Simulated failure: could not create comment.";
+      setPreviewError(message);
+      throw new Error(message);
     }
     setPreviewError(null);
     const newComment: ForumCommentPreview = {
@@ -263,8 +265,8 @@ export default function ChatForumPreviewClient() {
             Simulate submission failure (exercise error + submitting states)
           </label>
           <ForumPanel
-            userId={PREVIEW_USER_ID}
             comments={forumPanelComments}
+            currentUserId={PREVIEW_USER_ID}
             daoGroupId={PREVIEW_DAO_GROUP_ID}
             daoName="WDCC DAO"
             posts={forumPanelPosts}

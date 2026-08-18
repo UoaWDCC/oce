@@ -13,6 +13,7 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     excerpt:
       "A reminder that governance proposals must be submitted before Sunday at 11:59 PM NZST.",
     authorName: "DAO Facilitator",
+    authorId: "preview-user-facilitator",
     authorWallet: "0x333B47F13128A1225A434d9f403A3e850B0B48D",
     createdAt: "2026-06-21T07:00:00.000Z",
     createdAtLabel: "2 hours ago",
@@ -29,6 +30,7 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     excerpt:
       "Opening proposal submission to delegates could increase participation. Feedback on the draft process is welcome.",
     authorName: "Jordan S.",
+    authorId: "preview-user",
     authorWallet: "0x9e1e5a823803aFe4Ccf352bdA961570682f47158A",
     createdAt: "2026-06-21T06:00:00.000Z",
     createdAtLabel: "3 hours ago",
@@ -45,6 +47,7 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     excerpt:
       "I would like to collect examples and agree on a consistent technical format before the next vote.",
     authorName: "Alex Morgan",
+    authorId: "preview-user-alex",
     authorWallet: "0x851C2a9D08d5E45A1cBB42a5e7c3F820621AC912",
     createdAt: "2026-06-20T22:00:00.000Z",
     createdAtLabel: "11 hours ago",
@@ -89,6 +92,7 @@ export const mockForumThreadPost: ForumThreadPost = {
   createdAtLabel: "3 hours ago",
   viewCount: 31,
   statusLabel: "Voting Open",
+  isOwnPost: true,
 };
 
 export const mockForumThreadComments: ForumThreadComment[] = [

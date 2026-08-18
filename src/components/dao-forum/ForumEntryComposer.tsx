@@ -25,11 +25,10 @@ export type ForumEntryComposerHandle = {
 };
 
 export type ForumEntryComposerProps = {
-  initialValue?: string;
   onChange?: (value: string) => void;
   placeholder?: string;
   submitLabel?: string;
-  onSubmit: (data: { body: string; imageUrl?: string }) => Promise<void>;
+  onSubmit: (data: { body: string; imageUrl?: string | null }) => Promise<void>;
   onCancel?: () => void;
   disabled?: boolean;
   className?: string;
@@ -38,6 +37,8 @@ export type ForumEntryComposerProps = {
   showCancelButton?: boolean;
   variant?: "compact" | "full";
   autoFocus?: boolean;
+  initialBody?: string;
+  initialImageUrl?: string | null;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -49,7 +50,6 @@ const ForumEntryComposer = forwardRef<
   ForumEntryComposerProps
 >(function ForumEntryComposer(
   {
-    initialValue = "",
     onChange,
     placeholder = "Write something...",
     submitLabel = "Submit",
@@ -62,12 +62,19 @@ const ForumEntryComposer = forwardRef<
     showCancelButton = false,
     variant = "compact",
     autoFocus = false,
+    initialBody = "",
+    initialImageUrl = null,
   },
   ref,
 ) {
-  const [body, setBody] = useState(initialValue);
+  const [body, setBody] = useState(initialBody);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [retainedImageUrl, setRetainedImageUrl] = useState<string | null>(
+    initialImageUrl,
+  );
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    initialImageUrl,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -104,6 +111,7 @@ const ForumEntryComposer = forwardRef<
       editorRef.current.innerHTML = "";
     }
     clearSelectedImage();
+    setRetainedImageUrl(null);
     setError(null);
     setValidationError(null);
     clearUploadError();
@@ -112,13 +120,6 @@ const ForumEntryComposer = forwardRef<
   useImperativeHandle(ref, () => ({
     clear,
   }));
-
-  useEffect(() => {
-    if (editorRef.current && initialValue !== editorRef.current.innerHTML) {
-      setBody(initialValue);
-      editorRef.current.innerHTML = initialValue;
-    }
-  }, [initialValue]);
 
   const updateActiveFormats = useCallback(() => {
     const editor = editorRef.current;
@@ -187,6 +188,13 @@ const ForumEntryComposer = forwardRef<
   }, [autoFocus]);
 
   useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || initialBody === editor.innerHTML) return;
+    setBody(initialBody);
+    editor.innerHTML = initialBody;
+  }, [initialBody]);
+
+  useEffect(() => {
     return () => {
       if (imagePreviewRef.current) {
         URL.revokeObjectURL(imagePreviewRef.current);
@@ -222,6 +230,8 @@ const ForumEntryComposer = forwardRef<
 
   const handleRemoveImage = () => {
     clearSelectedImage();
+    setRetainedImageUrl(null);
+    setImagePreview(null);
     setError(null);
     clearUploadError();
   };
@@ -253,7 +263,7 @@ const ForumEntryComposer = forwardRef<
 
       await onSubmit({
         body: body.trim(),
-        imageUrl: uploadedImage?.publicUrl,
+        imageUrl: uploadedImage?.publicUrl ?? retainedImageUrl,
       });
 
       clear();

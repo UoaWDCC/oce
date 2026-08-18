@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -9,13 +10,20 @@ import {
   Eye,
   Heart,
   MessageCircle,
+  Pencil,
   Reply,
+  Trash2,
   X,
 } from "lucide-react";
 import StudentAvatar from "@/components/common/StudentAvatar";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
+import ConfirmDeleteDialog from "@/components/dao-forum/ConfirmDeleteDialog";
+import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
 import Tag from "@/components/dao-forum/Tag";
-import type { CommentSubmitPayload } from "@app-types/dao-forum";
+import type {
+  CommentSubmitPayload,
+  PostSubmitPayload,
+} from "@app-types/dao-forum";
 import type {
   ForumThreadComment,
   ForumThreadPost,
@@ -31,11 +39,17 @@ type PostThreadProps = {
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
   onLikeComment?: (commentId: string) => void;
   onReplyToComment?: (commentId: string) => void;
+  onUpdatePost?: (payload: PostSubmitPayload) => Promise<void>;
+  onDeletePost?: () => Promise<boolean> | boolean;
+  isUpdatingPost?: boolean;
+  isDeletingPost?: boolean;
+  mutationError?: string | null;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
   isLoadingComments?: boolean;
   commentsError?: string | null;
   className?: string;
+  daoName?: string;
 };
 
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
@@ -267,14 +281,35 @@ export default function PostThread({
   onSubmitComment,
   onLikeComment,
   onReplyToComment,
+  onUpdatePost,
+  onDeletePost,
+  isUpdatingPost = false,
+  isDeletingPost = false,
+  mutationError = null,
   replyingTo = null,
   onCancelReply,
   isLoadingComments = false,
   commentsError = null,
   className,
+  daoName = "the DAO",
 }: PostThreadProps) {
   const commentCount = countComments(comments);
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const showOwnerActions = Boolean(post.isOwnPost);
+
+  const handleUpdatePost = async (payload: PostSubmitPayload) => {
+    await onUpdatePost?.(payload);
+    setIsEditing(false);
+  };
+
+  const handleConfirmDelete = async () => {
+    const deleted = await onDeletePost?.();
+    if (deleted) {
+      setIsDeleteConfirmOpen(false);
+    }
+  };
 
   return (
     <section
@@ -295,66 +330,129 @@ export default function PostThread({
         </button>
       )}
 
-      <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-7">
-        <div className="flex items-start gap-4">
-          <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md sm:flex">
-            <BookOpen aria-hidden="true" className="h-7 w-7" />
-          </div>
+      {isEditing && onUpdatePost ? (
+        <PostEntryComposer
+          key={post.id}
+          daoName={daoName}
+          mode="edit"
+          disabled={isUpdatingPost}
+          initialValues={{
+            title: post.title,
+            body: post.body,
+            postType: post.postType ?? undefined,
+            anonymous: post.anonymous,
+            isPinned: post.isPinned,
+            imageUrl: post.imageUrl,
+          }}
+          onCancel={() => setIsEditing(false)}
+          onClose={() => setIsEditing(false)}
+          onSubmit={handleUpdatePost}
+        />
+      ) : (
+        <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-7">
+          <div className="flex items-start gap-4">
+            <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md sm:flex">
+              <BookOpen aria-hidden="true" className="h-7 w-7" />
+            </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              {post.postType && <Tag size="md" type={post.postType} />}
-              {post.statusLabel && (
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                  ● {post.statusLabel}
-                </span>
-              )}
-              {post.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                {post.postType && <Tag size="md" type={post.postType} />}
+                {post.statusLabel && (
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                    ● {post.statusLabel}
+                  </span>
+                )}
+                {post.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-3 flex items-start justify-between gap-3">
+                <h1
+                  id={`forum-thread-${post.id}`}
+                  className="max-w-5xl text-2xl font-bold leading-tight text-slate-950 sm:text-3xl"
                 >
-                  {tag}
+                  {post.title}
+                </h1>
+                {showOwnerActions && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    {onUpdatePost && (
+                      <button
+                        type="button"
+                        aria-label="Edit post"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-purple-200 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                        onClick={() => setIsEditing(true)}
+                      >
+                        <Pencil aria-hidden="true" className="h-4 w-4" />
+                        Edit
+                      </button>
+                    )}
+                    {onDeletePost && (
+                      <button
+                        type="button"
+                        aria-label="Delete post"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-red-200 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                        onClick={() => setIsDeleteConfirmOpen(true)}
+                      >
+                        <Trash2 aria-hidden="true" className="h-4 w-4" />
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+                <StudentAvatar
+                  avatarColor={post.author.avatarColor}
+                  displayName={post.author.name}
+                  profileImageUrl={post.author.profileImageUrl}
+                  size="sm"
+                  timestamp={{
+                    label: post.createdAtLabel,
+                    dateTime: post.createdAt,
+                  }}
+                  walletAddress={post.author.walletAddress}
+                />
+                <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-500">
+                  <Eye aria-hidden="true" className="h-4 w-4" />
+                  {viewLabel}
                 </span>
-              ))}
-            </div>
-
-            <div className="mt-3">
-              <h1
-                id={`forum-thread-${post.id}`}
-                className="max-w-5xl text-2xl font-bold leading-tight text-slate-950 sm:text-3xl"
-              >
-                {post.title}
-              </h1>
-            </div>
-
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-              <StudentAvatar
-                avatarColor={post.author.avatarColor}
-                displayName={post.author.name}
-                profileImageUrl={post.author.profileImageUrl}
-                size="sm"
-                timestamp={{
-                  label: post.createdAtLabel,
-                  dateTime: post.createdAt,
-                }}
-                walletAddress={post.author.walletAddress}
-              />
-              <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-500">
-                <Eye aria-hidden="true" className="h-4 w-4" />
-                {viewLabel}
-              </span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-7 border-t border-slate-100 pt-7">
-          <MarkdownContent content={post.body} />
-          {post.imageUrl && (
-            <AttachedImage src={post.imageUrl} alt="Post attachment" />
-          )}
+          <div className="mt-7 border-t border-slate-100 pt-7">
+            <MarkdownContent content={post.body} />
+            {post.imageUrl && (
+              <AttachedImage src={post.imageUrl} alt="Post attachment" />
+            )}
+          </div>
+        </article>
+      )}
+
+      {mutationError && (
+        <div
+          className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700"
+          role="alert"
+        >
+          {mutationError}
         </div>
-      </article>
+      )}
+
+      {isDeleteConfirmOpen && (
+        <ConfirmDeleteDialog
+          isSubmitting={isDeletingPost}
+          onCancel={() => setIsDeleteConfirmOpen(false)}
+          onConfirm={handleConfirmDelete}
+        />
+      )}
 
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">

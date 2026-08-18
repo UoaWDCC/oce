@@ -14,9 +14,7 @@ import {
   type PostSubmitPayload,
   type PostType,
 } from "@app-types/dao-forum";
-import ForumEntryComposer, {
-  type ForumEntryComposerHandle,
-} from "./ForumEntryComposer";
+import ForumEntryComposer from "./ForumEntryComposer";
 import { usePostDraft } from "@/features/chat-forum/hooks/usePostDraft";
 
 const POST_TYPE_CONFIG: Record<
@@ -45,9 +43,18 @@ const POST_TYPE_CONFIG: Record<
   },
 };
 
+export type PostComposerInitialValues = {
+  title?: string;
+  body?: string;
+  postType?: PostType;
+  anonymous?: boolean;
+  isPinned?: boolean;
+  imageUrl?: string | null;
+};
+
 export type PostEntryComposerProps = {
-  userId: string;
-  daoGroupId: string;
+  userId?: string | null;
+  daoGroupId?: string;
   daoName?: string;
   onSubmit: (payload: PostSubmitPayload) => Promise<void>;
   onCancel?: () => void;
@@ -56,6 +63,8 @@ export type PostEntryComposerProps = {
   showPinnedToggle?: boolean;
   disabled?: boolean;
   className?: string;
+  mode?: "create" | "edit";
+  initialValues?: PostComposerInitialValues;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -73,62 +82,76 @@ export default function PostEntryComposer({
   showPinnedToggle = false,
   disabled = false,
   className = "",
+  mode = "create",
+  initialValues,
 }: PostEntryComposerProps) {
+  const isEditMode = mode === "edit";
   const { draft, isLoaded, saveDraft, clearDraft } = usePostDraft(
-    userId,
-    daoGroupId,
+    isEditMode ? undefined : (userId ?? undefined),
+    isEditMode ? undefined : daoGroupId,
   );
+  const draftContextKey =
+    !isEditMode && userId && daoGroupId ? `${userId}:${daoGroupId}` : null;
+  const hydratedDraftKeyRef = useRef<string | null | undefined>(undefined);
 
-  const composerRef = useRef<ForumEntryComposerHandle>(null);
-
-  const [title, setTitle] = useState("");
-  const [postType, setPostType] = useState<PostType>(POST_TYPE.Discussion);
-  const [anonymous, setAnonymous] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const [title, setTitle] = useState(initialValues?.title ?? "");
+  const [body, setBody] = useState(initialValues?.body ?? "");
+  const [postType, setPostType] = useState<PostType>(
+    initialValues?.postType ?? POST_TYPE.Discussion,
+  );
+  const [anonymous, setAnonymous] = useState(initialValues?.anonymous ?? false);
+  const [isPinned, setIsPinned] = useState(initialValues?.isPinned ?? false);
   const [titleError, setTitleError] = useState<string | null>(null);
 
-  // Hydrate form from saved draft ONLY ONCE when component finishes loading
   useEffect(() => {
-    if (isLoaded && draft) {
-      setTitle(draft.title ?? "");
-      if (
-        draft.postType &&
-        Object.values(POST_TYPE).includes(draft.postType as PostType)
-      ) {
-        setPostType(draft.postType as PostType);
-      }
-      setAnonymous(draft.anonymous ?? false);
+    if (
+      isEditMode ||
+      !isLoaded ||
+      hydratedDraftKeyRef.current === draftContextKey
+    ) {
+      return;
     }
-  }, [isLoaded]);
+    hydratedDraftKeyRef.current = draftContextKey;
 
-  const handleFieldChange = (
-    newTitle: string,
-    newPostType: PostType,
-    newAnonymous: boolean,
-    currentBody: string = draft?.body ?? "",
-  ) => {
-    setTitle(newTitle);
-    setPostType(newPostType);
-    setAnonymous(newAnonymous);
+    const savedPostType = Object.values(POST_TYPE).includes(
+      draft?.postType as PostType,
+    )
+      ? (draft?.postType as PostType)
+      : POST_TYPE.Discussion;
+    setTitle(draft?.title ?? "");
+    setBody(draft?.body ?? "");
+    setPostType(savedPostType);
+    setAnonymous(draft?.anonymous ?? false);
+    setIsPinned(draft?.isPinned ?? false);
+  }, [draft, draftContextKey, isEditMode, isLoaded]);
 
+  const persistDraft = (updates: {
+    title?: string;
+    body?: string;
+    postType?: PostType;
+    anonymous?: boolean;
+    isPinned?: boolean;
+  }) => {
+    if (isEditMode) return;
     saveDraft({
-      title: newTitle,
-      body: currentBody,
-      postType: newPostType,
-      anonymous: newAnonymous,
+      title: updates.title ?? title,
+      body: updates.body ?? body,
+      postType: updates.postType ?? postType,
+      anonymous: updates.anonymous ?? anonymous,
+      isPinned: updates.isPinned ?? isPinned,
+      imageUrl: draft?.imageUrl,
     });
   };
 
   const handleBodyChange = (newBody: string) => {
-    saveDraft({
-      title,
-      body: newBody,
-      postType,
-      anonymous,
-    });
+    setBody(newBody);
+    persistDraft({ body: newBody });
   };
 
-  const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
+  const handleSubmit = async (data: {
+    body: string;
+    imageUrl?: string | null;
+  }) => {
     setTitleError(null);
 
     if (!title.trim()) {
@@ -146,31 +169,27 @@ export default function PostEntryComposer({
         imageUrl: data.imageUrl,
       });
 
-      // Clear local storage draft first
-      clearDraft();
-
-      // Reset parent states
-      setTitle("");
-      setPostType(POST_TYPE.Discussion);
-      setAnonymous(false);
-      setIsPinned(false);
-
-      // Directly trigger child composer state reset
-      composerRef.current?.clear();
+      if (!isEditMode) {
+        clearDraft();
+        setTitle("");
+        setBody("");
+        setPostType(POST_TYPE.Discussion);
+        setAnonymous(false);
+        setIsPinned(false);
+      }
     } catch (err) {
       throw err;
     }
   };
 
   const handleCancel = () => {
-    clearDraft();
-    composerRef.current?.clear();
+    if (!isEditMode) clearDraft();
     onCancel?.();
   };
 
   const postTypes = Object.values(POST_TYPE);
 
-  if (!isLoaded) return null;
+  if (!isEditMode && !isLoaded) return null;
 
   return (
     <div
@@ -181,9 +200,13 @@ export default function PostEntryComposer({
     >
       <header className="flex items-start justify-between bg-violet-600 px-6 py-5">
         <div>
-          <h2 className="text-xl font-bold text-white">New Post</h2>
+          <h2 className="text-xl font-bold text-white">
+            {isEditMode ? "Edit Post" : "New Post"}
+          </h2>
           <p className="mt-1 text-sm text-violet-200">
-            Share with {daoName} community
+            {isEditMode
+              ? `Update your post in ${daoName}`
+              : `Share with ${daoName} community`}
           </p>
         </div>
         {onClose && (
@@ -206,9 +229,10 @@ export default function PostEntryComposer({
           <input
             type="text"
             value={title}
-            onChange={(e) =>
-              handleFieldChange(e.target.value, postType, anonymous)
-            }
+            onChange={(e) => {
+              setTitle(e.target.value);
+              persistDraft({ title: e.target.value });
+            }}
             placeholder="Enter a descriptive title..."
             disabled={disabled}
             className={classNames(
@@ -237,7 +261,10 @@ export default function PostEntryComposer({
                   key={type}
                   type="button"
                   aria-pressed={isSelected}
-                  onClick={() => handleFieldChange(title, type, anonymous)}
+                  onClick={() => {
+                    setPostType(type);
+                    persistDraft({ postType: type });
+                  }}
                   disabled={disabled}
                   className={classNames(
                     "flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors",
@@ -276,9 +303,10 @@ export default function PostEntryComposer({
                 <input
                   type="checkbox"
                   checked={anonymous}
-                  onChange={(e) =>
-                    handleFieldChange(title, postType, e.target.checked)
-                  }
+                  onChange={(e) => {
+                    setAnonymous(e.target.checked);
+                    persistDraft({ anonymous: e.target.checked });
+                  }}
                   disabled={disabled}
                   className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                 />
@@ -291,7 +319,10 @@ export default function PostEntryComposer({
                 <input
                   type="checkbox"
                   checked={isPinned}
-                  onChange={(e) => setIsPinned(e.target.checked)}
+                  onChange={(e) => {
+                    setIsPinned(e.target.checked);
+                    persistDraft({ isPinned: e.target.checked });
+                  }}
                   disabled={disabled}
                   className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
                 />
@@ -302,16 +333,16 @@ export default function PostEntryComposer({
         )}
 
         <ForumEntryComposer
-          ref={composerRef}
-          initialValue={draft?.body ?? ""}
-          onChange={handleBodyChange}
+          onChange={isEditMode ? undefined : handleBodyChange}
           placeholder="Write your post content here..."
-          submitLabel="Publish Post"
+          submitLabel={isEditMode ? "Save changes" : "Publish Post"}
           onSubmit={handleSubmit}
           onCancel={onCancel ? handleCancel : undefined}
           disabled={disabled}
           showCancelButton={!!onCancel}
           variant="full"
+          initialBody={isEditMode ? initialValues?.body : body}
+          initialImageUrl={initialValues?.imageUrl}
         />
       </div>
     </div>

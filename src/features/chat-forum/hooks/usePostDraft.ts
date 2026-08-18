@@ -7,6 +7,7 @@ export type PostDraft = {
   body: string;
   postType: string;
   anonymous: boolean;
+  isPinned: boolean;
   imageUrl?: string; // Stored as reference/URL, NEVER raw File objects
   version: number;
 };
@@ -20,18 +21,19 @@ function getDraftKey(userId: string, daoGroupId: string): string {
 
 export function usePostDraft(userId?: string, daoGroupId?: string) {
   const [draft, setDraft] = useState<PostDraft | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [loadedStorageKey, setLoadedStorageKey] = useState<
+    string | null | undefined
+  >(undefined);
 
   // Unique storage key for the draft based on user and DAO group context
   const storageKey =
     userId && daoGroupId ? getDraftKey(userId, daoGroupId) : null;
+  const isLoaded = loadedStorageKey === storageKey;
 
   useEffect(() => {
-    setIsLoaded(false);
-
     if (!storageKey) {
       setDraft(null);
-      setIsLoaded(true);
+      setLoadedStorageKey(null);
       return;
     }
 
@@ -39,7 +41,6 @@ export function usePostDraft(userId?: string, daoGroupId?: string) {
       const raw = localStorage.getItem(storageKey);
       if (!raw) {
         setDraft(null);
-        setIsLoaded(true);
         return;
       }
 
@@ -57,9 +58,11 @@ export function usePostDraft(userId?: string, daoGroupId?: string) {
         setDraft({
           title: parsed.title ?? "",
           body: parsed.body ?? "",
-          postType: parsed.postType ?? "discussion",
+          postType: parsed.postType ?? "Discussion",
           anonymous: Boolean(parsed.anonymous),
-          imageUrl: typeof parsed.imageUrl === "string" ? parsed.imageUrl : undefined,
+          isPinned: Boolean(parsed.isPinned),
+          imageUrl:
+            typeof parsed.imageUrl === "string" ? parsed.imageUrl : undefined,
           version: DRAFT_VERSION,
         });
       }
@@ -68,7 +71,7 @@ export function usePostDraft(userId?: string, daoGroupId?: string) {
       localStorage.removeItem(storageKey);
       setDraft(null);
     } finally {
-      setIsLoaded(true);
+      setLoadedStorageKey(storageKey);
     }
   }, [storageKey]);
 

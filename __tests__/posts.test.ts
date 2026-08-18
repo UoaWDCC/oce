@@ -465,6 +465,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     expect(res.status).toBe(200);
     expect(json.deleted_at).toBeTruthy();
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("comments");
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -504,32 +505,6 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     const res = await DELETE(req, mockParamsWithPostId);
 
     expect(res.status).toBe(404);
-  });
-
-  it("returns 500 when soft-deleting comments fails", async () => {
-    // Query 1: find the post and confirm author
-    mockSupabase.single.mockResolvedValueOnce({
-      data: { id: "post-1", author_id: "test-user" },
-      error: null,
-    });
-    // .eq() calls 1 & 2 are for post lookup
-    // .eq() call 3 is the terminal call for comments soft-delete - should return error
-    mockSupabase.eq
-      .mockReturnValueOnce(mockSupabase)
-      .mockReturnValueOnce(mockSupabase)
-      .mockReturnValueOnce(
-        Promise.resolve({
-          data: null,
-          error: { message: "Comments delete failed" },
-        }),
-      );
-
-    const req = createMockRequest("DELETE");
-    const res = await DELETE(req, mockParamsWithPostId);
-    const json = await readJson<{ error: string }>(res);
-
-    expect(res.status).toBe(500);
-    expect(json.error).toBe("Comments delete failed");
   });
 
   it("returns 404 when post not found after soft-delete", async () => {

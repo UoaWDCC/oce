@@ -41,32 +41,42 @@ function PostCardContent({
   }`;
   const viewLabel = `${viewCount} ${viewCount === 1 ? "view" : "views"}`;
   return (
-    <div className="flex min-w-0 flex-1 flex-col">
+    <div className="relative flex min-w-0 flex-1 flex-col">
+      {/* Avatar — top right */}
+      <StudentAvatar
+        displayName={displayName}
+        walletAddress={walletAddress}
+        profileImageUrl={profileImageUrl}
+        size="xs"
+        className="absolute right-0 top-0"
+      />
+
+      {/* Tags */}
       {(types?.length || tags.length > 0) && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
-            {types?.map((type) => (
-              <Tag key={type} type={type} />
-            ))}
-          </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          )}
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          {types?.map((type) => (
+            <Tag key={type} type={type} />
+          ))}
+          {tags.map((tag) => (
+            <span
+              key={tag}
+              className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
+            >
+              {tag}
+            </span>
+          ))}
         </div>
       )}
-      <h3 className="text-xl font-bold leading-snug text-slate-950">{title}</h3>
+
+      {/* Title */}
+      <h3 className="pl-3 text-xl font-bold leading-snug text-slate-950">
+        {title}
+      </h3>
+
+      {/* Excerpt */}
       {excerpt && (
         <p
-          className="mt-2 overflow-hidden text-sm leading-6 text-slate-600"
+          className="mt-2 overflow-hidden pl-3 text-sm leading-6 text-slate-600"
           style={{
             display: "-webkit-box",
             WebkitBoxOrient: "vertical",
@@ -76,15 +86,10 @@ function PostCardContent({
           {forumContentToPlainText(excerpt)}
         </p>
       )}
-      <div className="mt-5 flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-4">
-        <StudentAvatar
-          displayName={displayName}
-          walletAddress={walletAddress}
-          profileImageUrl={profileImageUrl}
-          timestamp={createdAt}
-          size="sm"
-        />
-        <span className="flex shrink-0 items-center gap-3 text-xs font-semibold text-slate-500">
+
+      {/* Footer: views/comments (left) + timestamp (right) */}
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+        <span className="flex items-center gap-3 text-xs font-semibold text-slate-500">
           <span className="flex items-center gap-1.5">
             <Eye aria-hidden="true" className="h-4 w-4" />
             {viewLabel}
@@ -94,6 +99,12 @@ function PostCardContent({
             {commentLabel}
           </span>
         </span>
+        <time
+          className="text-xs font-semibold text-slate-400"
+          dateTime={createdAt.dateTime}
+        >
+          {createdAt.label}
+        </time>
       </div>
     </div>
   );

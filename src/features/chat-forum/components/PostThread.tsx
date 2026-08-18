@@ -6,7 +6,6 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
   ArrowLeft,
-  BookOpen,
   Eye,
   Heart,
   MessageCircle,
@@ -412,90 +411,94 @@ export default function PostThread({
           onSubmit={handleUpdatePost}
         />
       ) : (
-        <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex items-start gap-4">
-            <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md sm:flex">
-              <BookOpen aria-hidden="true" className="h-7 w-7" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                {post.postType && <Tag size="md" type={post.postType} />}
-                {post.statusLabel && (
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                    ● {post.statusLabel}
-                  </span>
-                )}
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-3 flex items-start justify-between gap-3">
-                <h1
-                  id={`forum-thread-${post.id}`}
-                  className="max-w-5xl text-2xl font-bold leading-tight text-slate-950 sm:text-3xl"
-                >
-                  {post.title}
-                </h1>
-                {showOwnerActions && (
-                  <div className="flex shrink-0 items-center gap-2">
-                    {onUpdatePost && (
-                      <button
-                        type="button"
-                        aria-label="Edit post"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-purple-200 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-                        onClick={() => setIsEditing(true)}
-                      >
-                        <Pencil aria-hidden="true" className="h-4 w-4" />
-                        Edit
-                      </button>
-                    )}
-                    {onDeletePost && (
-                      <button
-                        type="button"
-                        aria-label="Delete post"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-red-200 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                        onClick={() => setIsDeleteConfirmOpen(true)}
-                      >
-                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <StudentAvatar
-                  avatarColor={post.author.avatarColor}
-                  displayName={post.author.name}
-                  profileImageUrl={post.author.profileImageUrl}
-                  size="sm"
-                  timestamp={{
-                    label: post.createdAtLabel,
-                    dateTime: post.createdAt,
-                  }}
-                  walletAddress={post.author.walletAddress}
-                />
-                <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-500">
-                  <Eye aria-hidden="true" className="h-4 w-4" />
-                  {viewLabel}
+        <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-6">
+          {/* Top row: tags/status (left) + avatar & actions (right) */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              {post.postType && <Tag size="md" type={post.postType} />}
+              {post.statusLabel && (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                  ● {post.statusLabel}
                 </span>
-              </div>
+              )}
+              {post.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
+            <StudentAvatar
+              avatarColor={post.author.avatarColor}
+              displayName={post.author.name}
+              profileImageUrl={post.author.profileImageUrl}
+              size="sm"
+              walletAddress={post.author.walletAddress}
+            />
           </div>
 
-          <div className="mt-7 border-t border-slate-100 pt-7">
+          {/* Title */}
+          <h1
+            id={`forum-thread-${post.id}`}
+            className="mt-4 pl-3 text-xl font-bold leading-snug text-slate-950 sm:text-2xl"
+          >
+            {post.title}
+          </h1>
+
+          {/* Body */}
+          <div className="mt-3 pl-3">
             <MarkdownContent content={post.body} />
             {post.imageUrl && (
               <AttachedImage src={post.imageUrl} alt="Post attachment" />
             )}
+          </div>
+
+          {/* Footer: views/comments (left) + timestamp (right) */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <span className="flex items-center gap-3 text-xs font-semibold text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <Eye aria-hidden="true" className="h-4 w-4" />
+                {viewLabel}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MessageCircle aria-hidden="true" className="h-4 w-4" />
+                {commentCount} {commentCount === 1 ? "comment" : "comments"}
+              </span>
+            </span>
+            <div className="flex items-center gap-2">
+              {showOwnerActions && (
+                <>
+                  {onUpdatePost && (
+                    <button
+                      type="button"
+                      aria-label="Edit post"
+                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-purple-50 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Pencil aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                  {onDeletePost && (
+                    <button
+                      type="button"
+                      aria-label="Delete post"
+                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                      onClick={() => setIsDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
+              <time
+                className="text-xs font-semibold text-slate-400"
+                dateTime={post.createdAt}
+              >
+                {post.createdAtLabel}
+              </time>
+            </div>
           </div>
         </article>
       )}

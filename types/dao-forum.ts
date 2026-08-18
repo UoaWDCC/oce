@@ -170,12 +170,14 @@ export interface ForumCommentPreview {
   id: string;
   postId: string;
   parentCommentId: string | null;
+  authorId?: string;
   authorName: string;
   authorWallet?: string;
   body: string;
   createdAt: string;
   createdAtLabel: string;
   likeCount: number;
+  isOwnComment?: boolean;
   isLiked?: boolean;
   isDeleted?: boolean;
   imageUrl?: string | null;

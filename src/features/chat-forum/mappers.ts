@@ -115,11 +115,13 @@ export function mapPostToForumPostPreview(
 export function mapCommentToForumCommentPreview(
   comment: CommentListItem,
   postId: string,
+  currentUserId: string | null,
 ): ForumCommentPreview {
   return {
     id: comment.id,
     postId,
     parentCommentId: comment.parent_comment_id,
+    authorId: comment.author_id,
     authorName: comment.username ?? "Anonymous",
     authorWallet: undefined,
     body: comment.body ?? "",
@@ -132,6 +134,7 @@ export function mapCommentToForumCommentPreview(
     likeCount: comment.like_count,
     isLiked: comment.is_liked,
     isDeleted: comment.body === null,
+    isOwnComment: comment.author_id === currentUserId,
     imageUrl: comment.image_url,
   };
 }
@@ -177,6 +180,7 @@ export function buildForumThreadComments(
       likeCount: comment.likeCount,
       isLiked: comment.isLiked,
       isDeleted: comment.isDeleted,
+      isOwnComment: comment.isOwnComment,
       imageUrl: comment.isDeleted ? null : comment.imageUrl,
       replies: [],
     });

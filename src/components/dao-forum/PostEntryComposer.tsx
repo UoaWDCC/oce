@@ -15,6 +15,9 @@ import {
   type PostType,
 } from "@app-types/dao-forum";
 import ForumEntryComposer from "./ForumEntryComposer";
+import { CONTENT_LIMITS } from "../../features/chat-forum/lib/contentLimits";
+import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { CharacterCounter } from "./CharacterCounter";
 
 const POST_TYPE_CONFIG: Record<
   PostType,
@@ -42,6 +45,15 @@ const POST_TYPE_CONFIG: Record<
   },
 };
 
+export type PostComposerInitialValues = {
+  title?: string;
+  body?: string;
+  postType?: PostType;
+  anonymous?: boolean;
+  isPinned?: boolean;
+  imageUrl?: string | null;
+};
+
 export type PostEntryComposerProps = {
   daoName?: string;
   onSubmit: (payload: PostSubmitPayload) => Promise<void>;
@@ -51,6 +63,8 @@ export type PostEntryComposerProps = {
   showPinnedToggle?: boolean;
   disabled?: boolean;
   className?: string;
+  mode?: "create" | "edit";
+  initialValues?: PostComposerInitialValues;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -66,19 +80,35 @@ export default function PostEntryComposer({
   showPinnedToggle = false,
   disabled = false,
   className = "",
+  mode = "create",
+  initialValues,
 }: PostEntryComposerProps) {
-  const [title, setTitle] = useState("");
-  const [postType, setPostType] = useState<PostType>(POST_TYPE.Discussion);
-  const [anonymous, setAnonymous] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const isEditMode = mode === "edit";
+  const [title, setTitle] = useState(initialValues?.title ?? "");
+  const [postType, setPostType] = useState<PostType>(
+    initialValues?.postType ?? POST_TYPE.Discussion,
+  );
+  const [anonymous, setAnonymous] = useState(initialValues?.anonymous ?? false);
+  const [isPinned, setIsPinned] = useState(initialValues?.isPinned ?? false);
   const [titleError, setTitleError] = useState<string | null>(null);
+  const titleCounter = useCharacterCount(title, "POST_TITLE");
 
-  const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
+  const handleSubmit = async (data: {
+    body: string;
+    imageUrl?: string | null;
+  }) => {
     setTitleError(null);
 
     if (!title.trim()) {
       setTitleError("Title is required");
       throw new Error("Title is required");
+    }
+
+    if (titleCounter.isOverLimit) {
+      setTitleError(
+        `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`,
+      );
+      throw new Error("Title too long");
     }
 
     try {
@@ -92,10 +122,12 @@ export default function PostEntryComposer({
       });
 
       // Only clear form after successful submission
-      setTitle("");
-      setPostType(POST_TYPE.Discussion);
-      setAnonymous(false);
-      setIsPinned(false);
+      if (!isEditMode) {
+        setTitle("");
+        setPostType(POST_TYPE.Discussion);
+        setAnonymous(false);
+        setIsPinned(false);
+      }
     } catch (err) {
       // Keep form data when submission fails so user can retry
       // Error will be caught and displayed by ForumEntryComposer
@@ -114,9 +146,13 @@ export default function PostEntryComposer({
     >
       <header className="flex items-start justify-between bg-violet-600 px-6 py-5">
         <div>
-          <h2 className="text-xl font-bold text-white">New Post</h2>
+          <h2 className="text-xl font-bold text-white">
+            {isEditMode ? "Edit Post" : "New Post"}
+          </h2>
           <p className="mt-1 text-sm text-violet-200">
-            Share with {daoName} community
+            {isEditMode
+              ? `Update your post in ${daoName}`
+              : `Share with ${daoName} community`}
           </p>
         </div>
         {onClose && (
@@ -133,18 +169,29 @@ export default function PostEntryComposer({
 
       <div className="flex flex-col gap-5 p-6">
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Post Title
-          </label>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Post Title
+            </label>
+            <CharacterCounter
+              count={titleCounter.count}
+              limit={titleCounter.limit}
+              isOverLimit={titleCounter.isOverLimit}
+              isNearLimit={titleCounter.isNearLimit}
+            />
+          </div>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            maxLength={CONTENT_LIMITS.POST_TITLE + 10} // allow slight overage so user sees error
             placeholder="Enter a descriptive title..."
             disabled={disabled}
             className={classNames(
-              "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500",
-              disabled && "cursor-not-allowed opacity-50",
+              "w-full rounded-lg border px-4 py-3 text-sm",
+              titleCounter.isOverLimit
+                ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                : "border-slate-200 focus:border-violet-500 focus:ring-violet-500",
             )}
           />
           {titleError && (
@@ -232,12 +279,14 @@ export default function PostEntryComposer({
 
         <ForumEntryComposer
           placeholder="Write your post content here..."
-          submitLabel="Publish Post"
+          submitLabel={isEditMode ? "Save changes" : "Publish Post"}
           onSubmit={handleSubmit}
           onCancel={onCancel}
           disabled={disabled}
           showCancelButton={!!onCancel}
           variant="full"
+          initialBody={initialValues?.body}
+          initialImageUrl={initialValues?.imageUrl}
         />
       </div>
     </div>

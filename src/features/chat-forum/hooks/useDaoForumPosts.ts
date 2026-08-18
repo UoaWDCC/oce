@@ -8,6 +8,8 @@ export interface UseDaoForumPostsResult {
   isLoading: boolean;
   error: Error | null;
   refetch: () => void;
+  replacePost: (post: ForumPostPreview) => void;
+  removePost: (postId: string) => void;
 }
 
 export function useDaoForumPosts(
@@ -81,5 +83,17 @@ export function useDaoForumPosts(
     fetchPosts();
   }, [fetchPosts]);
 
-  return { posts, isLoading, error, refetch };
+  const replacePost = useCallback((post: ForumPostPreview) => {
+    setPosts((currentPosts) =>
+      currentPosts.map((item) => (item.id === post.id ? post : item)),
+    );
+  }, []);
+
+  const removePost = useCallback((postId: string) => {
+    setPosts((currentPosts) =>
+      currentPosts.filter((item) => item.id !== postId),
+    );
+  }, []);
+
+  return { posts, isLoading, error, refetch, replacePost, removePost };
 }

@@ -28,6 +28,9 @@ export type ForumThreadPost = {
   viewCount: number;
   statusLabel?: string;
   imageUrl?: string | null;
+  anonymous?: boolean;
+  isPinned?: boolean;
+  isOwnPost?: boolean;
 };
 
 export type ForumThreadComment = {

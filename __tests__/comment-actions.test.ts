@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mockSupabase, resetAll, createMockRequest, readJson } from "./helpers";
 import { PATCH, DELETE } from "@/app/api/comments/[commentId]/route";
 import { authenticateUser } from "@/utils/authHelper";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -100,6 +101,17 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Comment body cannot be empty");
+  });
+
+  it("returns 422 when an updated comment exceeds the character limit", async () => {
+    const req = createMockRequest("PATCH", {
+      body: `<strong>${"a".repeat(CONTENT_LIMITS.COMMENT_BODY + 1)}</strong>`,
+    });
+    const res = await PATCH(req, mockParams);
+    const json = await readJson<{ errors: { body: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.body).toContain(String(CONTENT_LIMITS.COMMENT_BODY));
   });
 
   it("returns 400 when image_url is empty after trim", async () => {

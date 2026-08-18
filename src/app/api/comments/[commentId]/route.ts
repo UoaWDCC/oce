@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  forumContentToPlainText,
+  hasMeaningfulForumContent,
+} from "@/utils/forumContent";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type { UpdateCommentFields } from "@app-types/dao-forum";
 
 const corsHeaders = {
@@ -74,6 +78,20 @@ export async function PATCH(
     return NextResponse.json(
       { error: "Comment body cannot be empty" },
       { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (
+    typeof updates.body === "string" &&
+    forumContentToPlainText(updates.body).length > CONTENT_LIMITS.COMMENT_BODY
+  ) {
+    return NextResponse.json(
+      {
+        errors: {
+          body: `Comment must be ${CONTENT_LIMITS.COMMENT_BODY} characters or fewer`,
+        },
+      },
+      { status: 422, headers: corsHeaders },
     );
   }
 

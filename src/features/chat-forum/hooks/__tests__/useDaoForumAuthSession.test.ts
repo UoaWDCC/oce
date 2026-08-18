@@ -22,29 +22,38 @@ describe("useDaoForumAuthSession", () => {
 
     const { result } = renderHook(() => useDaoForumAuthSession());
 
-    expect(result.current).toEqual({ status: "loading", token: undefined });
+    expect(result.current).toEqual({
+      status: "loading",
+      token: undefined,
+      userId: null,
+    });
   });
 
   it("becomes authenticated with a token once a session resolves", async () => {
-    let emit: (session: { access_token: string } | null) => void = () => {};
+    let emit: (
+      session: { access_token: string; user: { id: string } } | null,
+    ) => void = () => {};
     onAuthStateChangeMock.mockImplementation((callback) => {
       emit = (session) => callback("SIGNED_IN", session);
       return { data: { subscription: { unsubscribe: vi.fn() } } };
     });
 
     const { result } = renderHook(() => useDaoForumAuthSession());
-    emit({ access_token: "abc123" });
+    emit({ access_token: "abc123", user: { id: "user-1" } });
 
     await waitFor(() => {
       expect(result.current).toEqual({
         status: "authenticated",
         token: "abc123",
+        userId: "user-1",
       });
     });
   });
 
   it("becomes unauthenticated when there is no session", async () => {
-    let emit: (session: { access_token: string } | null) => void = () => {};
+    let emit: (
+      session: { access_token: string; user: { id: string } } | null,
+    ) => void = () => {};
     onAuthStateChangeMock.mockImplementation((callback) => {
       emit = (session) => callback("SIGNED_OUT", session);
       return { data: { subscription: { unsubscribe: vi.fn() } } };
@@ -57,6 +66,7 @@ describe("useDaoForumAuthSession", () => {
       expect(result.current).toEqual({
         status: "unauthenticated",
         token: undefined,
+        userId: null,
       });
     });
   });

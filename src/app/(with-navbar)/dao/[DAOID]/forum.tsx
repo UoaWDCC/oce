@@ -65,7 +65,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     error: commentLikeError,
   } = useDaoForumCommentLike();
 
-  const { recordView } = useRecordPostView();
+  const { recordView } = useRecordPostView(token);
 
   const handleSubmitPost = async (
     payload: PostSubmitPayload,

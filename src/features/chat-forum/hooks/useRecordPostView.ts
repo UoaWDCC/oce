@@ -1,11 +1,16 @@
 import { useCallback } from "react";
 import { createClient } from "@/utils/supabase/client";
 
-export function useRecordPostView() {
+export function useRecordPostView(token?: string) {
   const supabase = createClient();
 
   const recordView = useCallback(
     async (postId: string) => {
+      if (!token) {
+        // Not signed in: the RPC would be rejected by RLS anyway, so skip it.
+        return false;
+      }
+
       const { error } = await supabase.rpc("record_post_view", {
         p_post_id: postId,
       });
@@ -18,7 +23,7 @@ export function useRecordPostView() {
 
       return !error;
     },
-    [supabase],
+    [supabase, token],
   );
 
   return { recordView };

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  hasMeaningfulForumContent,
+  trimTrailingEmptyParagraphs,
+} from "@/utils/forumContent";
 import type { UpdateCommentFields } from "@app-types/dao-forum";
 
 const corsHeaders = {
@@ -60,7 +63,8 @@ export async function PATCH(
   };
 
   if (json.body !== undefined) {
-    updates.body = json.body === null ? null : json.body.trim();
+    updates.body =
+      json.body === null ? null : trimTrailingEmptyParagraphs(json.body.trim());
   }
 
   if (json.image_url !== undefined) {

@@ -1,6 +1,11 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  hasMeaningfulForumContent,
+  hasValidPostTitle,
+  normalizePostTitle,
+  trimTrailingEmptyParagraphs,
+} from "@/utils/forumContent";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -205,7 +210,7 @@ export async function POST(
   const body = (await request.json()) as CreatePostFields;
 
   if (
-    !body.title ||
+    !hasValidPostTitle(body.title) ||
     !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
     !daoGroupId
@@ -228,8 +233,8 @@ export async function POST(
     .from("posts")
     .insert({
       post_type: body.post_type,
-      title: body.title,
-      body: body.body,
+      title: normalizePostTitle(body.title),
+      body: trimTrailingEmptyParagraphs(body.body),
       anonymous: body.anonymous,
       is_pinned: body.is_pinned,
       image_url: body.image_url,

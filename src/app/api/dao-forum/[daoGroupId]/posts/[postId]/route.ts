@@ -1,5 +1,10 @@
 import { authenticateUser } from "@/utils/authHelper";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  hasMeaningfulForumContent,
+  hasValidPostTitle,
+  normalizePostTitle,
+  trimTrailingEmptyParagraphs,
+} from "@/utils/forumContent";
 import type { Post, UpdatePostFields } from "@app-types/dao-forum";
 import { NextResponse } from "next/server";
 
@@ -55,7 +60,7 @@ export async function PATCH(
   const body = (await request.json()) as UpdatePostFields;
 
   if (
-    !body.title ||
+    !hasValidPostTitle(body.title) ||
     !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
     body.anonymous === undefined ||
@@ -92,8 +97,8 @@ export async function PATCH(
     .from("posts")
     .update({
       post_type: body.post_type,
-      title: body.title,
-      body: body.body,
+      title: normalizePostTitle(body.title),
+      body: trimTrailingEmptyParagraphs(body.body),
       anonymous: body.anonymous,
       is_pinned: body.is_pinned,
       image_url: body.image_url,

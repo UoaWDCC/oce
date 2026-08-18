@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  hasMeaningfulForumContent,
+  trimTrailingEmptyParagraphs,
+} from "@/utils/forumContent";
 import type {
   CreateCommentFields,
   FormattedComment,
@@ -70,7 +73,9 @@ export async function POST(
       ? parent_comment_id.trim() || undefined
       : undefined;
   const bodyValue =
-    typeof body === "string" ? body.trim() || undefined : undefined;
+    typeof body === "string"
+      ? trimTrailingEmptyParagraphs(body.trim()) || undefined
+      : undefined;
   const imageUrlValue =
     typeof image_url === "string" ? image_url.trim() || undefined : undefined;
 

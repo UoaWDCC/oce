@@ -237,6 +237,34 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 400 when post title is whitespace only", async () => {
+    const req = createMockRequest("POST", {
+      title: "    ",
+      body: "test",
+      post_type: "Announcement",
+      anonymous: false,
+      is_pinned: false,
+      image_url: null,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when post title only contains non-breaking spaces", async () => {
+    const req = createMockRequest("POST", {
+      title: "\u00A0",
+      body: "test",
+      post_type: "Announcement",
+      anonymous: false,
+      is_pinned: false,
+      image_url: null,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(400);
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -372,6 +400,23 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
   it("returns 400 when missing required fields", async () => {
     const req = createMockRequest("PATCH", { title: "Only title" });
+    const res = await PATCH(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when the title is whitespace only", async () => {
+    const req = createMockRequest("PATCH", {
+      ...validBody,
+      title: "         ",
+    });
+    const res = await PATCH(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when the title is non-breaking space only", async () => {
+    const req = createMockRequest("PATCH", { ...validBody, title: "\u00A0" });
     const res = await PATCH(req, mockParamsWithPostId);
 
     expect(res.status).toBe(400);

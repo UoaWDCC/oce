@@ -44,3 +44,25 @@ export function hasMeaningfulForumContent(content: unknown): content is string {
     typeof content === "string" && forumContentToPlainText(content).length > 0
   );
 }
+
+export function hasValidPostTitle(title: unknown): boolean {
+  if (typeof title === "string") {
+    const trimmed = title
+      .trim()
+      .replace(/\u00A0/g, "")
+      .trim();
+    if (trimmed.length > 0) return true;
+  }
+  return false;
+}
+
+export function normalizePostTitle(title: string): string {
+  return title
+    .trim()
+    .replace(/\u00A0/g, "")
+    .trim();
+}
+
+export function trimTrailingEmptyParagraphs(content: string): string {
+  return content.replace(/(<p>\s*(<br>)?\s*<\/p>)+$/, "").trim();
+}

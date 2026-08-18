@@ -224,8 +224,10 @@ export async function POST(
   }
 
   const errors: Record<string, string> = {};
+  const normalizedTitle = normalizePostTitle(body.title);
+  const normalizedBody = trimTrailingEmptyParagraphs(body.body);
 
-  if (body.title.length > CONTENT_LIMITS.POST_TITLE) {
+  if (normalizedTitle.length > CONTENT_LIMITS.POST_TITLE) {
     errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
   }
 
@@ -248,8 +250,8 @@ export async function POST(
     .from("posts")
     .insert({
       post_type: body.post_type,
-      title: normalizePostTitle(body.title),
-      body: trimTrailingEmptyParagraphs(body.body),
+      title: normalizedTitle,
+      body: normalizedBody,
       anonymous: body.anonymous,
       is_pinned: body.is_pinned,
       image_url: body.image_url,

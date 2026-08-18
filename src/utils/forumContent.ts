@@ -2,6 +2,8 @@ const HTML_BLOCK_END = /<\/(?:div|h[1-6]|li|ol|p|ul)>/gi;
 const HTML_BREAK = /<br\s*\/?>/gi;
 const HTML_TAG = /<[^>]*>/g;
 const ZERO_WIDTH = /[\u200B-\u200D\uFEFF]/g;
+const TRAILING_EMPTY_BLOCKS =
+  /(?:<(p|div)\b[^>]*>(?:(?:\s|\u200B|\u200C|\u200D|\uFEFF|&nbsp;|&#160;|&#x0*a0;)|<br\s*\/?>)*<\/\1>\s*)+$/gi;
 
 function decodeHtmlEntities(value: string): string {
   return value
@@ -46,25 +48,13 @@ export function hasMeaningfulForumContent(content: unknown): content is string {
 }
 
 export function hasValidPostTitle(title: unknown): boolean {
-  if (typeof title === "string") {
-    const trimmed = title
-      .trim()
-      .replace(/\u00A0/g, "")
-      .trim();
-    if (trimmed.length > 0) return true;
-  }
-  return false;
+  return typeof title === "string" && normalizePostTitle(title).length > 0;
 }
 
 export function normalizePostTitle(title: string): string {
-  return title
-    .trim()
-    .replace(/\u00A0/g, "")
-    .trim();
+  return title.trim();
 }
 
 export function trimTrailingEmptyParagraphs(content: string): string {
-  return decodeHtmlEntities(content)
-    .replace(/(<(p|div)>(\s|&nbsp;)*(<br>)?(\s|&nbsp;)*<\/\2>)+$/, "")
-    .trim();
+  return content.trim().replace(TRAILING_EMPTY_BLOCKS, "").trimEnd();
 }

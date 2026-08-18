@@ -49,6 +49,7 @@ describe("forum content", () => {
   it.each([
     ["   H  ello    ", "H  ello"],
     ["  Hello\u00A0", "Hello"],
+    ["Hello\u00A0World", "Hello\u00A0World"],
   ])("normalise title: %s -> %s", (input, expected) => {
     expect(normalizePostTitle(input)).toBe(expected);
   });
@@ -60,7 +61,19 @@ describe("forum content", () => {
     ["<p><br></p><p>hi</p>", "<p><br></p><p>hi</p>"],
     ["<div>hi</div><div><br></div><div><br></div>", "<div>hi</div>"],
     ["<p>hi</p><div>&nbsp;</div><div><br></div>", "<p>hi</p>"],
+    ["<p>hi</p><p><br /></p>", "<p>hi</p>"],
+    ['<p>hi</p><p class="empty"><br></p>', "<p>hi</p>"],
+    ["<p>hi</p><DIV>&#160;<BR></DIV>", "<p>hi</p>"],
+    ["<p>hi</p><div>\u200B</div>", "<p>hi</p>"],
   ])("trims trailing paragraphs: %s -> %s", (input, expected) => {
     expect(trimTrailingEmptyParagraphs(input)).toBe(expected);
+  });
+
+  it("preserves HTML entities in meaningful content", () => {
+    expect(
+      trimTrailingEmptyParagraphs(
+        "<p>&lt;strong&gt;Fish &amp; chips&lt;/strong&gt;</p><p><br></p>",
+      ),
+    ).toBe("<p>&lt;strong&gt;Fish &amp; chips&lt;/strong&gt;</p>");
   });
 });

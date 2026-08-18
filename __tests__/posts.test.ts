@@ -224,6 +224,37 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     expect(json).toEqual(newPost);
   });
 
+  it("normalizes the title and trailing empty body blocks before insert", async () => {
+    setMockQueryResult({ data: { id: "post-new" }, error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: "  Fish\u00A0and chips  ",
+      body: "<p>Fish &amp; chips</p><p><br /></p>",
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Fish\u00A0and chips",
+        body: "<p>Fish &amp; chips</p>",
+      }),
+    );
+  });
+
+  it("applies the title limit after trimming surrounding whitespace", async () => {
+    setMockQueryResult({ data: { id: "post-new" }, error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: `  ${"a".repeat(CONTENT_LIMITS.POST_TITLE)}  `,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+  });
+
   it("returns 400 when missing required fields", async () => {
     const req = createMockRequest("POST", {
       title: "",
@@ -265,7 +296,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
 
     expect(res.status).toBe(400);
   });
-  
+
   it("accepts formatted post body at the visible character limit", async () => {
     const newPost = { id: "post-new", title: "New Post" };
     setMockQueryResult({ data: newPost, error: null });
@@ -436,6 +467,32 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(json.title).toBe("Updated");
   });
 
+  it("normalizes the title and trailing empty body blocks before update", async () => {
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "test-user" },
+      error: null,
+    });
+    mockSupabase.maybeSingle.mockResolvedValueOnce({
+      data: { id: "post-1", title: "Updated" },
+      error: null,
+    });
+
+    const req = createMockRequest("PATCH", {
+      ...validBody,
+      title: "  Updated  ",
+      body: '<p>Updated &amp; retained</p><div class="empty"><br></div>',
+    });
+    const res = await PATCH(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(200);
+    expect(mockSupabase.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Updated",
+        body: "<p>Updated &amp; retained</p>",
+      }),
+    );
+  });
+
   it("returns 400 when missing required fields", async () => {
     const req = createMockRequest("PATCH", { title: "Only title" });
     const res = await PATCH(req, mockParamsWithPostId);
@@ -459,7 +516,7 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     expect(res.status).toBe(400);
   });
-  
+
   it("returns 422 when an updated body exceeds the character limit", async () => {
     const req = createMockRequest("PATCH", {
       ...validBody,

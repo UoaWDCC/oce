@@ -31,6 +31,10 @@ export function useUpdateDaoForumComment(
         setError(new Error("Cannot update comment: missing comment id"));
         return undefined;
       }
+      if (!token) {
+        setError(new Error("Cannot update comment: not signed in"));
+        return undefined;
+      }
       setIsSubmitting(true);
       try {
         const payload: UpdateCommentFields = {

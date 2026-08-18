@@ -2,9 +2,14 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  forumContentToPlainText,
+  hasMeaningfulForumContent,
+} from "@/utils/forumContent";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
 import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
+import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { CharacterCounter } from "./CharacterCounter";
 
 const FORMAT_COMMANDS: Record<FormatType, string> = {
   bold: "bold",
@@ -25,6 +30,7 @@ export type ForumEntryComposerProps = {
   showCancelButton?: boolean;
   variant?: "compact" | "full";
   autoFocus?: boolean;
+  limitKey?: "POST_BODY" | "COMMENT_BODY";
   initialBody?: string;
   initialImageUrl?: string | null;
 };
@@ -45,6 +51,7 @@ export default function ForumEntryComposer({
   showCancelButton = false,
   variant = "compact",
   autoFocus = false,
+  limitKey = "POST_BODY",
   initialBody = "",
   initialImageUrl = null,
 }: ForumEntryComposerProps) {
@@ -62,6 +69,10 @@ export default function ForumEntryComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
+  const bodyCounter = useCharacterCount(
+    forumContentToPlainText(body),
+    limitKey,
+  );
   const {
     uploadImage,
     removeImage,
@@ -170,10 +181,8 @@ export default function ForumEntryComposer({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Reset file input so same file can be selected again
     e.target.value = "";
 
-    // Validate file first
     const fileError = validateFile(file);
     if (fileError) {
       setError(fileError);
@@ -208,6 +217,18 @@ export default function ForumEntryComposer({
   const handleSubmit = async () => {
     setValidationError(null);
     setError(null);
+
+    if (!body.trim()) {
+      setValidationError("Content cannot be empty");
+      return;
+    }
+
+    if (bodyCounter.isOverLimit) {
+      setValidationError(
+        `Content must be ${bodyCounter.limit} characters or fewer`,
+      );
+      return;
+    }
 
     if (!hasMeaningfulForumContent(body)) {
       setValidationError("Content cannot be empty");
@@ -259,7 +280,6 @@ export default function ForumEntryComposer({
     >
       {children}
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"
@@ -307,9 +327,17 @@ export default function ForumEntryComposer({
             isDisabled && "cursor-not-allowed opacity-50",
           )}
         />
+
+        <div className="mt-1 flex justify-end">
+          <CharacterCounter
+            count={bodyCounter.count}
+            limit={bodyCounter.limit}
+            isOverLimit={bodyCounter.isOverLimit}
+            isNearLimit={bodyCounter.isNearLimit}
+          />
+        </div>
       </div>
 
-      {/* Image preview */}
       {imagePreview && (
         <div className="relative inline-block w-fit">
           <div className="relative overflow-hidden rounded-lg border border-slate-200">

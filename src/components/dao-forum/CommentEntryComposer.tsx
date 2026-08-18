@@ -11,6 +11,8 @@ export type CommentEntryComposerProps = {
   showAttachment?: boolean;
   className?: string;
   autoFocus?: boolean;
+  initialBody?: string;
+  onCancel?: () => void;
 };
 
 export default function CommentEntryComposer({
@@ -20,6 +22,8 @@ export default function CommentEntryComposer({
   showAttachment = false,
   className = "",
   autoFocus = false,
+  initialBody,
+  onCancel,
 }: CommentEntryComposerProps) {
   const handleSubmit = async (data: {
     body: string;
@@ -41,6 +45,9 @@ export default function CommentEntryComposer({
       className={className}
       showAttachButton={showAttachment}
       autoFocus={autoFocus}
+      initialBody={initialBody}
+      onCancel={onCancel}
+      showCancelButton={!!onCancel}
     />
   );
 }

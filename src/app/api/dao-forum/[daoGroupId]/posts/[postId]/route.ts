@@ -170,18 +170,6 @@ export async function DELETE(
     );
   }
 
-  const { error: commentsError } = await supabase
-    .from("comments")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("post_id", postId);
-
-  if (commentsError) {
-    return NextResponse.json(
-      { error: commentsError.message },
-      { status: 500, headers: corsHeaders },
-    );
-  }
-
   const { data, error } = await supabase
     .from("posts")
     .update({ deleted_at: new Date().toISOString() })

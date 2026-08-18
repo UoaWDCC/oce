@@ -18,7 +18,7 @@ const FORMAT_COMMANDS: Record<FormatType, string> = {
 export type ForumEntryComposerProps = {
   placeholder?: string;
   submitLabel?: string;
-  onSubmit: (data: { body: string; imageUrl?: string }) => Promise<void>;
+  onSubmit: (data: { body: string; imageUrl?: string | null }) => Promise<void>;
   onCancel?: () => void;
   disabled?: boolean;
   className?: string;
@@ -27,7 +27,12 @@ export type ForumEntryComposerProps = {
   showCancelButton?: boolean;
   variant?: "compact" | "full";
   autoFocus?: boolean;
+<<<<<<< HEAD
   limitKey?: "POST_BODY" | "COMMENT_BODY";
+=======
+  initialBody?: string;
+  initialImageUrl?: string | null;
+>>>>>>> main
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -46,11 +51,21 @@ export default function ForumEntryComposer({
   showCancelButton = false,
   variant = "compact",
   autoFocus = false,
+<<<<<<< HEAD
   limitKey = "POST_BODY",
+=======
+  initialBody = "",
+  initialImageUrl = null,
+>>>>>>> main
 }: ForumEntryComposerProps) {
-  const [body, setBody] = useState("");
+  const [body, setBody] = useState(initialBody);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [retainedImageUrl, setRetainedImageUrl] = useState<string | null>(
+    initialImageUrl,
+  );
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    initialImageUrl,
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -132,6 +147,13 @@ export default function ForumEntryComposer({
   }, [autoFocus]);
 
   useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor || !initialBody) return;
+    editor.innerHTML = initialBody;
+    setBody(initialBody);
+  }, [initialBody]);
+
+  useEffect(() => {
     return () => {
       if (imagePreviewRef.current) {
         URL.revokeObjectURL(imagePreviewRef.current);
@@ -179,6 +201,8 @@ export default function ForumEntryComposer({
 
   const handleRemoveImage = () => {
     clearSelectedImage();
+    setRetainedImageUrl(null);
+    setImagePreview(null);
     setError(null);
     clearUploadError();
   };
@@ -222,7 +246,7 @@ export default function ForumEntryComposer({
 
       await onSubmit({
         body: body.trim(),
-        imageUrl: uploadedImage?.publicUrl,
+        imageUrl: uploadedImage?.publicUrl ?? retainedImageUrl,
       });
       setBody("");
       setActiveFormats([]);

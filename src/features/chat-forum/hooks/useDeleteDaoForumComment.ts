@@ -19,6 +19,10 @@ export function useDeleteDaoForumComment(
         setError(new Error("Cannot delete comment: missing comment id"));
         return false;
       }
+      if (!token) {
+        setError(new Error("Cannot delete comment: not signed in"));
+        return false;
+      }
       setIsSubmitting(true);
       try {
         await deleteForumComment(commentId, token);

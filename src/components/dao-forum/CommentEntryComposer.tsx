@@ -21,10 +21,13 @@ export default function CommentEntryComposer({
   className = "",
   autoFocus = false,
 }: CommentEntryComposerProps) {
-  const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
+  const handleSubmit = async (data: {
+    body: string;
+    imageUrl?: string | null;
+  }) => {
     await onSubmit({
       body: data.body,
-      imageUrl: data.imageUrl,
+      imageUrl: data.imageUrl ?? undefined,
       parentCommentId,
     });
   };
@@ -38,6 +41,7 @@ export default function CommentEntryComposer({
       className={className}
       showAttachButton={showAttachment}
       autoFocus={autoFocus}
+      limitKey="COMMENT_BODY"
     />
   );
 }

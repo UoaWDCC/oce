@@ -4,9 +4,11 @@ import {
   hasValidPostTitle,
   normalizePostTitle,
   trimTrailingEmptyParagraphs,
+  forumContentToPlainText,
 } from "@/utils/forumContent";
 import type { Post, UpdatePostFields } from "@app-types/dao-forum";
 import { NextResponse } from "next/server";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,6 +72,21 @@ export async function PATCH(
       { error: "Missing required fields" },
       { status: 400, headers: corsHeaders },
     );
+  }
+
+  // Validate input fields
+  const errors: Record<string, string> = {};
+
+  if (body.title.length > CONTENT_LIMITS.POST_TITLE) {
+    errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
+  }
+
+  if (forumContentToPlainText(body.body).length > CONTENT_LIMITS.POST_BODY) {
+    errors.body = `Body must be ${CONTENT_LIMITS.POST_BODY} characters or fewer`;
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return NextResponse.json({ errors }, { status: 422, headers: corsHeaders });
   }
 
   const { data: post, error: postError } = await supabase
@@ -153,18 +170,6 @@ export async function DELETE(
     return NextResponse.json(
       { error: "Unauthorized, you are not the author of this post" },
       { status: 403, headers: corsHeaders },
-    );
-  }
-
-  const { error: commentsError } = await supabase
-    .from("comments")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("post_id", postId);
-
-  if (commentsError) {
-    return NextResponse.json(
-      { error: commentsError.message },
-      { status: 500, headers: corsHeaders },
     );
   }
 

@@ -1,6 +1,7 @@
 import type {
   CommentSubmitPayload,
   ForumCommentPreview,
+  ForumPostPreview,
   Post,
   PostSubmitPayload,
 } from "@app-types/dao-forum";
@@ -29,6 +30,41 @@ export async function submitForumPost(
     await deps.refetchPosts();
   }
   return created;
+}
+
+export interface UpdatePostDeps {
+  updatePost: (payload: PostSubmitPayload) => Promise<Post | null>;
+  applyUpdatedPost: (updated: Post) => ForumPostPreview | void;
+  refetchPosts: () => void | Promise<void>;
+}
+
+export async function submitForumPostUpdate(
+  deps: UpdatePostDeps,
+  payload: PostSubmitPayload,
+): Promise<Post | null> {
+  const updated = await deps.updatePost(payload);
+  if (updated) {
+    deps.applyUpdatedPost(updated);
+    await deps.refetchPosts();
+  }
+  return updated;
+}
+
+export interface DeletePostDeps {
+  deletePost: () => Promise<boolean>;
+  removePost: () => void;
+  refetchPosts: () => void | Promise<void>;
+}
+
+export async function submitForumPostDelete(
+  deps: DeletePostDeps,
+): Promise<boolean> {
+  const deleted = await deps.deletePost();
+  if (deleted) {
+    deps.removePost();
+    await deps.refetchPosts();
+  }
+  return deleted;
 }
 
 export interface SubmitCommentDeps {

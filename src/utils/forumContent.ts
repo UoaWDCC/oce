@@ -64,5 +64,7 @@ export function normalizePostTitle(title: string): string {
 }
 
 export function trimTrailingEmptyParagraphs(content: string): string {
-  return content.replace(/(<p>\s*(<br>)?\s*<\/p>)+$/, "").trim();
+  return decodeHtmlEntities(content)
+    .replace(/(<(p|div)>(\s|&nbsp;)*(<br>)?(\s|&nbsp;)*<\/\2>)+$/, "")
+    .trim();
 }

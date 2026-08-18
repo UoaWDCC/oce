@@ -58,6 +58,8 @@ describe("forum content", () => {
     ["<p>hi</p><p><br></p><p><br></p>", "<p>hi</p>"],
     ["No Changes", "No Changes"],
     ["<p><br></p><p>hi</p>", "<p><br></p><p>hi</p>"],
+    ["<div>hi</div><div><br></div><div><br></div>", "<div>hi</div>"],
+    ["<p>hi</p><div>&nbsp;</div><div><br></div>", "<p>hi</p>"],
   ])("trims trailing paragraphs: %s -> %s", (input, expected) => {
     expect(trimTrailingEmptyParagraphs(input)).toBe(expected);
   });

@@ -19,6 +19,7 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type { PostListItem } from "@app-types/dao-forum";
 
 vi.mock("@/utils/authHelper", () => ({
@@ -237,6 +238,43 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     expect(res.status).toBe(400);
   });
 
+  it("accepts formatted post body at the visible character limit", async () => {
+    const newPost = { id: "post-new", title: "New Post" };
+    setMockQueryResult({ data: newPost, error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      body: `<strong>${"a".repeat(CONTENT_LIMITS.POST_BODY)}</strong>`,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+  });
+
+  it("returns 422 when the title exceeds the character limit", async () => {
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: "a".repeat(CONTENT_LIMITS.POST_TITLE + 1),
+    });
+    const res = await POST(req, mockParams);
+    const json = await readJson<{ errors: { title: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.title).toContain(String(CONTENT_LIMITS.POST_TITLE));
+  });
+
+  it("returns 422 when the visible post body exceeds the character limit", async () => {
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      body: `<strong>${"a".repeat(CONTENT_LIMITS.POST_BODY + 1)}</strong>`,
+    });
+    const res = await POST(req, mockParams);
+    const json = await readJson<{ errors: { body: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.body).toContain(String(CONTENT_LIMITS.POST_BODY));
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -377,6 +415,18 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns 422 when an updated body exceeds the character limit", async () => {
+    const req = createMockRequest("PATCH", {
+      ...validBody,
+      body: `<em>${"a".repeat(CONTENT_LIMITS.POST_BODY + 1)}</em>`,
+    });
+    const res = await PATCH(req, mockParamsWithPostId);
+    const json = await readJson<{ errors: { body: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.body).toContain(String(CONTENT_LIMITS.POST_BODY));
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -465,6 +515,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     expect(res.status).toBe(200);
     expect(json.deleted_at).toBeTruthy();
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("comments");
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -504,32 +555,6 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     const res = await DELETE(req, mockParamsWithPostId);
 
     expect(res.status).toBe(404);
-  });
-
-  it("returns 500 when soft-deleting comments fails", async () => {
-    // Query 1: find the post and confirm author
-    mockSupabase.single.mockResolvedValueOnce({
-      data: { id: "post-1", author_id: "test-user" },
-      error: null,
-    });
-    // .eq() calls 1 & 2 are for post lookup
-    // .eq() call 3 is the terminal call for comments soft-delete - should return error
-    mockSupabase.eq
-      .mockReturnValueOnce(mockSupabase)
-      .mockReturnValueOnce(mockSupabase)
-      .mockReturnValueOnce(
-        Promise.resolve({
-          data: null,
-          error: { message: "Comments delete failed" },
-        }),
-      );
-
-    const req = createMockRequest("DELETE");
-    const res = await DELETE(req, mockParamsWithPostId);
-    const json = await readJson<{ error: string }>(res);
-
-    expect(res.status).toBe(500);
-    expect(json.error).toBe("Comments delete failed");
   });
 
   it("returns 404 when post not found after soft-delete", async () => {

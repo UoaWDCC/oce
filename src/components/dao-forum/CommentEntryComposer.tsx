@@ -48,6 +48,7 @@ export default function CommentEntryComposer({
       initialBody={initialBody}
       onCancel={onCancel}
       showCancelButton={!!onCancel}
+      limitKey="COMMENT_BODY"
     />
   );
 }

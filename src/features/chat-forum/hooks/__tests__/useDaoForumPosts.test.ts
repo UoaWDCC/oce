@@ -1,3 +1,4 @@
+import { StrictMode } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useDaoForumPosts } from "../useDaoForumPosts";
@@ -62,6 +63,36 @@ describe("useDaoForumPosts", () => {
     // should cancel the first request rather than letting it race the next one.
     rerender({ enabled: false });
 
+    expect(firstSignal.aborted).toBe(true);
+  });
+
+  it("resolves a single request under Strict Mode double-mount", async () => {
+    // Strict Mode mounts the effect, cleans it up, then mounts again. The
+    // cleanup aborts the first request, so only the second one resolves.
+    let resolvedCount = 0;
+    getForumPostsMock.mockImplementation((_id, _token, signal) => {
+      if (signal?.aborted) return rejectOnAbort(signal);
+      return new Promise((resolve, reject) => {
+        signal?.addEventListener("abort", () =>
+          reject(new DOMException("Aborted", "AbortError")),
+        );
+        queueMicrotask(() => {
+          if (signal?.aborted) return;
+          resolvedCount += 1;
+          resolve([]);
+        });
+      });
+    });
+
+    const { result } = renderHook(
+      () => useDaoForumPosts("dao-1", "token-123", true),
+      { wrapper: StrictMode },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(resolvedCount).toBe(1);
+    const firstSignal = getForumPostsMock.mock.calls[0][2] as AbortSignal;
     expect(firstSignal.aborted).toBe(true);
   });
 

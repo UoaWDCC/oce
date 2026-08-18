@@ -68,6 +68,7 @@ describe("mapCommentToForumCommentPreview", () => {
           updated_at: null,
         },
         "post-1",
+        null,
       ),
     ).toMatchObject({
       id: "comment-2",
@@ -93,6 +94,7 @@ describe("mapCommentToForumCommentPreview", () => {
         updated_at: null,
       },
       "post-1",
+      null,
     );
 
     expect(comment.imageUrl).toBe(

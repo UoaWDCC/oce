@@ -59,7 +59,13 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     isLoading: isCommentsLoading,
     error: commentsError,
     refetch: refetchComments,
-  } = useDaoForumComments(daoGroupId, selectedPostId, token, commentSort);
+  } = useDaoForumComments(
+    daoGroupId,
+    selectedPostId,
+    currentUserId,
+    token,
+    commentSort,
+  );
 
   const { createPost, error: createPostError } = useCreateDaoForumPost(
     daoGroupId,
@@ -78,6 +84,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const { createComment, error: createCommentError } = useCreateDaoForumComment(
     daoGroupId,
     selectedPostId,
+    currentUserId,
     token,
   );
   const {
@@ -179,8 +186,10 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       onSelectPost={handleSelectPost}
       onSubmitPost={handleSubmitPost}
       onSubmitComment={handleSubmitComment}
+      onCommentRefetch={refetchComments}
       onUpdatePost={handleUpdatePost}
       posts={posts}
+      token={token}
     />
   );
 }

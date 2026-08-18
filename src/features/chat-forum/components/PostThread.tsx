@@ -29,6 +29,9 @@ import type {
   ForumThreadPost,
   ForumThreadSort,
 } from "../types";
+import { TokenUsage } from "@/llm/types/TokenUsage";
+import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
+import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 
 type PostThreadProps = {
   post: ForumThreadPost;
@@ -37,7 +40,8 @@ type PostThreadProps = {
   onBack?: () => void;
   onSortChange?: (sort: ForumThreadSort) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
-  onLikeComment?: (commentId: string) => void;
+  onCommentRefetch?: () => Promise<void>;
+  onLikeComment?: (commentId: string) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   onUpdatePost?: (payload: PostSubmitPayload) => Promise<void>;
   onDeletePost?: () => Promise<boolean> | boolean;
@@ -50,6 +54,7 @@ type PostThreadProps = {
   commentsError?: string | null;
   className?: string;
   daoName?: string;
+  token?: string;
 };
 
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
@@ -153,6 +158,8 @@ type ThreadCommentProps = {
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
+  onCommentRefetch?: () => Promise<void>;
+  token?: string;
 };
 
 function ThreadComment({
@@ -162,7 +169,36 @@ function ThreadComment({
   replyingTo,
   onCancelReply,
   onSubmitComment,
+  onCommentRefetch,
+  token,
 }: ThreadCommentProps) {
+  const { updateComment, isSubmitting: isUpdating } = useUpdateDaoForumComment(
+    comment.id,
+  );
+  const { deleteComment, isSubmitting: isDeleting } = useDeleteDaoForumComment(
+    comment.id,
+  );
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  const handleEdit = async (data: {
+    body?: string | null;
+    imageUrl?: string | null;
+  }) => {
+    await updateComment(data, token);
+    await onCommentRefetch?.();
+    setIsEditing(false);
+  };
+
+  const handleDelete = async () => {
+    const deleted = await deleteComment(token);
+    if (deleted) {
+      await onCommentRefetch?.();
+      setIsDeleteConfirmOpen(false);
+    }
+  };
   return (
     <div>
       <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
@@ -257,6 +293,7 @@ function ThreadComment({
               replyingTo={replyingTo}
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
+              onCommentRefetch={onCommentRefetch}
             />
           ))}
         </div>
@@ -279,6 +316,7 @@ export default function PostThread({
   onBack,
   onSortChange,
   onSubmitComment,
+  onCommentRefetch,
   onLikeComment,
   onReplyToComment,
   onUpdatePost,
@@ -292,6 +330,7 @@ export default function PostThread({
   commentsError = null,
   className,
   daoName = "the DAO",
+  token,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
@@ -514,6 +553,8 @@ export default function PostThread({
               replyingTo={replyingTo}
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
+              onCommentRefetch={onCommentRefetch}
+              token={token}
             />
           ))
         ) : (

@@ -2,7 +2,10 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  forumContentToPlainText,
+  hasMeaningfulForumContent,
+} from "@/utils/forumContent";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
 import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
 import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
@@ -27,12 +30,9 @@ export type ForumEntryComposerProps = {
   showCancelButton?: boolean;
   variant?: "compact" | "full";
   autoFocus?: boolean;
-<<<<<<< HEAD
   limitKey?: "POST_BODY" | "COMMENT_BODY";
-=======
   initialBody?: string;
   initialImageUrl?: string | null;
->>>>>>> main
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -51,12 +51,9 @@ export default function ForumEntryComposer({
   showCancelButton = false,
   variant = "compact",
   autoFocus = false,
-<<<<<<< HEAD
   limitKey = "POST_BODY",
-=======
   initialBody = "",
   initialImageUrl = null,
->>>>>>> main
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState(initialBody);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -72,7 +69,10 @@ export default function ForumEntryComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
-  const bodyCounter = useCharacterCount(body, limitKey);
+  const bodyCounter = useCharacterCount(
+    forumContentToPlainText(body),
+    limitKey,
+  );
   const {
     uploadImage,
     removeImage,
@@ -300,7 +300,11 @@ export default function ForumEntryComposer({
           isFullVariant && "rounded-lg border border-slate-200 bg-white p-3",
         )}
       >
-        <FormattingToolbar onFormat={applyFormat} disabled={isDisabled} />
+        <FormattingToolbar
+          activeFormats={activeFormats}
+          disabled={isDisabled}
+          onFormat={applyFormat}
+        />
 
         <div
           ref={editorRef}

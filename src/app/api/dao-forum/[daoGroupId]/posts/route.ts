@@ -1,6 +1,9 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  forumContentToPlainText,
+  hasMeaningfulForumContent,
+} from "@/utils/forumContent";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
@@ -204,29 +207,9 @@ export async function POST(
   const { supabase, user } = auth;
 
   const body = (await request.json()) as CreatePostFields;
-  const errors: Record<string, string> = {};
 
-  if (!body.title?.trim()) {
-    errors.title = "Title is required";
-  } else if (body.title.length > CONTENT_LIMITS.POST_TITLE) {
-    errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
-  }
-
-  if (!body.body?.trim()) {
-    errors.body = "Body is required";
-  } else if (body.body.length > CONTENT_LIMITS.POST_BODY) {
-    errors.body = `Body must be ${CONTENT_LIMITS.POST_BODY} characters or fewer`;
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return NextResponse.json(
-      { errors },
-      { status: 422, headers: corsHeaders },
-    );
-  }
-  
   if (
-    !body.title ||
+    !body.title?.trim() ||
     !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
     !daoGroupId
@@ -237,6 +220,19 @@ export async function POST(
     );
   }
 
+  const errors: Record<string, string> = {};
+
+  if (body.title.length > CONTENT_LIMITS.POST_TITLE) {
+    errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
+  }
+
+  if (forumContentToPlainText(body.body).length > CONTENT_LIMITS.POST_BODY) {
+    errors.body = `Body must be ${CONTENT_LIMITS.POST_BODY} characters or fewer`;
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return NextResponse.json({ errors }, { status: 422, headers: corsHeaders });
+  }
   const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
   if (!isDaoMember) {
     return NextResponse.json(

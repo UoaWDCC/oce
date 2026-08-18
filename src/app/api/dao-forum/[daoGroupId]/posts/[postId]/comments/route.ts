@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  forumContentToPlainText,
+  hasMeaningfulForumContent,
+} from "@/utils/forumContent";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type {
   CreateCommentFields,
@@ -75,31 +78,31 @@ export async function POST(
   const imageUrlValue =
     typeof image_url === "string" ? image_url.trim() || undefined : undefined;
 
-    // Validate comment length
-  const errors: Record<string, string> = {};
-
-  if (bodyValue && bodyValue.length > CONTENT_LIMITS.COMMENT_BODY) {
-    errors.body = `Comment must be ${CONTENT_LIMITS.COMMENT_BODY} characters or fewer`;
-  }
-
-  if (Object.keys(errors).length > 0) {
-    return NextResponse.json(
-      { errors },
-      { status: 422, headers: corsHeaders },
-    );
-  }
-
   if (bodyValue && !hasMeaningfulForumContent(bodyValue)) {
     return NextResponse.json(
       { error: "Comment body cannot be empty" },
       { status: 400, headers: corsHeaders },
     );
   }
-  
+
   if (!bodyValue && !imageUrlValue) {
     return NextResponse.json(
       { error: "Comment cannot be empty" },
       { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (
+    bodyValue &&
+    forumContentToPlainText(bodyValue).length > CONTENT_LIMITS.COMMENT_BODY
+  ) {
+    return NextResponse.json(
+      {
+        errors: {
+          body: `Comment must be ${CONTENT_LIMITS.COMMENT_BODY} characters or fewer`,
+        },
+      },
+      { status: 422, headers: corsHeaders },
     );
   }
 

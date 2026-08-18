@@ -17,8 +17,8 @@ export function CharacterCounter({
         isOverLimit
           ? "text-red-600 font-semibold"
           : isNearLimit
-          ? "text-amber-600 font-semibold"
-          : "text-slate-400"
+            ? "text-amber-600 font-semibold"
+            : "text-slate-400"
       }
     >
       {count}/{limit}

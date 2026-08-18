@@ -92,34 +92,23 @@ export default function PostEntryComposer({
   const [isPinned, setIsPinned] = useState(initialValues?.isPinned ?? false);
   const [titleError, setTitleError] = useState<string | null>(null);
   const titleCounter = useCharacterCount(title, "POST_TITLE");
-  const [bodyError, setBodyError] = useState<string | null>(null);
 
   const handleSubmit = async (data: {
     body: string;
     imageUrl?: string | null;
   }) => {
     setTitleError(null);
-    setBodyError(null);
-    
-    // Validate title and body length before submission
+
     if (!title.trim()) {
       setTitleError("Title is required");
       throw new Error("Title is required");
     }
 
     if (titleCounter.isOverLimit) {
-      setTitleError(`Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`);
+      setTitleError(
+        `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`,
+      );
       throw new Error("Title too long");
-    }
-
-    if (data.body.length > CONTENT_LIMITS.POST_BODY) {
-      setBodyError(`Post body must be ${CONTENT_LIMITS.POST_BODY} characters or fewer`);
-      throw new Error("Body too long");
-    }
-
-    if (!title.trim()) {
-      setTitleError("Title is required");
-      throw new Error("Title is required");
     }
 
     try {
@@ -206,7 +195,9 @@ export default function PostEntryComposer({
             )}
           />
           {titleError && (
-            <p className="mt-1 text-sm text-red-600" role="alert">{titleError}</p>
+            <p className="mt-1 text-sm text-red-600" role="alert">
+              {titleError}
+            </p>
           )}
         </div>
 

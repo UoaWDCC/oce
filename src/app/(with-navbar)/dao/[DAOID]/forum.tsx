@@ -37,13 +37,14 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const [commentSort, setCommentSort] = useState<ForumThreadSort>("latest");
 
   useEffect(() => {
-    async function fetchToken() {
+    async function fetchUserSession() {
       const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      setToken(accessToken);
-      setCurrentUserId(sessionData?.session?.user?.id ?? null);
+      const session = sessionData?.session;
+
+      setToken(session?.access_token);
+      setCurrentUserId(session?.user?.id ?? null);
     }
-    fetchToken();
+    fetchUserSession();
   }, []);
 
   const {

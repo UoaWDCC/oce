@@ -19,6 +19,7 @@ const FORMAT_COMMANDS: Record<FormatType, string> = {
 };
 
 export type ForumEntryComposerProps = {
+  onChange?: (value: string) => void;
   placeholder?: string;
   submitLabel?: string;
   onSubmit: (data: { body: string; imageUrl?: string | null }) => Promise<void>;
@@ -40,6 +41,7 @@ function classNames(...classes: Array<string | false | null | undefined>) {
 }
 
 export default function ForumEntryComposer({
+  onChange,
   placeholder = "Write something...",
   submitLabel = "Submit",
   onSubmit,
@@ -84,6 +86,31 @@ export default function ForumEntryComposer({
   const [activeFormats, setActiveFormats] = useState<FormatType[]>([]);
   const editorRef = useRef<HTMLDivElement>(null);
 
+  const clearSelectedImage = useCallback(() => {
+    if (imagePreviewRef.current) {
+      URL.revokeObjectURL(imagePreviewRef.current);
+      imagePreviewRef.current = null;
+    }
+    setSelectedFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }, []);
+
+  const clear = useCallback(() => {
+    setBody("");
+    setActiveFormats([]);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = "";
+    }
+    clearSelectedImage();
+    setRetainedImageUrl(null);
+    setError(null);
+    setValidationError(null);
+    clearUploadError();
+  }, [clearSelectedImage, clearUploadError]);
+
   const updateActiveFormats = useCallback(() => {
     const editor = editorRef.current;
     const selection = document.getSelection();
@@ -121,12 +148,16 @@ export default function ForumEntryComposer({
 
     editor.focus();
     document.execCommand(FORMAT_COMMANDS[type]);
-    setBody(editor.innerHTML);
+    const nextBody = editor.innerHTML;
+    setBody(nextBody);
+    onChange?.(nextBody);
     updateActiveFormats();
   };
 
   const handleEditorInput = () => {
-    setBody(editorRef.current?.innerHTML ?? "");
+    const nextBody = editorRef.current?.innerHTML ?? "";
+    setBody(nextBody);
+    onChange?.(nextBody);
     updateActiveFormats();
   };
 
@@ -148,9 +179,9 @@ export default function ForumEntryComposer({
 
   useEffect(() => {
     const editor = editorRef.current;
-    if (!editor || !initialBody) return;
-    editor.innerHTML = initialBody;
+    if (!editor || initialBody === editor.innerHTML) return;
     setBody(initialBody);
+    editor.innerHTML = initialBody;
   }, [initialBody]);
 
   useEffect(() => {
@@ -163,18 +194,6 @@ export default function ForumEntryComposer({
 
   const handleImageAttach = () => {
     fileInputRef.current?.click();
-  };
-
-  const clearSelectedImage = () => {
-    if (imagePreviewRef.current) {
-      URL.revokeObjectURL(imagePreviewRef.current);
-      imagePreviewRef.current = null;
-    }
-    setSelectedFile(null);
-    setImagePreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,11 +267,8 @@ export default function ForumEntryComposer({
         body: body.trim(),
         imageUrl: uploadedImage?.publicUrl ?? retainedImageUrl,
       });
-      setBody("");
-      setActiveFormats([]);
-      if (editorRef.current) editorRef.current.innerHTML = "";
-      clearSelectedImage();
-      setError(null);
+
+      clear();
     } catch (err) {
       if (uploadedImage) {
         await removeImage(uploadedImage.path);

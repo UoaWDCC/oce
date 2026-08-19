@@ -42,7 +42,11 @@ export function useDaoForumPosts(
     setIsLoading(true);
 
     try {
-      const rawPosts = await getForumPosts(daoGroupId, token, controller.signal);
+      const rawPosts = await getForumPosts(
+        daoGroupId,
+        token,
+        controller.signal,
+      );
 
       // A newer request has been kicked off since this one started;
       // discard this result so it doesn't clobber fresher state.

@@ -1,7 +1,10 @@
 import { authenticateUser } from "@/utils/authHelper";
 import {
-  forumContentToPlainText,
   hasMeaningfulForumContent,
+  hasValidPostTitle,
+  normalizePostTitle,
+  trimTrailingEmptyParagraphs,
+  forumContentToPlainText,
 } from "@/utils/forumContent";
 import type { Post, UpdatePostFields } from "@app-types/dao-forum";
 import { NextResponse } from "next/server";
@@ -59,7 +62,7 @@ export async function PATCH(
   const body = (await request.json()) as UpdatePostFields;
 
   if (
-    !body.title?.trim() ||
+    !hasValidPostTitle(body.title) ||
     !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
     body.anonymous === undefined ||
@@ -73,8 +76,10 @@ export async function PATCH(
 
   // Validate input fields
   const errors: Record<string, string> = {};
+  const normalizedTitle = normalizePostTitle(body.title);
+  const normalizedBody = trimTrailingEmptyParagraphs(body.body);
 
-  if (body.title.length > CONTENT_LIMITS.POST_TITLE) {
+  if (normalizedTitle.length > CONTENT_LIMITS.POST_TITLE) {
     errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
   }
 
@@ -111,8 +116,8 @@ export async function PATCH(
     .from("posts")
     .update({
       post_type: body.post_type,
-      title: body.title,
-      body: body.body,
+      title: normalizedTitle,
+      body: normalizedBody,
       anonymous: body.anonymous,
       is_pinned: body.is_pinned,
       image_url: body.image_url,

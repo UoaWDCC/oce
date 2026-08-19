@@ -65,6 +65,26 @@ describe("PATCH /api/comments/[commentId]", () => {
     expect(json.comment.body).toBe("Updated body");
   });
 
+  it("trims trailing empty blocks without decoding entities before update", async () => {
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: existingComment, error: null })
+      .mockResolvedValueOnce({ data: existingPost, error: null });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { ...existingComment, body: "<p>Fish &amp; chips</p>" },
+      error: null,
+    });
+
+    const req = createMockRequest("PATCH", {
+      body: '<p>Fish &amp; chips</p><p class="empty"><br></p>',
+    });
+    const res = await PATCH(req, mockParams);
+
+    expect(res.status).toBe(200);
+    expect(mockSupabase.update).toHaveBeenCalledWith(
+      expect.objectContaining({ body: "<p>Fish &amp; chips</p>" }),
+    );
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),

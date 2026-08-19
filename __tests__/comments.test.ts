@@ -59,6 +59,28 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json.comment.id).toBe("comment-1");
   });
 
+  it("trims trailing empty blocks without decoding entities before insert", async () => {
+    mockSupabase.maybeSingle.mockResolvedValueOnce({
+      data: { deleted_at: null },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "comment-1" },
+      error: null,
+    });
+
+    const req = createMockRequest("POST", {
+      ...defaultCommentBody,
+      body: "<p>Fish &amp; chips</p><div><br /></div>",
+    });
+    const res = await POST(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(201);
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ body: "<p>Fish &amp; chips</p>" }),
+    );
+  });
+
   it("returns 400 when comment is empty", async () => {
     mockSupabase.maybeSingle.mockImplementation(() =>
       Promise.resolve({

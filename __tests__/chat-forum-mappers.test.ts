@@ -66,8 +66,10 @@ describe("mapCommentToForumCommentPreview", () => {
           parent_comment_id: "comment-1",
           created_at: "2026-07-22T00:00:00.000Z",
           updated_at: null,
+          deleted_at: "2026-07-22T01:00:00.000Z",
         },
         "post-1",
+        null,
       ),
     ).toMatchObject({
       id: "comment-2",
@@ -91,13 +93,38 @@ describe("mapCommentToForumCommentPreview", () => {
         parent_comment_id: null,
         created_at: "2026-07-22T00:00:00.000Z",
         updated_at: null,
+        deleted_at: null,
       },
       "post-1",
+      null,
     );
 
     expect(comment.imageUrl).toBe(
       "https://example.supabase.co/forum-images/user/image.png",
     );
+  });
+
+  it("does not treat an active image-only comment as deleted", () => {
+    const comment = mapCommentToForumCommentPreview(
+      {
+        id: "comment-image-only",
+        body: null,
+        image_url: "https://example.supabase.co/forum-images/user/image.png",
+        author_id: "user-1",
+        username: "Jordan",
+        like_count: 0,
+        is_liked: false,
+        parent_comment_id: null,
+        created_at: "2026-07-22T00:00:00.000Z",
+        updated_at: null,
+        deleted_at: null,
+      },
+      "post-1",
+      "user-1",
+    );
+
+    expect(comment.isDeleted).toBe(false);
+    expect(comment.isOwnComment).toBe(true);
   });
 });
 

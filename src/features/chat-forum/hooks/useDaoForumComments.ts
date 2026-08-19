@@ -17,6 +17,7 @@ export function useDaoForumComments(
   token?: string,
   sort: ForumThreadSort = "oldest",
   enabled = true,
+  currentUserId: string | null = null,
 ): UseDaoForumCommentsResult {
   const [comments, setComments] = useState<ForumCommentPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,7 +53,7 @@ export function useDaoForumComments(
         return;
       }
       const mapped = rawComments.map((comment) =>
-        mapCommentToForumCommentPreview(comment, postId),
+        mapCommentToForumCommentPreview(comment, postId, currentUserId),
       );
       setComments(mapped);
       setError(null);
@@ -73,7 +74,7 @@ export function useDaoForumComments(
         setIsLoading(false);
       }
     }
-  }, [daoGroupId, postId, sort, token, enabled]);
+  }, [daoGroupId, postId, currentUserId, sort, token, enabled]);
 
   useEffect(() => {
     fetchComments();

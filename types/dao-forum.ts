@@ -135,6 +135,7 @@ export interface FormattedComment {
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;
+  deleted_at: string | null;
 }
 
 export type CommentListItem = FormattedComment;
@@ -170,12 +171,14 @@ export interface ForumCommentPreview {
   id: string;
   postId: string;
   parentCommentId: string | null;
+  authorId?: string;
   authorName: string;
   authorWallet?: string;
   body: string;
   createdAt: string;
   createdAtLabel: string;
   likeCount: number;
+  isOwnComment?: boolean;
   isLiked?: boolean;
   isDeleted?: boolean;
   imageUrl?: string | null;

@@ -54,8 +54,10 @@ type ForumPanelProps = {
     postId: string,
     payload: CommentSubmitPayload,
   ) => Promise<void> | void;
+  onCommentRefetch?: () => Promise<void>;
   onLikeComment?: (commentId: string) => void | Promise<void>;
   onCommentSortChange?: (sort: ForumThreadSort) => void;
+  token?: string;
 };
 
 type PostTypeFilter = "All" | PostType;
@@ -136,8 +138,10 @@ export default function ForumPanel({
   onDeletePost,
   onSelectPost,
   onSubmitComment,
+  onCommentRefetch,
   onLikeComment,
   onCommentSortChange,
+  token,
 }: ForumPanelProps) {
   const [query, setQuery] = useState("");
   const [postType, setPostType] = useState<PostTypeFilter>("All");
@@ -262,8 +266,10 @@ export default function ForumPanel({
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
         onSubmitComment={submitComment}
+        onCommentRefetch={onCommentRefetch}
         onUpdatePost={onUpdatePost ? submitUpdatedPost : undefined}
         post={threadPost}
+        token={token}
         replyingTo={
           replyingToComment
             ? {

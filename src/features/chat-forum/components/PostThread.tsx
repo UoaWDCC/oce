@@ -10,6 +10,7 @@ import {
   Eye,
   Heart,
   MessageCircle,
+  MoreHorizontal,
   Pencil,
   Reply,
   Trash2,
@@ -29,6 +30,8 @@ import type {
   ForumThreadPost,
   ForumThreadSort,
 } from "../types";
+import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
+import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 
 type PostThreadProps = {
   post: ForumThreadPost;
@@ -37,7 +40,8 @@ type PostThreadProps = {
   onBack?: () => void;
   onSortChange?: (sort: ForumThreadSort) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
-  onLikeComment?: (commentId: string) => void;
+  onCommentRefetch?: () => Promise<void>;
+  onLikeComment?: (commentId: string) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   onUpdatePost?: (payload: PostSubmitPayload) => Promise<void>;
   onDeletePost?: () => Promise<boolean> | boolean;
@@ -50,6 +54,7 @@ type PostThreadProps = {
   commentsError?: string | null;
   className?: string;
   daoName?: string;
+  token?: string;
 };
 
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
@@ -153,6 +158,8 @@ type ThreadCommentProps = {
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
+  onCommentRefetch?: () => Promise<void>;
+  token?: string;
 };
 
 function ThreadComment({
@@ -162,29 +169,113 @@ function ThreadComment({
   replyingTo,
   onCancelReply,
   onSubmitComment,
+  onCommentRefetch,
+  token,
 }: ThreadCommentProps) {
+  const { updateComment } = useUpdateDaoForumComment(comment.id);
+  const {
+    deleteComment,
+    isSubmitting: isDeleting,
+    error: deleteError,
+  } = useDeleteDaoForumComment(comment.id);
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  const handleEdit = async (data: {
+    body?: string | null;
+    imageUrl?: string | null;
+  }) => {
+    await updateComment(data, token);
+    await onCommentRefetch?.();
+    setIsEditing(false);
+  };
+
+  const handleDelete = async () => {
+    const deleted = await deleteComment(token);
+    if (deleted) {
+      await onCommentRefetch?.();
+      setIsDeleteConfirmOpen(false);
+    }
+  };
   return (
     <div>
       <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
-        <StudentAvatar
-          avatarColor={comment.author.avatarColor}
-          badges={<AuthorBadges comment={comment} />}
-          displayName={comment.author.name}
-          profileImageUrl={comment.author.profileImageUrl}
-          size="sm"
-          timestamp={{
-            label: comment.createdAtLabel,
-            dateTime: comment.createdAt,
-          }}
-          walletAddress={comment.author.walletAddress}
-        />
-
-        <div className="mt-4">
-          <MarkdownContent content={comment.body} />
-          {comment.imageUrl && (
-            <AttachedImage src={comment.imageUrl} alt="Comment attachment" />
+        <div className="flex items-start justify-between">
+          <StudentAvatar
+            avatarColor={comment.author.avatarColor}
+            badges={<AuthorBadges comment={comment} />}
+            displayName={comment.author.name}
+            profileImageUrl={comment.author.profileImageUrl}
+            size="sm"
+            timestamp={{
+              label: comment.createdAtLabel,
+              dateTime: comment.createdAt,
+            }}
+            walletAddress={comment.author.walletAddress}
+          />
+          {comment.isOwnComment && !comment.isDeleted && (
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={isMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Comment actions"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+              {isMenuOpen && (
+                <div
+                  className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-lg"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      setIsEditing(true);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setIsDeleteConfirmOpen(true);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
+
+        {isEditing ? (
+          <CommentEntryComposer
+            onSubmit={handleEdit}
+            onCancel={() => setIsEditing(false)}
+            initialBody={comment.body}
+            initialImageUrl={comment.imageUrl}
+            showAttachment
+            className="mt-4"
+          />
+        ) : (
+          <div className="mt-4">
+            <MarkdownContent content={comment.body} />
+            {comment.imageUrl && (
+              <AttachedImage src={comment.imageUrl} alt="Comment attachment" />
+            )}
+          </div>
+        )}
 
         <div className="mt-4 flex items-center gap-4 text-sm font-semibold text-slate-500">
           {!comment.isDeleted && onLikeComment && (
@@ -219,6 +310,18 @@ function ThreadComment({
           )}
         </div>
       </article>
+
+      {isDeleteConfirmOpen && (
+        <ConfirmDeleteDialog
+          title="Delete comment?"
+          description="This comment will be removed. This cannot be undone."
+          confirmLabel="Delete comment"
+          isSubmitting={isDeleting}
+          error={deleteError?.message}
+          onCancel={() => setIsDeleteConfirmOpen(false)}
+          onConfirm={handleDelete}
+        />
+      )}
 
       {(replyingTo?.id === comment.id ||
         (comment.replies && comment.replies.length > 0)) && (
@@ -257,6 +360,8 @@ function ThreadComment({
               replyingTo={replyingTo}
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
+              onCommentRefetch={onCommentRefetch}
+              token={token}
             />
           ))}
         </div>
@@ -279,6 +384,7 @@ export default function PostThread({
   onBack,
   onSortChange,
   onSubmitComment,
+  onCommentRefetch,
   onLikeComment,
   onReplyToComment,
   onUpdatePost,
@@ -292,6 +398,7 @@ export default function PostThread({
   commentsError = null,
   className,
   daoName = "the DAO",
+  token,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
@@ -514,6 +621,8 @@ export default function PostThread({
               replyingTo={replyingTo}
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
+              onCommentRefetch={onCommentRefetch}
+              token={token}
             />
           ))
         ) : (

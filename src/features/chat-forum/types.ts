@@ -42,6 +42,7 @@ export type ForumThreadComment = {
   likeCount: number;
   isLiked?: boolean;
   isDeleted?: boolean;
+  isOwnComment?: boolean;
   imageUrl?: string | null;
   replies?: ForumThreadComment[];
 };

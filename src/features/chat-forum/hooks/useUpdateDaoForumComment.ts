@@ -28,12 +28,14 @@ export function useUpdateDaoForumComment(
   const updateComment = useCallback(
     async (data: UpdateCommentComposerData, token?: string) => {
       if (!commentId) {
-        setError(new Error("Cannot update comment: missing comment id"));
-        return undefined;
+        const error = new Error("Cannot update comment: missing comment id");
+        setError(error);
+        throw error;
       }
       if (!token) {
-        setError(new Error("Cannot update comment: not signed in"));
-        return undefined;
+        const error = new Error("Cannot update comment: not signed in");
+        setError(error);
+        throw error;
       }
       setIsSubmitting(true);
       try {
@@ -49,10 +51,10 @@ export function useUpdateDaoForumComment(
         setError(null);
         return updatedComment;
       } catch (err) {
-        setError(
-          err instanceof Error ? err : new Error("Failed to update comment"),
-        );
-        return undefined;
+        const error =
+          err instanceof Error ? err : new Error("Failed to update comment");
+        setError(error);
+        throw error;
       } finally {
         setIsSubmitting(false);
       }

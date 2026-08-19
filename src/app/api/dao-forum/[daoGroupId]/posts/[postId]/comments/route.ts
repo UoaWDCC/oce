@@ -179,6 +179,7 @@ export async function POST(
     parent_comment_id: inserted.parent_comment_id,
     created_at: inserted.created_at,
     updated_at: inserted.updated_at,
+    deleted_at: inserted.deleted_at,
   };
 
   return NextResponse.json(
@@ -309,6 +310,7 @@ export async function GET(
       parent_comment_id: comment.parent_comment_id,
       created_at: comment.created_at,
       updated_at: comment.updated_at,
+      deleted_at: comment.deleted_at,
     }));
 
   const sortedComments = filteredComments.sort((a, b) => {

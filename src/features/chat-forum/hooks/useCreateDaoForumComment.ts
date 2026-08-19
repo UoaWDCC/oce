@@ -21,6 +21,7 @@ export interface UseCreateDaoForumCommentResult {
 export function useCreateDaoForumComment(
   daoGroupId: string | undefined | null,
   postId: string | undefined | null,
+  currentUserId: string | null,
   token?: string,
 ): UseCreateDaoForumCommentResult {
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,7 +60,11 @@ export function useCreateDaoForumComment(
           payload,
           token,
         );
-        const mapped = mapCommentToForumCommentPreview(rawComment, postId);
+        const mapped = mapCommentToForumCommentPreview(
+          rawComment,
+          postId,
+          currentUserId,
+        );
         setError(null);
         return mapped;
       } catch (err) {
@@ -75,7 +80,7 @@ export function useCreateDaoForumComment(
         setIsSubmitting(false);
       }
     },
-    [daoGroupId, postId, token],
+    [daoGroupId, postId, currentUserId, token],
   );
 
   return { createComment, isSubmitting, error };

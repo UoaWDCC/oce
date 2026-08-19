@@ -211,6 +211,7 @@ describe("mapPostToForumPostPreview", () => {
     updated_at: null,
     comment_count: 2,
     view_count: 4,
+    is_unread: true,
     author: {
       id: "user-1",
       username: "jordan",
@@ -226,6 +227,7 @@ describe("mapPostToForumPostPreview", () => {
 
     expect(preview.authorId).toBe("user-1");
     expect(preview.isOwnPost).toBe(true);
+    expect(preview.isUnread).toBe(true);
     expect(preview.anonymous).toBe(false);
     expect(preview.imageUrl).toBe(
       "https://example.supabase.co/forum-images/user/image.png",
@@ -258,6 +260,7 @@ describe("applyUpdatedPostToPreview", () => {
       updated_at: null,
       comment_count: 2,
       view_count: 4,
+      is_unread: false,
       author: {
         id: "user-1",
         username: "jordan",

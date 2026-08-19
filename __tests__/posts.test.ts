@@ -94,6 +94,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         updated_at: null,
         comment_count: 2,
         view_count: 0,
+        is_unread: true,
         author: {
           id: "author-1",
           username: "alice",
@@ -105,6 +106,87 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
       },
     ]);
     expect(mockSupabase.is).toHaveBeenCalledWith("deleted_at", null);
+  });
+
+  it("derives unread state from the current user's last view and new comments", async () => {
+    const makePost = (id: string) => ({
+      id,
+      dao_group_id: "dao-1",
+      author_id: "author-1",
+      post_type: "Announcement",
+      title: id,
+      body: "Post body",
+      anonymous: false,
+      is_pinned: false,
+      image_url: null,
+      created_at: "2026-08-19T10:00:00.000Z",
+      updated_at: null,
+      author: null,
+      post_tags: [],
+    });
+
+    setMockQueryResult({
+      data: [
+        makePost("never-viewed"),
+        makePost("already-read"),
+        makePost("new-comment"),
+        makePost("edited-comment"),
+      ],
+      error: null,
+    });
+    mockSupabase.in
+      .mockResolvedValueOnce({
+        data: [
+          {
+            post_id: "already-read",
+            created_at: "2026-08-19T11:00:00.000Z",
+          },
+          {
+            post_id: "new-comment",
+            created_at: "2026-08-19T13:00:00.000Z",
+          },
+          {
+            post_id: "edited-comment",
+            created_at: "2026-08-19T11:00:00.000Z",
+            updated_at: "2026-08-19T14:00:00.000Z",
+          },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            post_id: "already-read",
+            viewer_id: "test-user",
+            last_viewed_at: "2026-08-19T12:00:00.000Z",
+          },
+          {
+            post_id: "new-comment",
+            viewer_id: "test-user",
+            last_viewed_at: "2026-08-19T12:00:00.000Z",
+          },
+          {
+            post_id: "edited-comment",
+            viewer_id: "test-user",
+            last_viewed_at: "2026-08-19T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      });
+
+    const res = await listGET(createMockRequest("GET"), mockParams);
+    const posts = await readJson<PostListItem[]>(res);
+    const unreadById = Object.fromEntries(
+      posts.map((post) => [post.id, post.is_unread]),
+    );
+
+    expect(res.status).toBe(200);
+    expect(unreadById).toEqual({
+      "never-viewed": true,
+      "already-read": false,
+      "new-comment": true,
+      "edited-comment": false,
+    });
   });
 
   it("hides author display data for anonymous posts", async () => {

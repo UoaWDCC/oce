@@ -37,6 +37,7 @@ export interface PostListItem {
   updated_at: string | null;
   comment_count: number;
   view_count: number;
+  is_unread: boolean;
   author: {
     id: string;
     username: string | null;

@@ -49,6 +49,27 @@ describe("mapPostSubmitPayloadToCreatePostFields", () => {
       }).image_url,
     ).toBe("https://example.supabase.co/forum-images/user/image.png");
   });
+
+  it("maps an optional poll into the create-post payload", () => {
+    const fields = mapPostSubmitPayloadToCreatePostFields({
+      title: "Proposal",
+      body: "Discuss this proposal",
+      postType: POST_TYPE.Proposal,
+      anonymous: false,
+      isPinned: false,
+      poll: {
+        question: "Should we proceed?",
+        options: ["Yes", "No", "Abstain"],
+        allowMultiple: false,
+      },
+    });
+
+    expect(fields.poll).toEqual({
+      question: "Should we proceed?",
+      options: ["Yes", "No", "Abstain"],
+      allow_multiple: false,
+    });
+  });
 });
 
 describe("mapCommentToForumCommentPreview", () => {

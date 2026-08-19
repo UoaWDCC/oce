@@ -49,6 +49,7 @@ export const mockSupabase = {
   delete: vi.fn().mockReturnThis(),
   single: vi.fn(() => Promise.resolve(mockQueryResult)),
   maybeSingle: vi.fn(() => Promise.resolve(mockQueryResult)),
+  rpc: vi.fn(emptyQueryResult),
 };
 
 export function setMockQueryResult(result: MockQueryResult) {
@@ -73,6 +74,7 @@ export function resetMockSupabase() {
   mockSupabase.maybeSingle.mockImplementation(() =>
     Promise.resolve(mockQueryResult),
   );
+  mockSupabase.rpc.mockImplementation(emptyQueryResult);
 }
 
 // --- Setup & utilities ---

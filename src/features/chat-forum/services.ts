@@ -6,6 +6,7 @@ import type {
   PostListItem,
   UpdateCommentFields,
   UpdatePostFields,
+  ForumPoll,
 } from "@app-types/dao-forum";
 
 const NETWORK_ERROR_MESSAGE =
@@ -153,6 +154,34 @@ export async function deleteForumPost(
     { method: "DELETE" },
     token,
   );
+}
+
+export async function getForumPoll(
+  daoGroupId: string,
+  postId: string,
+  token?: string,
+  signal?: AbortSignal,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}/poll`,
+    { signal },
+    token,
+  )) as { poll: ForumPoll | null };
+  return data.poll;
+}
+
+export async function submitForumPollVote(
+  daoGroupId: string,
+  postId: string,
+  optionIds: string[],
+  token?: string,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}/poll`,
+    { method: "POST", body: JSON.stringify({ optionIds }) },
+    token,
+  )) as { poll: ForumPoll };
+  return data.poll;
 }
 
 // COMMENT ENDPOINTS

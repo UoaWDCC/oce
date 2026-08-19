@@ -11,6 +11,7 @@ import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import { isPostUnread } from "@/features/chat-forum/readState";
+import { validateAndNormalizePoll } from "@/features/chat-forum/polls";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -261,6 +262,7 @@ export async function POST(
   const errors: Record<string, string> = {};
   const normalizedTitle = normalizePostTitle(body.title);
   const normalizedBody = trimTrailingEmptyParagraphs(body.body);
+  const pollValidation = validateAndNormalizePoll(body.poll);
 
   if (normalizedTitle.length > CONTENT_LIMITS.POST_TITLE) {
     errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
@@ -268,6 +270,9 @@ export async function POST(
 
   if (forumContentToPlainText(body.body).length > CONTENT_LIMITS.POST_BODY) {
     errors.body = `Body must be ${CONTENT_LIMITS.POST_BODY} characters or fewer`;
+  }
+  if (pollValidation.error) {
+    errors.poll = pollValidation.error;
   }
 
   if (Object.keys(errors).length > 0) {
@@ -281,20 +286,51 @@ export async function POST(
     );
   }
 
-  const { data, error } = await supabase
-    .from("posts")
-    .insert({
-      post_type: body.post_type,
-      title: normalizedTitle,
-      body: normalizedBody,
-      anonymous: body.anonymous,
-      is_pinned: body.is_pinned,
-      image_url: body.image_url,
-      author_id: user.id,
-      dao_group_id: daoGroupId,
-    })
-    .select()
-    .single();
+  let data;
+  let error;
+
+  if (pollValidation.poll) {
+    const poll = pollValidation.poll;
+    const rpcResult = await supabase.rpc("create_forum_post_with_poll", {
+      p_dao_group_id: daoGroupId,
+      p_post_type: body.post_type,
+      p_title: normalizedTitle,
+      p_body: normalizedBody,
+      p_anonymous: body.anonymous,
+      p_is_pinned: body.is_pinned,
+      p_image_url: body.image_url,
+      p_poll_question: poll.question,
+      p_poll_options: poll.options,
+      p_allow_multiple: poll.allow_multiple,
+    });
+    error = rpcResult.error;
+    if (!error && rpcResult.data) {
+      const createdPost = await supabase
+        .from("posts")
+        .select()
+        .eq("id", rpcResult.data)
+        .single();
+      data = createdPost.data;
+      error = createdPost.error;
+    }
+  } else {
+    const insertResult = await supabase
+      .from("posts")
+      .insert({
+        post_type: body.post_type,
+        title: normalizedTitle,
+        body: normalizedBody,
+        anonymous: body.anonymous,
+        is_pinned: body.is_pinned,
+        image_url: body.image_url,
+        author_id: user.id,
+        dao_group_id: daoGroupId,
+      })
+      .select()
+      .single();
+    data = insertResult.data;
+    error = insertResult.error;
+  }
 
   if (error) {
     if (error.code === "23505") {

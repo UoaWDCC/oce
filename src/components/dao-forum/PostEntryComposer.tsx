@@ -280,11 +280,11 @@ export default function PostEntryComposer({
           <h2 className="text-xl font-bold text-white">
             {isEditMode ? "Edit Post" : "New Post"}
           </h2>
-          <p className="mt-1 text-sm text-violet-200">
-            {isEditMode
-              ? `Update your post in ${daoName}`
-              : `Share with ${daoName} community`}
-          </p>
+          {isEditMode && (
+            <p className="mt-1 text-sm text-violet-200">
+              Update your post in {daoName}
+            </p>
+          )}
         </div>
         {onClose && (
           <button
@@ -464,7 +464,7 @@ export default function PostEntryComposer({
                         },
                       });
                     }}
-                    placeholder="What should the DAO do?"
+                    placeholder="Enter your poll question..."
                     className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-100"
                   />
                 </div>

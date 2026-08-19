@@ -105,7 +105,7 @@ export function mapPostToForumPostPreview(
       tags: post.tags,
       anonymous: post.anonymous,
       isPinned: post.is_pinned,
-      isUnread: undefined,
+      isUnread: post.is_unread,
       imageUrl: post.image_url,
     },
     currentUserId,

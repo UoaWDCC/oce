@@ -28,6 +28,11 @@ export function useUpdateDaoForumPost(
         throw err;
       }
 
+      if (!token) {
+        setError(new Error("Cannot update post: not signed in"));
+        return null;
+      }
+
       if (isSubmittingRef.current) {
         return null;
       }

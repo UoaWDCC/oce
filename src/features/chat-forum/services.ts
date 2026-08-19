@@ -56,7 +56,10 @@ async function request(
         ...options.headers,
       },
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err;
+    }
     // fetch only rejects when the request never reached the server.
     throw new Error(NETWORK_ERROR_MESSAGE);
   }
@@ -75,10 +78,14 @@ async function request(
 }
 
 // POST ENDPOINTS
-export async function getForumPosts(daoGroupId: string, token?: string) {
+export async function getForumPosts(
+  daoGroupId: string,
+  token?: string,
+  signal?: AbortSignal,
+) {
   const data = (await request(
     `/dao-forum/${daoGroupId}/posts`,
-    {},
+    { signal },
     token,
   )) as PostListItem[];
   return data;
@@ -154,10 +161,11 @@ export async function getPostComments(
   postId: string,
   sort = "oldest",
   token?: string,
+  signal?: AbortSignal,
 ) {
   const data = (await request(
     `/dao-forum/${daoGroupId}/posts/${postId}/comments?sort=${sort}`,
-    {},
+    { signal },
     token,
   )) as FormattedComment[];
   return data;

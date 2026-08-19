@@ -133,7 +133,7 @@ export function mapCommentToForumCommentPreview(
     }),
     likeCount: comment.like_count,
     isLiked: comment.is_liked,
-    isDeleted: comment.body === null,
+    isDeleted: comment.deleted_at !== null,
     isOwnComment: comment.author_id === currentUserId,
     imageUrl: comment.image_url,
   };

@@ -172,12 +172,12 @@ function ThreadComment({
   onCommentRefetch,
   token,
 }: ThreadCommentProps) {
-  const { updateComment, isSubmitting: isUpdating } = useUpdateDaoForumComment(
-    comment.id,
-  );
-  const { deleteComment, isSubmitting: isDeleting } = useDeleteDaoForumComment(
-    comment.id,
-  );
+  const { updateComment } = useUpdateDaoForumComment(comment.id);
+  const {
+    deleteComment,
+    isSubmitting: isDeleting,
+    error: deleteError,
+  } = useDeleteDaoForumComment(comment.id);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -217,13 +217,23 @@ function ThreadComment({
           />
           {comment.isOwnComment && !comment.isDeleted && (
             <div className="relative">
-              <button type="button" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              <button
+                type="button"
+                aria-expanded={isMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Comment actions"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
                 <MoreHorizontal className="h-5 w-5" />
               </button>
               {isMenuOpen && (
-                <div className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-lg">
+                <div
+                  className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-lg"
+                  role="menu"
+                >
                   <button
                     type="button"
+                    role="menuitem"
                     className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                     onClick={() => {
                       setIsEditing(true);
@@ -234,6 +244,7 @@ function ThreadComment({
                   </button>
                   <button
                     type="button"
+                    role="menuitem"
                     className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
                     onClick={() => {
                       setIsDeleteConfirmOpen(true);
@@ -253,6 +264,8 @@ function ThreadComment({
             onSubmit={handleEdit}
             onCancel={() => setIsEditing(false)}
             initialBody={comment.body}
+            initialImageUrl={comment.imageUrl}
+            showAttachment
             className="mt-4"
           />
         ) : (
@@ -304,6 +317,7 @@ function ThreadComment({
           description="This comment will be removed. This cannot be undone."
           confirmLabel="Delete comment"
           isSubmitting={isDeleting}
+          error={deleteError?.message}
           onCancel={() => setIsDeleteConfirmOpen(false)}
           onConfirm={handleDelete}
         />

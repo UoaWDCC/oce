@@ -135,6 +135,7 @@ export interface FormattedComment {
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;
+  deleted_at: string | null;
 }
 
 export type CommentListItem = FormattedComment;

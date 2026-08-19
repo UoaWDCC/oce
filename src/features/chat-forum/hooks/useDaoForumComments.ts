@@ -14,23 +14,30 @@ export interface UseDaoForumCommentsResult {
 export function useDaoForumComments(
   daoGroupId: string | undefined | null,
   postId: string | undefined | null,
-  currentUserId: string | null,
   token?: string,
   sort: ForumThreadSort = "oldest",
+  enabled = true,
+  currentUserId: string | null = null,
 ): UseDaoForumCommentsResult {
   const [comments, setComments] = useState<ForumCommentPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchComments = useCallback(async () => {
-    if (!daoGroupId || !postId) {
+    abortControllerRef.current?.abort();
+
+    if (!daoGroupId || !postId || !enabled) {
       requestIdRef.current += 1;
       setComments([]);
       setIsLoading(false);
       setError(null);
       return;
     }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
 
@@ -40,6 +47,7 @@ export function useDaoForumComments(
         postId,
         sort,
         token,
+        controller.signal,
       );
       if (currentRequestId !== requestIdRef.current) {
         return;
@@ -50,6 +58,9 @@ export function useDaoForumComments(
       setComments(mapped);
       setError(null);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
@@ -63,10 +74,13 @@ export function useDaoForumComments(
         setIsLoading(false);
       }
     }
-  }, [daoGroupId, postId, currentUserId, sort, token]);
+  }, [daoGroupId, postId, currentUserId, sort, token, enabled]);
 
   useEffect(() => {
     fetchComments();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [fetchComments]);
 
   const refetch = useCallback(() => {

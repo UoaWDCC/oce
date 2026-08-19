@@ -27,6 +27,10 @@ export function useDaoForumCommentLike(): UseDaoForumCommentLikeResult {
         setError(new Error("Cannot like comment: missing comment id"));
         return false;
       }
+      if (!token) {
+        setError(new Error("Cannot like comment: not signed in"));
+        return false;
+      }
       setIsSubmitting(true);
       try {
         await likeCommentService(commentId, token);
@@ -48,6 +52,10 @@ export function useDaoForumCommentLike(): UseDaoForumCommentLikeResult {
     async (commentId: string | undefined | null, token?: string) => {
       if (!commentId) {
         setError(new Error("Cannot unlike comment: missing comment id"));
+        return false;
+      }
+      if (!token) {
+        setError(new Error("Cannot unlike comment: not signed in"));
         return false;
       }
       setIsSubmitting(true);

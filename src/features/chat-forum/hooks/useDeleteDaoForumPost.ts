@@ -26,6 +26,11 @@ export function useDeleteDaoForumPost(
       return false;
     }
 
+    if (!token) {
+      setError(new Error("Cannot delete post: not signed in"));
+      return false;
+    }
+
     if (isSubmittingRef.current) {
       return false;
     }

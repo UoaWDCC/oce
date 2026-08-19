@@ -1,8 +1,15 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  hasMeaningfulForumContent,
+  hasValidPostTitle,
+  normalizePostTitle,
+  trimTrailingEmptyParagraphs,
+  forumContentToPlainText,
+} from "@/utils/forumContent";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -205,7 +212,7 @@ export async function POST(
   const body = (await request.json()) as CreatePostFields;
 
   if (
-    !body.title ||
+    !hasValidPostTitle(body.title) ||
     !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
     !daoGroupId
@@ -216,6 +223,21 @@ export async function POST(
     );
   }
 
+  const errors: Record<string, string> = {};
+  const normalizedTitle = normalizePostTitle(body.title);
+  const normalizedBody = trimTrailingEmptyParagraphs(body.body);
+
+  if (normalizedTitle.length > CONTENT_LIMITS.POST_TITLE) {
+    errors.title = `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`;
+  }
+
+  if (forumContentToPlainText(body.body).length > CONTENT_LIMITS.POST_BODY) {
+    errors.body = `Body must be ${CONTENT_LIMITS.POST_BODY} characters or fewer`;
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return NextResponse.json({ errors }, { status: 422, headers: corsHeaders });
+  }
   const isDaoMember = await checkDAOMembership(supabase, user.id, daoGroupId);
   if (!isDaoMember) {
     return NextResponse.json(
@@ -228,8 +250,8 @@ export async function POST(
     .from("posts")
     .insert({
       post_type: body.post_type,
-      title: body.title,
-      body: body.body,
+      title: normalizedTitle,
+      body: normalizedBody,
       anonymous: body.anonymous,
       is_pinned: body.is_pinned,
       image_url: body.image_url,

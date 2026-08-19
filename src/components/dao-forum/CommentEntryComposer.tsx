@@ -41,6 +41,7 @@ export default function CommentEntryComposer({
       className={className}
       showAttachButton={showAttachment}
       autoFocus={autoFocus}
+      limitKey="COMMENT_BODY"
     />
   );
 }

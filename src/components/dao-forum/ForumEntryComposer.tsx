@@ -1,27 +1,21 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-  useState,
-  forwardRef,
-} from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
-import { hasMeaningfulForumContent } from "@/utils/forumContent";
+import {
+  forumContentToPlainText,
+  hasMeaningfulForumContent,
+} from "@/utils/forumContent";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
 import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
+import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { CharacterCounter } from "./CharacterCounter";
 
 const FORMAT_COMMANDS: Record<FormatType, string> = {
   bold: "bold",
   italic: "italic",
   underline: "underline",
   bullet: "insertUnorderedList",
-};
-
-export type ForumEntryComposerHandle = {
-  clear: () => void;
 };
 
 export type ForumEntryComposerProps = {
@@ -37,6 +31,7 @@ export type ForumEntryComposerProps = {
   showCancelButton?: boolean;
   variant?: "compact" | "full";
   autoFocus?: boolean;
+  limitKey?: "POST_BODY" | "COMMENT_BODY";
   initialBody?: string;
   initialImageUrl?: string | null;
 };
@@ -45,28 +40,23 @@ function classNames(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
 
-const ForumEntryComposer = forwardRef<
-  ForumEntryComposerHandle,
-  ForumEntryComposerProps
->(function ForumEntryComposer(
-  {
-    onChange,
-    placeholder = "Write something...",
-    submitLabel = "Submit",
-    onSubmit,
-    onCancel,
-    disabled = false,
-    className = "",
-    children,
-    showAttachButton = true,
-    showCancelButton = false,
-    variant = "compact",
-    autoFocus = false,
-    initialBody = "",
-    initialImageUrl = null,
-  },
-  ref,
-) {
+export default function ForumEntryComposer({
+  onChange,
+  placeholder = "Write something...",
+  submitLabel = "Submit",
+  onSubmit,
+  onCancel,
+  disabled = false,
+  className = "",
+  children,
+  showAttachButton = true,
+  showCancelButton = false,
+  variant = "compact",
+  autoFocus = false,
+  limitKey = "POST_BODY",
+  initialBody = "",
+  initialImageUrl = null,
+}: ForumEntryComposerProps) {
   const [body, setBody] = useState(initialBody);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [retainedImageUrl, setRetainedImageUrl] = useState<string | null>(
@@ -81,6 +71,10 @@ const ForumEntryComposer = forwardRef<
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imagePreviewRef = useRef<string | null>(null);
 
+  const bodyCounter = useCharacterCount(
+    forumContentToPlainText(body),
+    limitKey,
+  );
   const {
     uploadImage,
     removeImage,
@@ -116,10 +110,6 @@ const ForumEntryComposer = forwardRef<
     setValidationError(null);
     clearUploadError();
   }, [clearSelectedImage, clearUploadError]);
-
-  useImperativeHandle(ref, () => ({
-    clear,
-  }));
 
   const updateActiveFormats = useCallback(() => {
     const editor = editorRef.current;
@@ -247,6 +237,18 @@ const ForumEntryComposer = forwardRef<
     setValidationError(null);
     setError(null);
 
+    if (!body.trim()) {
+      setValidationError("Content cannot be empty");
+      return;
+    }
+
+    if (bodyCounter.isOverLimit) {
+      setValidationError(
+        `Content must be ${bodyCounter.limit} characters or fewer`,
+      );
+      return;
+    }
+
     if (!hasMeaningfulForumContent(body)) {
       setValidationError("Content cannot be empty");
       return;
@@ -341,6 +343,15 @@ const ForumEntryComposer = forwardRef<
             isDisabled && "cursor-not-allowed opacity-50",
           )}
         />
+
+        <div className="mt-1 flex justify-end">
+          <CharacterCounter
+            count={bodyCounter.count}
+            limit={bodyCounter.limit}
+            isOverLimit={bodyCounter.isOverLimit}
+            isNearLimit={bodyCounter.isNearLimit}
+          />
+        </div>
       </div>
 
       {imagePreview && (
@@ -475,8 +486,4 @@ const ForumEntryComposer = forwardRef<
       )}
     </div>
   );
-});
-
-ForumEntryComposer.displayName = "ForumEntryComposer";
-
-export default ForumEntryComposer;
+}

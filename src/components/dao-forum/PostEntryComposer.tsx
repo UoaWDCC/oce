@@ -16,6 +16,9 @@ import {
 } from "@app-types/dao-forum";
 import ForumEntryComposer from "./ForumEntryComposer";
 import { usePostDraft } from "@/features/chat-forum/hooks/usePostDraft";
+import { CONTENT_LIMITS } from "../../features/chat-forum/lib/contentLimits";
+import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { CharacterCounter } from "./CharacterCounter";
 
 const POST_TYPE_CONFIG: Record<
   PostType,
@@ -102,6 +105,7 @@ export default function PostEntryComposer({
   const [anonymous, setAnonymous] = useState(initialValues?.anonymous ?? false);
   const [isPinned, setIsPinned] = useState(initialValues?.isPinned ?? false);
   const [titleError, setTitleError] = useState<string | null>(null);
+  const titleCounter = useCharacterCount(title, "POST_TITLE");
 
   useEffect(() => {
     if (
@@ -157,6 +161,13 @@ export default function PostEntryComposer({
     if (!title.trim()) {
       setTitleError("Title is required");
       throw new Error("Title is required");
+    }
+
+    if (titleCounter.isOverLimit) {
+      setTitleError(
+        `Title must be ${CONTENT_LIMITS.POST_TITLE} characters or fewer`,
+      );
+      throw new Error("Title too long");
     }
 
     try {
@@ -223,9 +234,17 @@ export default function PostEntryComposer({
 
       <div className="flex flex-col gap-5 p-6">
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Post Title
-          </label>
+          <div className="mb-2 flex items-center justify-between">
+            <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Post Title
+            </label>
+            <CharacterCounter
+              count={titleCounter.count}
+              limit={titleCounter.limit}
+              isOverLimit={titleCounter.isOverLimit}
+              isNearLimit={titleCounter.isNearLimit}
+            />
+          </div>
           <input
             type="text"
             value={title}
@@ -233,11 +252,14 @@ export default function PostEntryComposer({
               setTitle(e.target.value);
               persistDraft({ title: e.target.value });
             }}
+            maxLength={CONTENT_LIMITS.POST_TITLE + 10} // allow slight overage so user sees error
             placeholder="Enter a descriptive title..."
             disabled={disabled}
             className={classNames(
-              "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500",
-              disabled && "cursor-not-allowed opacity-50",
+              "w-full rounded-lg border px-4 py-3 text-sm",
+              titleCounter.isOverLimit
+                ? "border-red-400 focus:border-red-500 focus:ring-red-500"
+                : "border-slate-200 focus:border-violet-500 focus:ring-violet-500",
             )}
           />
           {titleError && (

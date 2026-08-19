@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mockSupabase, resetAll, createMockRequest, readJson } from "./helpers";
 import { PATCH, DELETE } from "@/app/api/comments/[commentId]/route";
 import { authenticateUser } from "@/utils/authHelper";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -64,6 +65,26 @@ describe("PATCH /api/comments/[commentId]", () => {
     expect(json.comment.body).toBe("Updated body");
   });
 
+  it("trims trailing empty blocks without decoding entities before update", async () => {
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: existingComment, error: null })
+      .mockResolvedValueOnce({ data: existingPost, error: null });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { ...existingComment, body: "<p>Fish &amp; chips</p>" },
+      error: null,
+    });
+
+    const req = createMockRequest("PATCH", {
+      body: '<p>Fish &amp; chips</p><p class="empty"><br></p>',
+    });
+    const res = await PATCH(req, mockParams);
+
+    expect(res.status).toBe(200);
+    expect(mockSupabase.update).toHaveBeenCalledWith(
+      expect.objectContaining({ body: "<p>Fish &amp; chips</p>" }),
+    );
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -100,6 +121,17 @@ describe("PATCH /api/comments/[commentId]", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("Comment body cannot be empty");
+  });
+
+  it("returns 422 when an updated comment exceeds the character limit", async () => {
+    const req = createMockRequest("PATCH", {
+      body: `<strong>${"a".repeat(CONTENT_LIMITS.COMMENT_BODY + 1)}</strong>`,
+    });
+    const res = await PATCH(req, mockParams);
+    const json = await readJson<{ errors: { body: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.body).toContain(String(CONTENT_LIMITS.COMMENT_BODY));
   });
 
   it("returns 400 when image_url is empty after trim", async () => {

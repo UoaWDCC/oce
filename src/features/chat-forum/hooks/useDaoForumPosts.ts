@@ -15,15 +15,20 @@ export interface UseDaoForumPostsResult {
 export function useDaoForumPosts(
   daoGroupId: string | undefined | null,
   token?: string,
+  enabled = true,
 ): UseDaoForumPostsResult {
   const [posts, setPosts] = useState<ForumPostPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const requestIdRef = useRef(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const fetchPosts = useCallback(async () => {
-    if (!daoGroupId) {
-      // No id to fetch with: reset to the "untouched" state and bail.
+    // Cancel whatever's still in flight before starting a new request.
+    abortControllerRef.current?.abort();
+
+    if (!daoGroupId || !enabled) {
+      // No id, or not yet allowed to fetch: reset to the "untouched" state and bail.
       requestIdRef.current += 1;
       setPosts([]);
       setIsLoading(false);
@@ -31,11 +36,17 @@ export function useDaoForumPosts(
       return;
     }
 
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     const currentRequestId = ++requestIdRef.current;
     setIsLoading(true);
 
     try {
-      const rawPosts = await getForumPosts(daoGroupId, token);
+      const rawPosts = await getForumPosts(
+        daoGroupId,
+        token,
+        controller.signal,
+      );
 
       // A newer request has been kicked off since this one started;
       // discard this result so it doesn't clobber fresher state.
@@ -47,6 +58,9 @@ export function useDaoForumPosts(
       setPosts(mapped);
       setError(null);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
       if (currentRequestId !== requestIdRef.current) {
         return;
       }
@@ -60,10 +74,13 @@ export function useDaoForumPosts(
         setIsLoading(false);
       }
     }
-  }, [daoGroupId, token]);
+  }, [daoGroupId, token, enabled]);
 
   useEffect(() => {
     fetchPosts();
+    return () => {
+      abortControllerRef.current?.abort();
+    };
   }, [fetchPosts]);
 
   const refetch = useCallback(() => {

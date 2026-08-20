@@ -6,6 +6,7 @@ import type {
   PostListItem,
   UpdateCommentFields,
   UpdatePostFields,
+  ForumPoll,
 } from "@app-types/dao-forum";
 
 const NETWORK_ERROR_MESSAGE =
@@ -56,7 +57,10 @@ async function request(
         ...options.headers,
       },
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw err;
+    }
     // fetch only rejects when the request never reached the server.
     throw new Error(NETWORK_ERROR_MESSAGE);
   }
@@ -75,10 +79,14 @@ async function request(
 }
 
 // POST ENDPOINTS
-export async function getForumPosts(daoGroupId: string, token?: string) {
+export async function getForumPosts(
+  daoGroupId: string,
+  token?: string,
+  signal?: AbortSignal,
+) {
   const data = (await request(
     `/dao-forum/${daoGroupId}/posts`,
-    {},
+    { signal },
     token,
   )) as PostListItem[];
   return data;
@@ -148,16 +156,45 @@ export async function deleteForumPost(
   );
 }
 
+export async function getForumPoll(
+  daoGroupId: string,
+  postId: string,
+  token?: string,
+  signal?: AbortSignal,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}/poll`,
+    { signal },
+    token,
+  )) as { poll: ForumPoll | null };
+  return data.poll;
+}
+
+export async function submitForumPollVote(
+  daoGroupId: string,
+  postId: string,
+  optionIds: string[],
+  token?: string,
+) {
+  const data = (await request(
+    `/dao-forum/${daoGroupId}/posts/${postId}/poll`,
+    { method: "POST", body: JSON.stringify({ optionIds }) },
+    token,
+  )) as { poll: ForumPoll };
+  return data.poll;
+}
+
 // COMMENT ENDPOINTS
 export async function getPostComments(
   daoGroupId: string,
   postId: string,
   sort = "oldest",
   token?: string,
+  signal?: AbortSignal,
 ) {
   const data = (await request(
     `/dao-forum/${daoGroupId}/posts/${postId}/comments?sort=${sort}`,
-    {},
+    { signal },
     token,
   )) as FormattedComment[];
   return data;

@@ -21,6 +21,15 @@ export function mapPostSubmitPayloadToCreatePostFields(
     anonymous: payload.anonymous,
     is_pinned: payload.isPinned,
     image_url: payload.imageUrl ?? null,
+    ...(payload.poll
+      ? {
+          poll: {
+            question: payload.poll.question,
+            options: payload.poll.options,
+            allow_multiple: payload.poll.allowMultiple,
+          },
+        }
+      : {}),
   };
 }
 
@@ -105,7 +114,7 @@ export function mapPostToForumPostPreview(
       tags: post.tags,
       anonymous: post.anonymous,
       isPinned: post.is_pinned,
-      isUnread: undefined,
+      isUnread: post.is_unread,
       imageUrl: post.image_url,
     },
     currentUserId,
@@ -115,11 +124,13 @@ export function mapPostToForumPostPreview(
 export function mapCommentToForumCommentPreview(
   comment: CommentListItem,
   postId: string,
+  currentUserId: string | null,
 ): ForumCommentPreview {
   return {
     id: comment.id,
     postId,
     parentCommentId: comment.parent_comment_id,
+    authorId: comment.author_id,
     authorName: comment.username ?? "Anonymous",
     authorWallet: undefined,
     body: comment.body ?? "",
@@ -131,7 +142,8 @@ export function mapCommentToForumCommentPreview(
     }),
     likeCount: comment.like_count,
     isLiked: comment.is_liked,
-    isDeleted: comment.body === null,
+    isDeleted: comment.deleted_at !== null,
+    isOwnComment: comment.author_id === currentUserId,
     imageUrl: comment.image_url,
   };
 }
@@ -177,6 +189,7 @@ export function buildForumThreadComments(
       likeCount: comment.likeCount,
       isLiked: comment.isLiked,
       isDeleted: comment.isDeleted,
+      isOwnComment: comment.isOwnComment,
       imageUrl: comment.isDeleted ? null : comment.imageUrl,
       replies: [],
     });

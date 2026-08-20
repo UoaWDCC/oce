@@ -9,6 +9,7 @@ type ConfirmDeleteDialogProps = {
   description?: string;
   confirmLabel?: string;
   isSubmitting?: boolean;
+  error?: string | null;
   onCancel: () => void;
   onConfirm: () => void;
 };
@@ -18,6 +19,7 @@ export default function ConfirmDeleteDialog({
   description = "This post and its replies will be removed from the forum. This cannot be undone.",
   confirmLabel = "Delete post",
   isSubmitting = false,
+  error = null,
   onCancel,
   onConfirm,
 }: ConfirmDeleteDialogProps) {
@@ -91,6 +93,15 @@ export default function ConfirmDeleteDialog({
             </p>
           </div>
         </div>
+
+        {error && (
+          <p
+            className="mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
 
         <div className="mt-5 flex justify-end gap-3">
           <button

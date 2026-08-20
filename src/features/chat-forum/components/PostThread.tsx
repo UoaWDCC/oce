@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -9,6 +9,7 @@ import {
   Eye,
   Heart,
   MessageCircle,
+  MoreHorizontal,
   Pencil,
   Reply,
   Trash2,
@@ -28,15 +29,20 @@ import type {
   ForumThreadPost,
   ForumThreadSort,
 } from "../types";
+import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
+import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
+import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
 
 type PostThreadProps = {
+  daoGroupId: string;
   post: ForumThreadPost;
   comments: ForumThreadComment[];
   sort?: ForumThreadSort;
   onBack?: () => void;
   onSortChange?: (sort: ForumThreadSort) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
-  onLikeComment?: (commentId: string) => void;
+  onCommentRefetch?: () => Promise<void>;
+  onLikeComment?: (commentId: string) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   onUpdatePost?: (payload: PostSubmitPayload) => Promise<void>;
   onDeletePost?: () => Promise<boolean> | boolean;
@@ -49,6 +55,7 @@ type PostThreadProps = {
   commentsError?: string | null;
   className?: string;
   daoName?: string;
+  token?: string;
 };
 
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
@@ -121,6 +128,138 @@ function AttachedImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+function ForumPollCard({
+  daoGroupId,
+  postId,
+  token,
+}: {
+  daoGroupId: string;
+  postId: string;
+  token?: string;
+}) {
+  const { poll, isLoading, isVoting, error, vote } = useDaoForumPoll(
+    daoGroupId,
+    postId,
+    token,
+  );
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    setSelectedIds(
+      poll?.options
+        .filter((option) => option.isSelected)
+        .map((option) => option.id) ?? [],
+    );
+  }, [poll]);
+
+  if (isLoading) {
+    return (
+      <div
+        className="mt-6 h-36 animate-pulse rounded-2xl bg-violet-100"
+        aria-label="Loading poll"
+      />
+    );
+  }
+  if (!poll) {
+    return error ? (
+      <p className="mt-4 text-sm text-red-600">{error.message}</p>
+    ) : null;
+  }
+
+  const hasExistingVote = poll.options.some((option) => option.isSelected);
+  const toggleOption = (optionId: string) => {
+    if (!poll.allowMultiple) {
+      setSelectedIds([optionId]);
+      return;
+    }
+    setSelectedIds((current) =>
+      current.includes(optionId)
+        ? current.filter((id) => id !== optionId)
+        : [...current, optionId],
+    );
+  };
+
+  return (
+    <section
+      className="mt-6 rounded-2xl border border-violet-200 bg-violet-50/70 p-5"
+      aria-labelledby={`poll-${poll.id}`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h2
+            id={`poll-${poll.id}`}
+            className="text-lg font-bold text-slate-900"
+          >
+            {poll.question}
+          </h2>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            {poll.allowMultiple
+              ? "Select one or more options"
+              : "Select one option"}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 space-y-3">
+        {poll.options.map((option) => {
+          const percentage =
+            poll.totalVoters > 0
+              ? Math.round((option.voteCount / poll.totalVoters) * 100)
+              : 0;
+          return (
+            <label
+              key={option.id}
+              className="block cursor-pointer rounded-xl border border-violet-100 bg-white p-3"
+            >
+              <span className="flex items-center gap-3">
+                <input
+                  type={poll.allowMultiple ? "checkbox" : "radio"}
+                  name={`poll-${poll.id}`}
+                  checked={selectedIds.includes(option.id)}
+                  disabled={isVoting}
+                  onChange={() => toggleOption(option.id)}
+                  className="h-4 w-4 border-slate-300 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="min-w-0 flex-1 text-sm font-semibold text-slate-700">
+                  {option.label}
+                </span>
+                <span className="text-xs font-bold text-slate-500">
+                  {option.voteCount} · {percentage}%
+                </span>
+              </span>
+              <span className="mt-2 block h-1.5 overflow-hidden rounded-full bg-violet-100">
+                <span
+                  className="block h-full rounded-full bg-violet-500"
+                  style={{ width: `${Math.min(percentage, 100)}%` }}
+                />
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-slate-500">
+          {poll.totalVoters} {poll.totalVoters === 1 ? "voter" : "voters"}
+        </p>
+        <button
+          type="button"
+          disabled={selectedIds.length === 0 || isVoting}
+          onClick={() => void vote(selectedIds).catch(() => undefined)}
+          className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isVoting ? "Saving…" : hasExistingVote ? "Update vote" : "Vote"}
+        </button>
+      </div>
+      {error && (
+        <p className="mt-3 text-sm text-red-600" role="alert">
+          {error.message}
+        </p>
+      )}
+    </section>
+  );
+}
+
 function AuthorBadges({ comment }: { comment: ForumThreadComment }) {
   const { badges = [], isEndorsed } = comment.author;
 
@@ -147,13 +286,15 @@ function AuthorBadges({ comment }: { comment: ForumThreadComment }) {
 
 type ThreadCommentProps = {
   comment: ForumThreadComment;
-  onLikeComment?: (commentId: string) => void;
+  onLikeComment?: (commentId: string) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
   depth?: number;
   parentAuthorName?: string;
+  onCommentRefetch?: () => Promise<void>;
+  token?: string;
 };
 
 const MAX_NESTING_DEPTH = 5;
@@ -166,7 +307,36 @@ function ThreadComment({
   onSubmitComment,
   depth = 0,
   parentAuthorName,
+  onCommentRefetch,
+  token,
 }: ThreadCommentProps) {
+  const { updateComment } = useUpdateDaoForumComment(comment.id);
+  const {
+    deleteComment,
+    isSubmitting: isDeleting,
+    error: deleteError,
+  } = useDeleteDaoForumComment(comment.id);
+
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  const handleEdit = async (data: {
+    body?: string | null;
+    imageUrl?: string | null;
+  }) => {
+    await updateComment(data, token);
+    await onCommentRefetch?.();
+    setIsEditing(false);
+  };
+
+  const handleDelete = async () => {
+    const deleted = await deleteComment(token);
+    if (deleted) {
+      await onCommentRefetch?.();
+      setIsDeleteConfirmOpen(false);
+    }
+  };
   return (
     <div>
       <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
@@ -175,25 +345,80 @@ function ThreadComment({
             Replying to {parentAuthorName}
           </div>
         )}
-        <StudentAvatar
-          avatarColor={comment.author.avatarColor}
-          badges={<AuthorBadges comment={comment} />}
-          displayName={comment.author.name}
-          profileImageUrl={comment.author.profileImageUrl}
-          size="sm"
-          timestamp={{
-            label: comment.createdAtLabel,
-            dateTime: comment.createdAt,
-          }}
-          walletAddress={comment.author.walletAddress}
-        />
-
-        <div className="mt-4">
-          <MarkdownContent content={comment.body} />
-          {comment.imageUrl && (
-            <AttachedImage src={comment.imageUrl} alt="Comment attachment" />
+        <div className="flex items-start justify-between">
+          <StudentAvatar
+            avatarColor={comment.author.avatarColor}
+            badges={<AuthorBadges comment={comment} />}
+            displayName={comment.author.name}
+            profileImageUrl={comment.author.profileImageUrl}
+            size="sm"
+            timestamp={{
+              label: comment.createdAtLabel,
+              dateTime: comment.createdAt,
+            }}
+            walletAddress={comment.author.walletAddress}
+          />
+          {comment.isOwnComment && !comment.isDeleted && (
+            <div className="relative">
+              <button
+                type="button"
+                aria-expanded={isMenuOpen}
+                aria-haspopup="menu"
+                aria-label="Comment actions"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                <MoreHorizontal className="h-5 w-5" />
+              </button>
+              {isMenuOpen && (
+                <div
+                  className="absolute right-0 z-10 mt-1 w-36 rounded-xl border border-slate-200 bg-white shadow-lg"
+                  role="menu"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    onClick={() => {
+                      setIsEditing(true);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" /> Edit
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-2 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                    onClick={() => {
+                      setIsDeleteConfirmOpen(true);
+                      setIsMenuOpen(false);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
+
+        {isEditing ? (
+          <CommentEntryComposer
+            onSubmit={handleEdit}
+            onCancel={() => setIsEditing(false)}
+            initialBody={comment.body}
+            initialImageUrl={comment.imageUrl}
+            showAttachment
+            className="mt-4"
+          />
+        ) : (
+          <div className="mt-4">
+            <MarkdownContent content={comment.body} />
+            {comment.imageUrl && (
+              <AttachedImage src={comment.imageUrl} alt="Comment attachment" />
+            )}
+          </div>
+        )}
 
         <div className="mt-4 flex items-center gap-4 text-sm font-semibold text-slate-500">
           {!comment.isDeleted && onLikeComment && (
@@ -228,6 +453,18 @@ function ThreadComment({
           )}
         </div>
       </article>
+
+      {isDeleteConfirmOpen && (
+        <ConfirmDeleteDialog
+          title="Delete comment?"
+          description="This comment will be removed. This cannot be undone."
+          confirmLabel="Delete comment"
+          isSubmitting={isDeleting}
+          error={deleteError?.message}
+          onCancel={() => setIsDeleteConfirmOpen(false)}
+          onConfirm={handleDelete}
+        />
+      )}
 
       {(replyingTo?.id === comment.id ||
         (comment.replies && comment.replies.length > 0)) &&
@@ -275,6 +512,8 @@ function ThreadComment({
                     replyingTo={replyingTo}
                     onCancelReply={onCancelReply}
                     onSubmitComment={onSubmitComment}
+                    onCommentRefetch={onCommentRefetch}
+                    token={token}
                   />
                 </div>
               ))}
@@ -318,6 +557,8 @@ function ThreadComment({
                   replyingTo={replyingTo}
                   onCancelReply={onCancelReply}
                   onSubmitComment={onSubmitComment}
+                  onCommentRefetch={onCommentRefetch}
+                  token={token}
                 />
               </div>
             ))}
@@ -335,12 +576,14 @@ function countComments(comments: ForumThreadComment[]): number {
 }
 
 export default function PostThread({
+  daoGroupId,
   post,
   comments,
   sort = "latest",
   onBack,
   onSortChange,
   onSubmitComment,
+  onCommentRefetch,
   onLikeComment,
   onReplyToComment,
   onUpdatePost,
@@ -354,6 +597,7 @@ export default function PostThread({
   commentsError = null,
   className,
   daoName = "the DAO",
+  token,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
@@ -453,6 +697,11 @@ export default function PostThread({
             {post.imageUrl && (
               <AttachedImage src={post.imageUrl} alt="Post attachment" />
             )}
+            <ForumPollCard
+              daoGroupId={daoGroupId}
+              postId={post.id}
+              token={token}
+            />
           </div>
 
           {/* Footer: views/comments (left) + timestamp (right) */}
@@ -580,6 +829,8 @@ export default function PostThread({
               replyingTo={replyingTo}
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
+              onCommentRefetch={onCommentRefetch}
+              token={token}
             />
           ))
         ) : (

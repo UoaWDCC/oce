@@ -49,6 +49,27 @@ describe("mapPostSubmitPayloadToCreatePostFields", () => {
       }).image_url,
     ).toBe("https://example.supabase.co/forum-images/user/image.png");
   });
+
+  it("maps an optional poll into the create-post payload", () => {
+    const fields = mapPostSubmitPayloadToCreatePostFields({
+      title: "Proposal",
+      body: "Discuss this proposal",
+      postType: POST_TYPE.Proposal,
+      anonymous: false,
+      isPinned: false,
+      poll: {
+        question: "Should we proceed?",
+        options: ["Yes", "No", "Abstain"],
+        allowMultiple: false,
+      },
+    });
+
+    expect(fields.poll).toEqual({
+      question: "Should we proceed?",
+      options: ["Yes", "No", "Abstain"],
+      allow_multiple: false,
+    });
+  });
 });
 
 describe("mapCommentToForumCommentPreview", () => {
@@ -66,8 +87,10 @@ describe("mapCommentToForumCommentPreview", () => {
           parent_comment_id: "comment-1",
           created_at: "2026-07-22T00:00:00.000Z",
           updated_at: null,
+          deleted_at: "2026-07-22T01:00:00.000Z",
         },
         "post-1",
+        null,
       ),
     ).toMatchObject({
       id: "comment-2",
@@ -91,13 +114,38 @@ describe("mapCommentToForumCommentPreview", () => {
         parent_comment_id: null,
         created_at: "2026-07-22T00:00:00.000Z",
         updated_at: null,
+        deleted_at: null,
       },
       "post-1",
+      null,
     );
 
     expect(comment.imageUrl).toBe(
       "https://example.supabase.co/forum-images/user/image.png",
     );
+  });
+
+  it("does not treat an active image-only comment as deleted", () => {
+    const comment = mapCommentToForumCommentPreview(
+      {
+        id: "comment-image-only",
+        body: null,
+        image_url: "https://example.supabase.co/forum-images/user/image.png",
+        author_id: "user-1",
+        username: "Jordan",
+        like_count: 0,
+        is_liked: false,
+        parent_comment_id: null,
+        created_at: "2026-07-22T00:00:00.000Z",
+        updated_at: null,
+        deleted_at: null,
+      },
+      "post-1",
+      "user-1",
+    );
+
+    expect(comment.isDeleted).toBe(false);
+    expect(comment.isOwnComment).toBe(true);
   });
 });
 
@@ -211,6 +259,7 @@ describe("mapPostToForumPostPreview", () => {
     updated_at: null,
     comment_count: 2,
     view_count: 4,
+    is_unread: true,
     author: {
       id: "user-1",
       username: "jordan",
@@ -226,6 +275,7 @@ describe("mapPostToForumPostPreview", () => {
 
     expect(preview.authorId).toBe("user-1");
     expect(preview.isOwnPost).toBe(true);
+    expect(preview.isUnread).toBe(true);
     expect(preview.anonymous).toBe(false);
     expect(preview.imageUrl).toBe(
       "https://example.supabase.co/forum-images/user/image.png",
@@ -258,6 +308,7 @@ describe("applyUpdatedPostToPreview", () => {
       updated_at: null,
       comment_count: 2,
       view_count: 4,
+      is_unread: false,
       author: {
         id: "user-1",
         username: "jordan",

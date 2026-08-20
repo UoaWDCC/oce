@@ -94,6 +94,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         updated_at: null,
         comment_count: 2,
         view_count: 0,
+        is_unread: true,
         author: {
           id: "author-1",
           username: "alice",
@@ -105,6 +106,87 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
       },
     ]);
     expect(mockSupabase.is).toHaveBeenCalledWith("deleted_at", null);
+  });
+
+  it("derives unread state from the current user's last view and new comments", async () => {
+    const makePost = (id: string) => ({
+      id,
+      dao_group_id: "dao-1",
+      author_id: "author-1",
+      post_type: "Announcement",
+      title: id,
+      body: "Post body",
+      anonymous: false,
+      is_pinned: false,
+      image_url: null,
+      created_at: "2026-08-19T10:00:00.000Z",
+      updated_at: null,
+      author: null,
+      post_tags: [],
+    });
+
+    setMockQueryResult({
+      data: [
+        makePost("never-viewed"),
+        makePost("already-read"),
+        makePost("new-comment"),
+        makePost("edited-comment"),
+      ],
+      error: null,
+    });
+    mockSupabase.in
+      .mockResolvedValueOnce({
+        data: [
+          {
+            post_id: "already-read",
+            created_at: "2026-08-19T11:00:00.000Z",
+          },
+          {
+            post_id: "new-comment",
+            created_at: "2026-08-19T13:00:00.000Z",
+          },
+          {
+            post_id: "edited-comment",
+            created_at: "2026-08-19T11:00:00.000Z",
+            updated_at: "2026-08-19T14:00:00.000Z",
+          },
+        ],
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: [
+          {
+            post_id: "already-read",
+            viewer_id: "test-user",
+            last_viewed_at: "2026-08-19T12:00:00.000Z",
+          },
+          {
+            post_id: "new-comment",
+            viewer_id: "test-user",
+            last_viewed_at: "2026-08-19T12:00:00.000Z",
+          },
+          {
+            post_id: "edited-comment",
+            viewer_id: "test-user",
+            last_viewed_at: "2026-08-19T12:00:00.000Z",
+          },
+        ],
+        error: null,
+      });
+
+    const res = await listGET(createMockRequest("GET"), mockParams);
+    const posts = await readJson<PostListItem[]>(res);
+    const unreadById = Object.fromEntries(
+      posts.map((post) => [post.id, post.is_unread]),
+    );
+
+    expect(res.status).toBe(200);
+    expect(unreadById).toEqual({
+      "never-viewed": true,
+      "already-read": false,
+      "new-comment": true,
+      "edited-comment": false,
+    });
   });
 
   it("hides author display data for anonymous posts", async () => {
@@ -224,11 +306,115 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     expect(json).toEqual(newPost);
   });
 
+  it("creates a post and poll atomically through the database function", async () => {
+    const newPost = { id: "post-poll", title: "Proposal" };
+    setMockQueryResult({ data: newPost, error: null });
+    mockSupabase.rpc.mockResolvedValueOnce({ data: "post-poll", error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: "Proposal",
+      poll: {
+        question: "Should we proceed?",
+        options: ["Yes", "No"],
+        allow_multiple: false,
+      },
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      "create_forum_post_with_poll",
+      expect.objectContaining({
+        p_poll_question: "Should we proceed?",
+        p_poll_options: ["Yes", "No"],
+        p_allow_multiple: false,
+      }),
+    );
+    expect(mockSupabase.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate poll options", async () => {
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      poll: {
+        question: "Choose",
+        options: ["Yes", " yes "],
+        allow_multiple: true,
+      },
+    });
+    const res = await POST(req, mockParams);
+    const json = await readJson<{ errors: { poll: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.poll).toBe("Poll options must be unique");
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+  });
+
+  it("normalizes the title and trailing empty body blocks before insert", async () => {
+    setMockQueryResult({ data: { id: "post-new" }, error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: "  Fish\u00A0and chips  ",
+      body: "<p>Fish &amp; chips</p><p><br /></p>",
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Fish\u00A0and chips",
+        body: "<p>Fish &amp; chips</p>",
+      }),
+    );
+  });
+
+  it("applies the title limit after trimming surrounding whitespace", async () => {
+    setMockQueryResult({ data: { id: "post-new" }, error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: `  ${"a".repeat(CONTENT_LIMITS.POST_TITLE)}  `,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+  });
+
   it("returns 400 when missing required fields", async () => {
     const req = createMockRequest("POST", {
       title: "",
       body: "",
       post_type: "",
+      anonymous: false,
+      is_pinned: false,
+      image_url: null,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when post title is whitespace only", async () => {
+    const req = createMockRequest("POST", {
+      title: "    ",
+      body: "test",
+      post_type: "Announcement",
+      anonymous: false,
+      is_pinned: false,
+      image_url: null,
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when post title only contains non-breaking spaces", async () => {
+    const req = createMockRequest("POST", {
+      title: "\u00A0",
+      body: "test",
+      post_type: "Announcement",
       anonymous: false,
       is_pinned: false,
       image_url: null,
@@ -408,8 +594,51 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(json.title).toBe("Updated");
   });
 
+  it("normalizes the title and trailing empty body blocks before update", async () => {
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "test-user" },
+      error: null,
+    });
+    mockSupabase.maybeSingle.mockResolvedValueOnce({
+      data: { id: "post-1", title: "Updated" },
+      error: null,
+    });
+
+    const req = createMockRequest("PATCH", {
+      ...validBody,
+      title: "  Updated  ",
+      body: '<p>Updated &amp; retained</p><div class="empty"><br></div>',
+    });
+    const res = await PATCH(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(200);
+    expect(mockSupabase.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Updated",
+        body: "<p>Updated &amp; retained</p>",
+      }),
+    );
+  });
+
   it("returns 400 when missing required fields", async () => {
     const req = createMockRequest("PATCH", { title: "Only title" });
+    const res = await PATCH(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when the title is whitespace only", async () => {
+    const req = createMockRequest("PATCH", {
+      ...validBody,
+      title: "         ",
+    });
+    const res = await PATCH(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 when the title is non-breaking space only", async () => {
+    const req = createMockRequest("PATCH", { ...validBody, title: "\u00A0" });
     const res = await PATCH(req, mockParamsWithPostId);
 
     expect(res.status).toBe(400);

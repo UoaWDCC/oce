@@ -54,8 +54,10 @@ type ForumPanelProps = {
     postId: string,
     payload: CommentSubmitPayload,
   ) => Promise<void> | void;
+  onCommentRefetch?: () => Promise<void>;
   onLikeComment?: (commentId: string) => void | Promise<void>;
   onCommentSortChange?: (sort: ForumThreadSort) => void;
+  token?: string;
 };
 
 type PostTypeFilter = "All" | PostType;
@@ -136,8 +138,10 @@ export default function ForumPanel({
   onDeletePost,
   onSelectPost,
   onSubmitComment,
+  onCommentRefetch,
   onLikeComment,
   onCommentSortChange,
+  token,
 }: ForumPanelProps) {
   const [query, setQuery] = useState("");
   const [postType, setPostType] = useState<PostTypeFilter>("All");
@@ -248,6 +252,7 @@ export default function ForumPanel({
   if (threadPost) {
     return (
       <PostThread
+        daoGroupId={daoGroupId}
         comments={threadComments}
         commentsError={commentsError}
         daoName={daoName}
@@ -262,8 +267,10 @@ export default function ForumPanel({
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
         onSubmitComment={submitComment}
+        onCommentRefetch={onCommentRefetch}
         onUpdatePost={onUpdatePost ? submitUpdatedPost : undefined}
         post={threadPost}
+        token={token}
         replyingTo={
           replyingToComment
             ? {
@@ -409,6 +416,8 @@ export default function ForumPanel({
           <section className="mb-6" aria-label="Create a post">
             <PostEntryComposer
               className="border border-purple-200 shadow-sm"
+              userId={currentUserId}
+              daoGroupId={daoGroupId}
               daoName={daoName}
               onCancel={() => setIsComposerOpen(false)}
               onClose={() => setIsComposerOpen(false)}

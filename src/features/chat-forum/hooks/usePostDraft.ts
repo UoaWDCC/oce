@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { PollSubmitPayload } from "@app-types/dao-forum";
 
 export type PostDraft = {
   title: string;
@@ -9,6 +10,7 @@ export type PostDraft = {
   anonymous: boolean;
   isPinned: boolean;
   imageUrl?: string; // Stored as reference/URL, NEVER raw File objects
+  poll?: PollSubmitPayload;
   version: number;
 };
 
@@ -63,6 +65,14 @@ export function usePostDraft(userId?: string, daoGroupId?: string) {
           isPinned: Boolean(parsed.isPinned),
           imageUrl:
             typeof parsed.imageUrl === "string" ? parsed.imageUrl : undefined,
+          poll:
+            parsed.poll &&
+            typeof parsed.poll.question === "string" &&
+            Array.isArray(parsed.poll.options) &&
+            parsed.poll.options.every((option) => typeof option === "string") &&
+            typeof parsed.poll.allowMultiple === "boolean"
+              ? parsed.poll
+              : undefined,
           version: DRAFT_VERSION,
         });
       }

@@ -306,6 +306,51 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
     expect(json).toEqual(newPost);
   });
 
+  it("creates a post and poll atomically through the database function", async () => {
+    const newPost = { id: "post-poll", title: "Proposal" };
+    setMockQueryResult({ data: newPost, error: null });
+    mockSupabase.rpc.mockResolvedValueOnce({ data: "post-poll", error: null });
+
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      title: "Proposal",
+      poll: {
+        question: "Should we proceed?",
+        options: ["Yes", "No"],
+        allow_multiple: false,
+      },
+    });
+    const res = await POST(req, mockParams);
+
+    expect(res.status).toBe(201);
+    expect(mockSupabase.rpc).toHaveBeenCalledWith(
+      "create_forum_post_with_poll",
+      expect.objectContaining({
+        p_poll_question: "Should we proceed?",
+        p_poll_options: ["Yes", "No"],
+        p_allow_multiple: false,
+      }),
+    );
+    expect(mockSupabase.insert).not.toHaveBeenCalled();
+  });
+
+  it("rejects duplicate poll options", async () => {
+    const req = createMockRequest("POST", {
+      ...defaultPostBody,
+      poll: {
+        question: "Choose",
+        options: ["Yes", " yes "],
+        allow_multiple: true,
+      },
+    });
+    const res = await POST(req, mockParams);
+    const json = await readJson<{ errors: { poll: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.poll).toBe("Poll options must be unique");
+    expect(mockSupabase.rpc).not.toHaveBeenCalled();
+  });
+
   it("normalizes the title and trailing empty body blocks before insert", async () => {
     setMockQueryResult({ data: { id: "post-new" }, error: null });
 

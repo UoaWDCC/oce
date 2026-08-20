@@ -55,6 +55,7 @@ export interface CreatePostFields {
   anonymous: boolean;
   is_pinned: boolean;
   image_url: string | null;
+  poll?: CreatePollFields;
 }
 
 export interface UpdatePostFields {
@@ -74,6 +75,34 @@ export type PostSubmitPayload = {
   anonymous: boolean;
   isPinned: boolean;
   imageUrl?: string | null;
+  poll?: PollSubmitPayload;
+};
+
+export type PollSubmitPayload = {
+  question: string;
+  options: string[];
+  allowMultiple: boolean;
+};
+
+export type CreatePollFields = {
+  question: string;
+  options: string[];
+  allow_multiple: boolean;
+};
+
+export type ForumPollOption = {
+  id: string;
+  label: string;
+  voteCount: number;
+  isSelected: boolean;
+};
+
+export type ForumPoll = {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  totalVoters: number;
+  options: ForumPollOption[];
 };
 
 export interface CreateCommentFields {

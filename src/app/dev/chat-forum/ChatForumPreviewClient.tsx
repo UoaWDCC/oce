@@ -355,6 +355,7 @@ export default function ChatForumPreviewClient() {
             </p>
           </div>
           <PostThread
+            daoGroupId={PREVIEW_DAO_ID}
             comments={mockForumThreadComments}
             onBack={() => console.log("Back to forum")}
             onLikeComment={(commentId) =>

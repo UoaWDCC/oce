@@ -252,6 +252,7 @@ export default function ForumPanel({
   if (threadPost) {
     return (
       <PostThread
+        daoGroupId={daoGroupId}
         comments={threadComments}
         commentsError={commentsError}
         daoName={daoName}

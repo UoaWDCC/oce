@@ -21,6 +21,15 @@ export function mapPostSubmitPayloadToCreatePostFields(
     anonymous: payload.anonymous,
     is_pinned: payload.isPinned,
     image_url: payload.imageUrl ?? null,
+    ...(payload.poll
+      ? {
+          poll: {
+            question: payload.poll.question,
+            options: payload.poll.options,
+            allow_multiple: payload.poll.allowMultiple,
+          },
+        }
+      : {}),
   };
 }
 

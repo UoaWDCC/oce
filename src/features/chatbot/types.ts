@@ -13,7 +13,17 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
 }
-
+export interface GetConversationsResponse {
+  conversation: Conversation[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+  };
+}
 export interface TutorMessage {
   id: string;
   conversation_id: string;
@@ -22,3 +32,4 @@ export interface TutorMessage {
   is_favourite: boolean;
   created_at: string;
 }
+

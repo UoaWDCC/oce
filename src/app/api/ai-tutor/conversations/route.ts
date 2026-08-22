@@ -30,9 +30,24 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim().slice(0, MAX_SEARCH_QUERY_LENGTH);
 
+    const page = Math.max(
+      1,
+      Number.parseInt(searchParams.get("page") ?? "1", 10) || 1,
+    );
+
+    const limit = Math.min(
+      50,
+      Math.max(1, Number.parseInt(searchParams.get("limit") ?? "20", 10) || 20),
+    );
+
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
     let query = supabase
       .from("conversations")
-      .select("id, user_id, status, title, created_at, updated_at")
+      .select("id, user_id, status, title, created_at, updated_at", {
+        count: "exact",
+      })
       .eq("user_id", user.id)
       .neq("status", "ended");
 
@@ -40,9 +55,15 @@ export async function GET(req: NextRequest) {
       query = query.ilike("title", `%${escapeIlikePattern(q)}%`);
     }
 
-    const { data: conversation, error } = await query.order("updated_at", {
-      ascending: false,
-    });
+    const {
+      data: conversation,
+      error,
+      count,
+    } = await query
+      .order("updated_at", {
+        ascending: false,
+      })
+      .range(from, to);
 
     if (error) {
       console.error(
@@ -55,8 +76,21 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    const total = count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+
     return NextResponse.json(
-      { conversation },
+      {
+        conversation,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages,
+          hasNextPage: page < totalPages,
+          hasPreviousPage: page > 1,
+        },
+      },
       { status: 200, headers: corsHeaders },
     );
   } catch (error) {

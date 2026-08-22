@@ -1,25 +1,40 @@
-import { Conversation, TutorMessage } from "@/features/chatbot/types";
+import {
+  Conversation,
+  GetConversationsResponse,
+  TutorMessage,
+} from "@/features/chatbot/types";
 import type { Message } from "@/llm/types/Message";
 import { apiFetch } from "../utils/apiFetch";
 
 // Passing a query filters by a case-insensitive partial match on title
-// (see the ?q= handling in /api/ai-tutor/conversations).
+// via ?q=. Pagination is handled with ?page= and ?limit=.
 export async function getConversations(
+  page: number = 1,
+  limit: number = 20,
   query?: string,
-): Promise<Conversation[]> {
-  const search = query?.trim();
-  const url = search
-    ? `/api/ai-tutor/conversations?q=${encodeURIComponent(search)}`
-    : "/api/ai-tutor/conversations";
+): Promise<GetConversationsResponse> {
+  const params = new URLSearchParams();
 
-  const response = await apiFetch(url, {}, true);
-  const data = (await response.json()) as { conversation?: unknown };
+  if (query?.trim()) {
+    params.set("q", query.trim());
+  }
+
+  params.set("page", page.toString());
+  params.set("limit", limit.toString());
+
+  const response = await apiFetch(
+    `/api/ai-tutor/conversations?${params.toString()}`,
+    {},
+    true,
+  );
+
+  const data = (await response.json()) as GetConversationsResponse;
 
   if (!Array.isArray(data.conversation)) {
     throw new Error("Invalid conversations response");
   }
 
-  return data.conversation as Conversation[];
+  return data;
 }
 
 export async function createConversation(): Promise<Conversation> {

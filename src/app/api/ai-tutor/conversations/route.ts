@@ -30,9 +30,9 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim().slice(0, MAX_SEARCH_QUERY_LENGTH);
 
-    const page = Math.max(
+    const offset = Math.max(
       1,
-      Number.parseInt(searchParams.get("page") ?? "1", 10) || 1,
+      Number.parseInt(searchParams.get("offset") ?? "1", 10) || 1,
     );
 
     const limit = Math.min(
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       Math.max(1, Number.parseInt(searchParams.get("limit") ?? "20", 10) || 20),
     );
 
-    const from = (page - 1) * limit;
+    const from = (offset - 1) * limit;
     const to = from + limit - 1;
 
     let query = supabase
@@ -82,14 +82,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       {
         conversation,
-        pagination: {
-          page,
-          limit,
-          total,
-          totalPages,
-          hasNextPage: page < totalPages,
-          hasPreviousPage: page > 1,
-        },
+        nextOffset: offset + 1,
+        hasMore: offset < totalPages,
       },
       { status: 200, headers: corsHeaders },
     );

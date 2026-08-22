@@ -15,14 +15,8 @@ export interface Conversation {
 }
 export interface GetConversationsResponse {
   conversation: Conversation[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNextPage: boolean;
-    hasPreviousPage: boolean;
-  };
+  nextOffset: number;
+  hasMore: boolean;
 }
 export interface TutorMessage {
   id: string;

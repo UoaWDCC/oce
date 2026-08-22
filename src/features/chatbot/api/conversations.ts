@@ -7,9 +7,9 @@ import type { Message } from "@/llm/types/Message";
 import { apiFetch } from "../utils/apiFetch";
 
 // Passing a query filters by a case-insensitive partial match on title
-// via ?q=. Pagination is handled with ?page= and ?limit=.
+// via ?q=. Pagination is handled with ?offset= and ?limit=.
 export async function getConversations(
-  page: number = 1,
+  offset: number = 1,
   limit: number = 20,
   query?: string,
 ): Promise<GetConversationsResponse> {
@@ -19,7 +19,7 @@ export async function getConversations(
     params.set("q", query.trim());
   }
 
-  params.set("page", page.toString());
+  params.set("offset", offset.toString());
   params.set("limit", limit.toString());
 
   const response = await apiFetch(

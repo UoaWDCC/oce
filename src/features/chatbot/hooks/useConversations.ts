@@ -6,7 +6,7 @@ import { Conversation } from "@/features/chatbot/types";
 
 export function useConversations(refreshVersion = 0) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [page, setPage] = useState<number>(1);
+  const [offset, setOffset] = useState<number>(1);
   const [hasMore, setHasMore] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -25,7 +25,7 @@ export function useConversations(refreshVersion = 0) {
     async function loadConversations() {
       try {
         if (hasMore) {
-          const data = await getConversations(page);
+          const data = await getConversations(offset);
           if (ignore) return;
           setConversations((conversations) => [
             ...conversations,
@@ -34,7 +34,7 @@ export function useConversations(refreshVersion = 0) {
           setHasMore(false);
           if (data.pagination.hasNextPage) {
             setHasMore(true);
-            setPage((page) => page + 1);
+            setOffset((offset) => offset + 1);
           }
         }
         if (conversations) hasLoadedRef.current = true;

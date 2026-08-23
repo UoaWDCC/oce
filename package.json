@@ -24,6 +24,7 @@
     "@google/genai": "^2.4.0",
     "@metamask/jazzicon": "github:metamask/jazzicon",
     "@namestone/namestone-sdk": "^0.2.15",
+    "@radix-ui/react-dialog": "^1.1.23",
     "@radix-ui/react-switch": "^1.2.6",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/auth-helpers-react": "^0.5.0",

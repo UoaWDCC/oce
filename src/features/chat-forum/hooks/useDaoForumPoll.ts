@@ -1,46 +1,28 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ForumPoll } from "@app-types/dao-forum";
 import { getForumPoll, submitForumPollVote } from "../services";
+import { forumKeys } from "../queryKeys";
 
 export function useDaoForumPoll(
   daoGroupId: string,
   postId: string,
   token?: string,
 ) {
-  const [poll, setPoll] = useState<ForumPoll | null>(null);
-  const [isLoading, setIsLoading] = useState(Boolean(token));
+  const queryClient = useQueryClient();
   const [isVoting, setIsVoting] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const [voteError, setVoteError] = useState<Error | null>(null);
+  const queryKey = forumKeys.poll(daoGroupId, postId);
+
+  const query = useQuery({
+    queryKey,
+    queryFn: ({ signal }) => getForumPoll(daoGroupId, postId, token, signal),
+    enabled: Boolean(token),
+  });
 
   const refetch = useCallback(async () => {
-    abortRef.current?.abort();
-    if (!token) {
-      setPoll(null);
-      setIsLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setIsLoading(true);
-    try {
-      setPoll(await getForumPoll(daoGroupId, postId, token, controller.signal));
-      setError(null);
-    } catch (caught) {
-      if (caught instanceof DOMException && caught.name === "AbortError")
-        return;
-      setError(
-        caught instanceof Error ? caught : new Error("Failed to load poll"),
-      );
-    } finally {
-      if (!controller.signal.aborted) setIsLoading(false);
-    }
-  }, [daoGroupId, postId, token]);
-
-  useEffect(() => {
-    void refetch();
-    return () => abortRef.current?.abort();
-  }, [refetch]);
+    await query.refetch();
+  }, [query]);
 
   const vote = useCallback(
     async (optionIds: string[]) => {
@@ -53,19 +35,26 @@ export function useDaoForumPoll(
           optionIds,
           token,
         );
-        setPoll(updated);
-        setError(null);
+        queryClient.setQueryData<ForumPoll>(queryKey, updated);
+        setVoteError(null);
       } catch (caught) {
-        const voteError =
+        const error =
           caught instanceof Error ? caught : new Error("Failed to submit vote");
-        setError(voteError);
-        throw voteError;
+        setVoteError(error);
+        throw error;
       } finally {
         setIsVoting(false);
       }
     },
-    [daoGroupId, postId, token],
+    [daoGroupId, postId, token, queryClient, queryKey],
   );
 
-  return { poll, isLoading, isVoting, error, vote, refetch };
+  return {
+    poll: query.data ?? null,
+    isLoading: query.isPending && query.isFetching,
+    isVoting,
+    error: (query.error as Error | null) ?? voteError,
+    vote,
+    refetch,
+  };
 }

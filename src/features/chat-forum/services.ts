@@ -30,16 +30,20 @@ function statusMessage(status: number) {
 
 /** Prefers the API's own error text, falling back to a message for the status code. */
 async function errorFromResponse(res: Response) {
+  let error: Error;
   try {
     const body = (await res.json()) as { error?: string; message?: string };
     const message = body?.error ?? body?.message;
-    if (typeof message === "string" && message.trim()) {
-      return new Error(message);
-    }
+    error =
+      typeof message === "string" && message.trim()
+        ? new Error(message)
+        : new Error(statusMessage(res.status));
   } catch {
     // No JSON body to read; fall through to the status-based message.
+    error = new Error(statusMessage(res.status));
   }
-  return new Error(statusMessage(res.status));
+  (error as Error & { status?: number }).status = res.status;
+  return error;
 }
 
 async function request(

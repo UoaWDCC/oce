@@ -146,7 +146,10 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     if (postId) {
       const succeeded = await recordView(postId);
       if (succeeded) {
-        await refetchPosts();
+        const post = posts.find((item) => item.id === postId);
+        if (post && post.isUnread) {
+          replacePost({ ...post, isUnread: false });
+        }
       }
     }
   };

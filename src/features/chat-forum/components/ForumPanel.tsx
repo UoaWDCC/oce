@@ -384,10 +384,7 @@ export default function ForumPanel({
       <main className="min-w-0">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-purple-600">
-              Community forum
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">
+            <h1 className="text-2xl font-bold text-slate-950 md:text-3xl">
               {daoName} Forum
             </h1>
             <p className="mt-1 text-sm font-semibold text-slate-400">
@@ -483,9 +480,6 @@ export default function ForumPanel({
             </section>
           </>
         )}
-        <p className="mt-6 text-xs text-slate-400">
-          DAO group reference: {daoGroupId}
-        </p>
       </main>
     </div>
   );

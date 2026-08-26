@@ -3,7 +3,7 @@ import { AI_TUTOR_SYSTEM_PROMPT } from "@/features/chatbot/server/prompts/aiTuto
 
 export function buildAiTutorInstruction(): string {
   return `${AI_TUTOR_SYSTEM_PROMPT}
-  
+
 Use this platform navigation information to answer user questions:
 
 ${JSON.stringify(SITE_GUIDE, null, 2)}`;

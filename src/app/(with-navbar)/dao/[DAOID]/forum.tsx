@@ -80,8 +80,8 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     token,
   );
   const {
-    likeComment,
-    unlikeComment,
+    toggleLike,
+    optimisticState,
     error: commentLikeError,
   } = useDaoForumCommentLike();
 
@@ -128,17 +128,11 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     await submitForumComment({ createComment, refetchComments }, payload);
   };
 
-  const handleLikeComment = async (commentId: string): Promise<void> => {
+  const handleLikeComment = (commentId: string): void => {
     const comment = comments.find((item) => item.id === commentId);
-    if (!comment || comment.isDeleted) return;
-
-    const succeeded = comment.isLiked
-      ? await unlikeComment(commentId, token)
-      : await likeComment(commentId, token);
-
-    if (succeeded) {
-      await refetchComments();
-    }
+    if (!comment || comment.isDeleted || !token) return;
+    if (comment.isLiked === undefined || comment.likeCount === undefined) return;
+    toggleLike(commentId, comment.isLiked, comment.likeCount, token);
   };
 
   const handleSelectPost = async (postId: string | null): Promise<void> => {
@@ -146,7 +140,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     if (postId) {
       const succeeded = await recordView(postId);
       if (succeeded) {
-        await refetchPosts();
+        refetchPosts();
       }
     }
   };
@@ -163,10 +157,14 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       createCommentError?.message ??
       commentLikeError?.message);
   const mutationError = updatePostError?.message ?? deletePostError?.message;
+  const optimisticComments = comments.map(comment => {
+    const override = optimisticState[comment.id];
+    return override ? { ...comment, ...override } : comment;
+  });
 
   return (
     <ForumPanel
-      comments={comments}
+      comments={optimisticComments}
       currentUserId={currentUserId}
       daoGroupId={daoGroupId}
       daoName={dao.Name}

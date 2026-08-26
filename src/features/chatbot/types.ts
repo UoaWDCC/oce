@@ -13,6 +13,7 @@ export interface Conversation {
   created_at: string;
   updated_at: string;
 }
+
 export interface GetConversationsResponse {
   conversation: Conversation[];
   nextOffset: number;
@@ -26,4 +27,3 @@ export interface TutorMessage {
   is_favourite: boolean;
   created_at: string;
 }
-

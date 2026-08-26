@@ -6,8 +6,6 @@ import { Conversation } from "@/features/chatbot/types";
 
 export function useConversations(refreshVersion = 0) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [offset, setOffset] = useState<number>(1);
-  const [hasMore, setHasMore] = useState<boolean>(true);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const hasLoadedRef = useRef(false);
@@ -24,20 +22,10 @@ export function useConversations(refreshVersion = 0) {
     setError(null);
     async function loadConversations() {
       try {
-        if (hasMore) {
-          const data = await getConversations(offset);
-          if (ignore) return;
-          setConversations((conversations) => [
-            ...conversations,
-            ...data.conversation,
-          ]);
-          setHasMore(false);
-          if (data.pagination.hasNextPage) {
-            setHasMore(true);
-            setOffset((offset) => offset + 1);
-          }
-        }
-        if (conversations) hasLoadedRef.current = true;
+        const data = await getConversations({ offset: 0 });
+        if (ignore) return;
+        setConversations(data.conversation);
+        hasLoadedRef.current = true;
       } catch (err) {
         if (ignore) return;
         setError(err instanceof Error ? err : new Error("Unknown error"));

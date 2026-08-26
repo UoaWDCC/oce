@@ -8,11 +8,17 @@ import { apiFetch } from "../utils/apiFetch";
 
 // Passing a query filters by a case-insensitive partial match on title
 // via ?q=. Pagination is handled with ?offset= and ?limit=.
-export async function getConversations(
-  offset: number = 1,
-  limit: number = 20,
-  query?: string,
-): Promise<GetConversationsResponse> {
+interface GetConversationsOptions {
+  query?: string;
+  offset?: number;
+  limit?: number;
+}
+
+export async function getConversations({
+  query,
+  offset = 0,
+  limit = 20,
+}: GetConversationsOptions = {}): Promise<GetConversationsResponse> {
   const params = new URLSearchParams();
 
   if (query?.trim()) {
@@ -30,7 +36,12 @@ export async function getConversations(
 
   const data = (await response.json()) as GetConversationsResponse;
 
-  if (!Array.isArray(data.conversation)) {
+  if (
+    !Array.isArray(data.conversation) ||
+    typeof data.hasMore !== "boolean" ||
+    !Number.isSafeInteger(data.nextOffset) ||
+    data.nextOffset < 0
+  ) {
     throw new Error("Invalid conversations response");
   }
 

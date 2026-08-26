@@ -8,6 +8,17 @@ const corsHeaders = {
 };
 
 const MAX_SEARCH_QUERY_LENGTH = 200;
+const DEFAULT_LIMIT = 20;
+const MAX_LIMIT = 100;
+const base10IntegerRegex = /^\d+$/;
+
+function parseCount(value: string | null, fallback: number): number | null {
+  if (value === null) return fallback;
+  if (!base10IntegerRegex.test(value)) return null;
+
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : null;
+}
 
 // Escapes ILIKE wildcard characters so search input is matched literally.
 function escapeIlikePattern(value: string): string {
@@ -18,9 +29,9 @@ function escapeIlikePattern(value: string): string {
     .replace(/\*/g, "\\*");
 }
 
-// GET /api/ai-tutor/conversations
-// Returns all non-deleted (active) conversations for the authenticated user,
-// optionally filtered by a case-insensitive partial match on title via ?q=
+// GET /api/ai-tutor/conversations?limit=20&offset=0
+// Returns a newest-first page of non-ended conversations for the authenticated
+// user, optionally filtered by a case-insensitive partial title match via ?q=.
 export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateUser(req, corsHeaders);
@@ -29,25 +40,24 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const q = searchParams.get("q")?.trim().slice(0, MAX_SEARCH_QUERY_LENGTH);
+    const requestedLimit = parseCount(searchParams.get("limit"), DEFAULT_LIMIT);
+    const offset = parseCount(searchParams.get("offset"), 0);
 
-    const offset = Math.max(
-      1,
-      Number.parseInt(searchParams.get("offset") ?? "1", 10) || 1,
-    );
+    if (requestedLimit === null || requestedLimit === 0 || offset === null) {
+      return NextResponse.json(
+        {
+          error:
+            "limit must be a positive base-10 integer and offset must be a non-negative base-10 integer",
+        },
+        { status: 400, headers: corsHeaders },
+      );
+    }
 
-    const limit = Math.min(
-      50,
-      Math.max(1, Number.parseInt(searchParams.get("limit") ?? "20", 10) || 20),
-    );
-
-    const from = (offset - 1) * limit;
-    const to = from + limit - 1;
+    const limit = Math.min(requestedLimit, MAX_LIMIT);
 
     let query = supabase
       .from("conversations")
-      .select("id, user_id, status, title, created_at, updated_at", {
-        count: "exact",
-      })
+      .select("id, user_id, status, title, created_at, updated_at")
       .eq("user_id", user.id)
       .neq("status", "ended");
 
@@ -55,15 +65,14 @@ export async function GET(req: NextRequest) {
       query = query.ilike("title", `%${escapeIlikePattern(q)}%`);
     }
 
-    const {
-      data: conversation,
-      error,
-      count,
-    } = await query
+    // Fetch one extra row to determine whether another page exists without a
+    // separate count query.
+    const { data: page, error } = await query
       .order("updated_at", {
         ascending: false,
       })
-      .range(from, to);
+      .order("id", { ascending: false })
+      .range(offset, offset + limit);
 
     if (error) {
       console.error(
@@ -76,14 +85,15 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const total = count ?? 0;
-    const totalPages = Math.ceil(total / limit);
+    const rows = page ?? [];
+    const hasMore = rows.length > limit;
+    const conversation = rows.slice(0, limit);
 
     return NextResponse.json(
       {
         conversation,
-        nextOffset: offset + 1,
-        hasMore: offset < totalPages,
+        hasMore,
+        nextOffset: offset + conversation.length,
       },
       { status: 200, headers: corsHeaders },
     );

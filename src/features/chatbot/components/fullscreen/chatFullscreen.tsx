@@ -17,6 +17,9 @@ import {
   streamAssistantMessage,
 } from "@/features/chatbot/api/conversations";
 import ErrorMessage from "../errorMessage";
+import TokenUsageBanner from "../tokenUsageBanner";
+import { isTokenLimitReached, useTokenUsage } from "../../hooks/useTokenUsage";
+import { ApiError } from "../../utils/apiFetch";
 import type { Message } from "@/llm/types/Message";
 
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
@@ -104,10 +107,13 @@ export default function ChatFullscreen() {
     selectedConversationId,
     setSelectedConversationId,
     refreshConversationList,
+    conversationListVersion,
     messageResetVersion,
     error,
     setError,
   } = useConversation();
+  const usage = useTokenUsage(conversationListVersion);
+  const isOverLimit = isTokenLimitReached(usage);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
@@ -133,6 +139,7 @@ export default function ChatFullscreen() {
     setIsSavingMessage(true);
     setSaveError(null);
     setError(undefined);
+    let userMessageSaved = false;
 
     try {
       let conversationId = selectedConversationId;
@@ -150,6 +157,7 @@ export default function ChatFullscreen() {
       streamingConversationIdRef.current = conversationId;
 
       const savedMessage = await saveUserMessage(conversationId, content);
+      userMessageSaved = true;
       const userMessage = mapTutorMessageToChatMessage(savedMessage);
       const assistantMessage: ChatMessageType = {
         type: "bot",
@@ -241,6 +249,22 @@ export default function ChatFullscreen() {
       if (
         selectedConversationIdRef.current === streamingConversationIdRef.current
       ) {
+        // Only the quota response from the save request means the draft was not
+        // persisted. Other 429s retain the pre-existing generic error behaviour.
+        if (
+          !userMessageSaved &&
+          error instanceof ApiError &&
+          error.status === 429 &&
+          error.message === "exceeded daily token limit"
+        ) {
+          refreshConversationList();
+          setSaveError(
+            "Your message was not sent. Daily AI Tutor limit reached.",
+          );
+          setError(undefined);
+          throw error;
+        }
+
         const message =
           error instanceof Error
             ? error.message
@@ -429,6 +453,8 @@ export default function ChatFullscreen() {
         </div>
       )}
 
+      <TokenUsageBanner usage={usage} />
+
       <div className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60">
         <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">
           <div className="flex min-h-full w-full flex-1 flex-col gap-4">
@@ -472,6 +498,8 @@ export default function ChatFullscreen() {
           submitMessage={submitMessage}
           isSubmitting={isSavingMessage}
           errorMessage={saveError}
+          disabled={isOverLimit}
+          placeholder={isOverLimit ? "Daily AI Tutor limit reached" : undefined}
         />
       </div>
     </div>

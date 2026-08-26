@@ -22,9 +22,9 @@ export function useConversations(refreshVersion = 0) {
     setError(null);
     async function loadConversations() {
       try {
-        const data = await getConversations();
+        const data = await getConversations({ offset: 0 });
         if (ignore) return;
-        setConversations(data);
+        setConversations(data.conversation);
         hasLoadedRef.current = true;
       } catch (err) {
         if (ignore) return;

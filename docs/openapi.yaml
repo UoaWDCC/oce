@@ -1195,9 +1195,11 @@ paths:
       operationId: listAiTutorConversations
       description: >
         Returns active (non-ended) conversations owned by the authenticated
-        user, ordered by most recently updated. When q is provided, results
-        are filtered to conversations whose title case-insensitively contains
-        q; an empty or whitespace-only q is treated the same as omitting it.
+        user, ordered by updated_at descending and then id descending. When q
+        is provided, results are filtered to conversations whose title
+        case-insensitively contains q; an empty or whitespace-only q is treated
+        the same as omitting it. Pagination uses a zero-based row offset and
+        probes one extra row to report whether another page exists.
       security:
         - bearerAuth: []
       parameters:
@@ -1210,6 +1212,25 @@ paths:
             Optional case-insensitive partial match on conversation title.
             Empty, whitespace-only, or omitted returns the normal
             unfiltered list.
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based number of matching conversation rows to skip.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 20
+          description: >
+            Maximum conversations returned. Values above 100 are capped at
+            100. Supplied values must contain only base-10 decimal digits and
+            be safe integers.
       responses:
         "200":
           description: Conversations for the authenticated user
@@ -1217,11 +1238,39 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - conversation
+                  - hasMore
+                  - nextOffset
                 properties:
                   conversation:
                     type: array
                     items:
                       $ref: "#/components/schemas/Conversation"
+                  hasMore:
+                    type: boolean
+                    description: Whether another page exists after this page.
+                  nextOffset:
+                    type: integer
+                    minimum: 0
+                    description: >
+                      Offset for the next page, calculated from the requested
+                      offset plus the number of conversations returned.
+              example:
+                conversation: []
+                hasMore: false
+                nextOffset: 0
+        "400":
+          description: >
+            Invalid pagination value. Empty, malformed, decimal, negative,
+            hexadecimal, exponential, and unsafe-integer values are rejected;
+            limit must also be greater than zero.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+              example:
+                error: limit must be a positive base-10 integer and offset must be a non-negative base-10 integer
         "401":
           $ref: "#/components/responses/Unauthorized"
         "500":

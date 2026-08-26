@@ -30,9 +30,9 @@ export function useConversationSearch(query: string) {
 
     const timer = setTimeout(async () => {
       try {
-        const data = await getConversations(trimmedQuery);
+        const data = await getConversations({ query: trimmedQuery, offset: 0 });
         if (ignore) return;
-        setResults(data);
+        setResults(data.conversation);
       } catch (err) {
         if (ignore) return;
         setError(err instanceof Error ? err : new Error("Unknown error"));

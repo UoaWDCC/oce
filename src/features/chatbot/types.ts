@@ -14,6 +14,11 @@ export interface Conversation {
   updated_at: string;
 }
 
+export interface GetConversationsResponse {
+  conversation: Conversation[];
+  nextOffset: number;
+  hasMore: boolean;
+}
 export interface TutorMessage {
   id: string;
   conversation_id: string;

@@ -1,10 +1,6 @@
 import { TokenUsageSummary } from "@/features/chatbot/types";
-import { isOverTokenLimit } from "../hooks/useTokenUsage";
+import { getTokenUsageLevel, USAGE_WINDOW_MS } from "../hooks/useTokenUsage";
 import ErrorMessage from "./errorMessage";
-
-// Fraction of the daily allowance at which the warning appears.
-const WARNING_THRESHOLD = 0.8;
-const USAGE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 // The oldest counted message leaves the rolling window 24 hours after it was
 // sent, which is the earliest point any allowance frees up. It is a lower bound
@@ -30,11 +26,9 @@ function formatNextCapacity(oldestMessage: string | null): string | null {
 }
 
 function getBanner(usage: TokenUsageSummary | null) {
-  if (!usage) {
-    return null;
-  }
+  const level = getTokenUsageLevel(usage);
 
-  if (isOverTokenLimit(usage)) {
+  if (level === "limit" && usage) {
     const nextCapacity = formatNextCapacity(usage.oldestMessage);
 
     return {
@@ -45,7 +39,7 @@ function getBanner(usage: TokenUsageSummary | null) {
     };
   }
 
-  if (usage.usedTokens >= usage.totalTokens * WARNING_THRESHOLD) {
+  if (level === "warning") {
     return {
       variant: "warning" as const,
       message: "You are close to your daily AI Tutor limit.",

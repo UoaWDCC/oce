@@ -4,16 +4,51 @@ import { useEffect, useState } from "react";
 import { TokenUsageSummary } from "@/features/chatbot/types";
 import { getTokenUsage } from "../api/tokenUsage";
 
-// Strictly greater, matching the server check in the chat routes. Shared by the
-// banner and the input so the two can never disagree about the boundary.
-export function isOverTokenLimit(usage: TokenUsageSummary | null): boolean {
-  return usage !== null && usage.usedTokens > usage.totalTokens;
+export const USAGE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const MIN_REFRESH_DELAY_MS = 60 * 1000;
+const WARNING_THRESHOLD = 0.8;
+
+export function isTokenLimitReached(usage: TokenUsageSummary | null): boolean {
+  return usage !== null && usage.usedTokens >= usage.totalTokens;
+}
+
+export function getTokenUsageLevel(
+  usage: TokenUsageSummary | null,
+): "none" | "warning" | "limit" {
+  if (!usage) return "none";
+  if (isTokenLimitReached(usage)) return "limit";
+  if (usage.usedTokens >= usage.totalTokens * WARNING_THRESHOLD) {
+    return "warning";
+  }
+  return "none";
+}
+
+export function scheduleTokenUsageRefresh(
+  usage: TokenUsageSummary | null,
+  refresh: () => void,
+  now = Date.now(),
+): (() => void) | undefined {
+  if (!isTokenLimitReached(usage) || !usage?.oldestMessage) {
+    return undefined;
+  }
+
+  const oldestMessageTime = new Date(usage.oldestMessage).getTime();
+  if (Number.isNaN(oldestMessageTime)) {
+    return undefined;
+  }
+
+  const timeUntilExpiry = oldestMessageTime + USAGE_WINDOW_MS - now;
+  const delay = timeUntilExpiry > 0 ? timeUntilExpiry : MIN_REFRESH_DELAY_MS;
+  const timer = setTimeout(refresh, delay);
+
+  return () => clearTimeout(timer);
 }
 
 // Refetches whenever refreshVersion changes, so usage stays current after each
 // exchange. Returns null until the first load lands.
 export function useTokenUsage(refreshVersion = 0) {
   const [usage, setUsage] = useState<TokenUsageSummary | null>(null);
+  const [expiryRefreshVersion, setExpiryRefreshVersion] = useState(0);
 
   useEffect(() => {
     let ignore = false;
@@ -35,7 +70,15 @@ export function useTokenUsage(refreshVersion = 0) {
     return () => {
       ignore = true;
     };
-  }, [refreshVersion]);
+  }, [refreshVersion, expiryRefreshVersion]);
+
+  useEffect(
+    () =>
+      scheduleTokenUsageRefresh(usage, () => {
+        setExpiryRefreshVersion((version) => version + 1);
+      }),
+    [usage, expiryRefreshVersion],
+  );
 
   return usage;
 }

@@ -12,11 +12,14 @@ const uuidRegex =
 
 const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 100;
+const base10IntegerRegex = /^\d+$/;
 
-// Parses a non-negative integer query param, falling back when absent or invalid.
-function parseCount(value: string | null, fallback: number): number {
+function parseCount(value: string | null, fallback: number): number | null {
+  if (value === null) return fallback;
+  if (!base10IntegerRegex.test(value)) return null;
+
   const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 // GET /api/ai-tutor/conversations/:id/messages?limit=15&offset=0
@@ -43,10 +46,20 @@ export async function GET(
     }
 
     const { searchParams } = new URL(req.url);
-    const limit =
-      Math.min(parseCount(searchParams.get("limit"), DEFAULT_LIMIT), MAX_LIMIT) ||
-      DEFAULT_LIMIT;
+    const requestedLimit = parseCount(searchParams.get("limit"), DEFAULT_LIMIT);
     const offset = parseCount(searchParams.get("offset"), 0);
+
+    if (requestedLimit === null || requestedLimit === 0 || offset === null) {
+      return NextResponse.json(
+        {
+          error:
+            "limit must be a positive base-10 integer and offset must be a non-negative base-10 integer",
+        },
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
+    const limit = Math.min(requestedLimit, MAX_LIMIT);
 
     const { data: conversation, error: conversationError } = await supabase
       .from("conversations")
@@ -76,6 +89,7 @@ export async function GET(
       .select("id, conversation_id, role, content, is_favourite, created_at")
       .eq("conversation_id", id)
       .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .range(offset, offset + limit);
 
     if (error) {

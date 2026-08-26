@@ -34,6 +34,7 @@ export type ForumEntryComposerProps = {
   limitKey?: "POST_BODY" | "COMMENT_BODY";
   initialBody?: string;
   initialImageUrl?: string | null;
+  onSubmittingChange?: (isSubmitting: boolean) => void;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -56,6 +57,7 @@ export default function ForumEntryComposer({
   limitKey = "POST_BODY",
   initialBody = "",
   initialImageUrl = null,
+  onSubmittingChange,
 }: ForumEntryComposerProps) {
   const [body, setBody] = useState(initialBody);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -255,6 +257,7 @@ export default function ForumEntryComposer({
     }
 
     setIsSubmitting(true);
+    onSubmittingChange?.(true);
     let uploadedImage: Awaited<ReturnType<typeof uploadImage>> = null;
 
     try {
@@ -276,6 +279,7 @@ export default function ForumEntryComposer({
       setError(err instanceof Error ? err.message : "Submission failed");
     } finally {
       setIsSubmitting(false);
+      onSubmittingChange?.(false);
     }
   };
 

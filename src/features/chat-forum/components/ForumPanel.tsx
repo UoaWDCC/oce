@@ -12,7 +12,7 @@ import {
   Tag as TagIcon,
 } from "lucide-react";
 import PostCard from "@/components/dao-forum/Post";
-import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
+import NewPostDialog from "@/components/dao-forum/NewPostDialog";
 import PostThread from "./PostThread";
 import {
   buildForumThreadComments,
@@ -150,7 +150,6 @@ export default function ForumPanel({
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
     null,
   );
-  const [isComposerOpen, setIsComposerOpen] = useState(false);
 
   const ownedPosts = useMemo(
     () => posts.map((post) => withOwnPostCapability(post, currentUserId)),
@@ -209,21 +208,8 @@ export default function ForumPanel({
     onSelectPost?.(null);
   };
 
-  const openComposer = () => {
-    setIsComposerOpen(true);
-    onCreatePost?.();
-  };
-
   const submitPost = async (payload: PostSubmitPayload) => {
-    try {
-      await onSubmitPost?.(payload);
-      // Only close modal after successful submission
-      setIsComposerOpen(false);
-    } catch (err) {
-      // Keep modal open when submission fails so user can see error and retry
-      // Error will be displayed by the composer component
-      throw err;
-    }
+    await onSubmitPost?.(payload);
   };
 
   const submitComment = async (payload: CommentSubmitPayload) => {
@@ -395,13 +381,21 @@ export default function ForumPanel({
               unread
             </p>
           </div>
-          <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-700 to-violet-500 px-5 font-bold text-white shadow-lg shadow-purple-200 transition hover:from-purple-800 hover:to-violet-600"
-            onClick={openComposer}
-            type="button"
-          >
-            <Plus className="h-5 w-5" /> New Post
-          </button>
+          <NewPostDialog
+            userId={currentUserId}
+            daoGroupId={daoGroupId}
+            daoName={daoName}
+            onSubmit={submitPost}
+            trigger={
+              <button
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-700 to-violet-500 px-5 font-bold text-white shadow-lg shadow-purple-200 transition hover:from-purple-800 hover:to-violet-600"
+                onClick={() => onCreatePost?.()}
+                type="button"
+              >
+                <Plus className="h-5 w-5" /> New Post
+              </button>
+            }
+          />
         </header>
 
         {error && (
@@ -411,19 +405,6 @@ export default function ForumPanel({
           >
             {error}
           </div>
-        )}
-        {isComposerOpen && (
-          <section className="mb-6" aria-label="Create a post">
-            <PostEntryComposer
-              className="border border-purple-200 shadow-sm"
-              userId={currentUserId}
-              daoGroupId={daoGroupId}
-              daoName={daoName}
-              onCancel={() => setIsComposerOpen(false)}
-              onClose={() => setIsComposerOpen(false)}
-              onSubmit={submitPost}
-            />
-          </section>
         )}
         {isLoading ? (
           <div className="space-y-4" aria-label="Loading forum posts">

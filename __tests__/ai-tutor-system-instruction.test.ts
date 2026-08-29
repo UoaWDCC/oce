@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
+import { SITE_GUIDE } from "@/features/chatbot/server/knowledge/siteGuide";
 import { AI_TUTOR_SYSTEM_PROMPT } from "@/features/chatbot/server/prompts/aiTutorSystemPrompt";
 import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import type { Message } from "@/llm/types/Message";
@@ -32,8 +33,16 @@ describe("AI Tutor system instruction", () => {
     vi.unstubAllEnvs();
   });
 
-  it("builds the reusable system prompt", () => {
-    expect(buildAiTutorInstruction()).toBe(AI_TUTOR_SYSTEM_PROMPT);
+  it("builds the reusable system prompt with the site guide", () => {
+    const guideDelimiter =
+      "\n\nUse this platform navigation information to answer user questions:\n\n";
+    const instruction = buildAiTutorInstruction();
+    const sections = instruction.split(guideDelimiter);
+
+    expect(sections).toHaveLength(2);
+    expect(sections[0]).toBe(AI_TUTOR_SYSTEM_PROMPT);
+    expect(sections[1]).toBe(JSON.stringify(SITE_GUIDE, null, 2));
+    expect(JSON.parse(sections[1])).toEqual(SITE_GUIDE);
   });
 
   it("passes the instruction and existing configuration without changing messages", async () => {

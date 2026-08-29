@@ -1,5 +1,17 @@
 import { getAccessToken } from "./getAccessToken";
 
+// Carries the HTTP status so callers can branch on it (e.g. 429 for the token
+// limit) instead of matching on server error copy, which is not a contract.
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function apiFetch(
   path: string,
   init: RequestInit = {},
@@ -21,7 +33,10 @@ export async function apiFetch(
     const data = (await response.json().catch(() => null)) as {
       error?: string;
     } | null;
-    throw new Error(data?.error ?? "AI Tutor request failed.");
+    throw new ApiError(
+      data?.error ?? "AI Tutor request failed.",
+      response.status,
+    );
   }
 
   return response;

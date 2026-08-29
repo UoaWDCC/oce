@@ -73,6 +73,7 @@ export type PostEntryComposerProps = {
   className?: string;
   mode?: "create" | "edit";
   initialValues?: PostComposerInitialValues;
+  onSubmittingChange?: (isSubmitting: boolean) => void;
 };
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -92,6 +93,7 @@ export default function PostEntryComposer({
   className = "",
   mode = "create",
   initialValues,
+  onSubmittingChange,
 }: PostEntryComposerProps) {
   const isEditMode = mode === "edit";
   const { draft, isLoaded, saveDraft, clearDraft } = usePostDraft(
@@ -578,6 +580,7 @@ export default function PostEntryComposer({
           variant="full"
           initialBody={isEditMode ? initialValues?.body : body}
           initialImageUrl={initialValues?.imageUrl}
+          onSubmittingChange={onSubmittingChange}
         />
       </div>
     </div>

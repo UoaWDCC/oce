@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPostComments } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
 import { forumKeys } from "../queryKeys";
@@ -21,6 +21,8 @@ export function useDaoForumComments(
   enabled = true,
   currentUserId: string | null = null,
 ): UseDaoForumCommentsResult {
+  const queryClient = useQueryClient();
+
   const query = useQuery({
     queryKey: forumKeys.comments(daoGroupId, postId, sort),
     queryFn: async ({ signal }) => {
@@ -39,9 +41,18 @@ export function useDaoForumComments(
     placeholderData: keepPreviousData,
   });
 
+  // Comment writes (create/edit/delete) can change any sort's ordering or
+  // contents, so every cached sort for this post is invalidated together —
+  // not just the one currently on screen — to avoid showing stale comments
+  // after switching sort tabs. `refetchType: "all"` refetches sorts that
+  // aren't currently mounted too, so they're already fresh by the time the
+  // user switches to them.
   const refetch = useCallback(async () => {
-    await query.refetch();
-  }, [query]);
+    await queryClient.invalidateQueries({
+      queryKey: forumKeys.commentsAll(daoGroupId, postId),
+      refetchType: "all",
+    });
+  }, [queryClient, daoGroupId, postId]);
 
   return {
     comments: query.data ?? [],

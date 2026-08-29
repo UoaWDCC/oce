@@ -1,9 +1,12 @@
 import { useCallback, useState, useRef, useEffect } from "react";
 import { flushSync } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   likeComment as likeCommentService,
   unlikeComment as unlikeCommentService,
 } from "../services";
+import { forumKeys } from "../queryKeys";
+import type { ForumCommentPreview } from "../types";
 
 const DEBOUNCE_MS = 250;
 
@@ -16,9 +19,29 @@ export interface UseDaoForumCommentLikeResult {
 type PendingEntry = { isLiked: boolean; likeCount: number; token: string };
 type BaselineEntry = { isLiked: boolean; likeCount: number };
 
-export function useDaoForumCommentLike(): UseDaoForumCommentLikeResult {
+export function useDaoForumCommentLike(
+  daoGroupId?: string | null,
+  postId?: string | null,
+): UseDaoForumCommentLikeResult {
   const [optimisticState, setOptimisticState] = useState<Record<string, { isLiked: boolean; likeCount: number }>>({});
   const [error, setError] = useState<Error | null>(null);
+  const queryClient = useQueryClient();
+
+  // Patches every cached sort for this post so a like/unlike stays in sync
+  // across sort tabs immediately, instead of relying on optimisticState
+  // (which only masks staleness while this component instance stays mounted).
+  const patchCommentInAllSorts = useCallback(
+    (commentId: string, patch: { isLiked: boolean; likeCount: number }) => {
+      queryClient.setQueriesData<ForumCommentPreview[]>(
+        { queryKey: forumKeys.commentsAll(daoGroupId, postId) },
+        (current) =>
+          current?.map((comment) =>
+            comment.id === commentId ? { ...comment, ...patch } : comment,
+          ),
+      );
+    },
+    [queryClient, daoGroupId, postId],
+  );
 
   // Mirrors optimisticState synchronously — never stale inside callbacks/timers
   const optimisticRef = useRef<Record<string, { isLiked: boolean; likeCount: number }>>({});
@@ -79,6 +102,7 @@ export function useDaoForumCommentLike(): UseDaoForumCommentLikeResult {
         [commentId]: { isLiked: newIsLiked, likeCount: newLikeCount },
       }));
     });
+    patchCommentInAllSorts(commentId, { isLiked: newIsLiked, likeCount: newLikeCount });
 
     // Reset debounce timer
     const existing = timers.current.get(commentId);
@@ -105,12 +129,13 @@ export function useDaoForumCommentLike(): UseDaoForumCommentLikeResult {
       } catch (err) {
         optimisticRef.current = { ...optimisticRef.current, [commentId]: baseline };
         setOptimisticState(prev => ({ ...prev, [commentId]: baseline }));
+        patchCommentInAllSorts(commentId, baseline);
         setError(err instanceof Error ? err : new Error("Failed to like comment"));
       }
     }, DEBOUNCE_MS);
 
     timers.current.set(commentId, timer);
-  }, []);
+  }, [patchCommentInAllSorts]);
 
   return { toggleLike, optimisticState, error };
 }

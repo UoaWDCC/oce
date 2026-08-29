@@ -83,7 +83,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     toggleLike,
     optimisticState,
     error: commentLikeError,
-  } = useDaoForumCommentLike();
+  } = useDaoForumCommentLike(daoGroupId, selectedPostId);
 
   const { recordView } = useRecordPostView(token);
 

@@ -72,4 +72,40 @@ describe("useDaoForumComments", () => {
     // third request — it's already cached under its own key.
     expect(getPostCommentsMock).toHaveBeenCalledTimes(2);
   });
+
+  it("refetch refreshes every cached sort for the post, not just the active one", async () => {
+    getPostCommentsMock.mockResolvedValue([]);
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const wrapper = createWrapper(client);
+
+    const oldest = renderHook(
+      () => useDaoForumComments("dao-1", "post-1", "token-123", "oldest", true),
+      { wrapper },
+    );
+    await waitFor(() => expect(oldest.result.current.isLoading).toBe(false));
+
+    const latest = renderHook(
+      () => useDaoForumComments("dao-1", "post-1", "token-123", "latest", true),
+      { wrapper },
+    );
+    await waitFor(() => expect(latest.result.current.isLoading).toBe(false));
+
+    // "latest" is no longer observed by any mounted hook, but should still
+    // be refreshed by refetch() below — not left stale until someone
+    // switches back to it.
+    latest.unmount();
+    expect(getPostCommentsMock).toHaveBeenCalledTimes(2);
+
+    await oldest.result.current.refetch();
+
+    await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(4));
+    const sortsRefetched = getPostCommentsMock.mock.calls
+      .slice(2)
+      .map((call) => call[2]);
+    expect(sortsRefetched.sort()).toEqual(["latest", "oldest"]);
+  });
 });

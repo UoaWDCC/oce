@@ -340,8 +340,8 @@ function ThreadComment({
   return (
     <div>
       <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
-        {parentAuthorName && depth >= MAX_NESTING_DEPTH && (
-          <div className="mb-2 flex items-center gap-1 text-xs font-semibold text-purple-600">
+        {parentAuthorName && depth > MAX_NESTING_DEPTH && (
+          <div className="mb-2 text-xs font-semibold text-purple-600">
             Replying to {parentAuthorName}
           </div>
         )}

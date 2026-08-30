@@ -41,19 +41,10 @@ function PostCardContent({
   }`;
   const viewLabel = `${viewCount} ${viewCount === 1 ? "view" : "views"}`;
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col">
-      {/* Avatar — top right */}
-      <StudentAvatar
-        displayName={displayName}
-        walletAddress={walletAddress}
-        profileImageUrl={profileImageUrl}
-        size="xs"
-        className="absolute right-0 top-0"
-      />
-
-      {/* Tags */}
-      {(types?.length || tags.length > 0) && (
-        <div className="mb-2 flex flex-wrap items-center gap-2">
+    <div className="flex min-w-0 flex-1 flex-col">
+      {/* Top row: tags (left) + avatar (right) */}
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {types?.map((type) => (
             <Tag key={type} type={type} />
           ))}
@@ -66,17 +57,24 @@ function PostCardContent({
             </span>
           ))}
         </div>
-      )}
+        <StudentAvatar
+          displayName={displayName}
+          walletAddress={walletAddress}
+          profileImageUrl={profileImageUrl}
+          size="xs"
+          className="shrink-0"
+        />
+      </div>
 
       {/* Title */}
-      <h3 className="pl-3 text-xl font-bold leading-snug text-slate-950">
+      <h3 className="text-xl font-bold leading-snug text-slate-950">
         {title}
       </h3>
 
       {/* Excerpt */}
       {excerpt && (
         <p
-          className="mt-2 overflow-hidden pl-3 text-sm leading-6 text-slate-600"
+          className="mt-2 overflow-hidden text-sm leading-6 text-slate-600"
           style={{
             display: "-webkit-box",
             WebkitBoxOrient: "vertical",

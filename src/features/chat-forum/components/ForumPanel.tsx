@@ -1,16 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  CircleHelp,
-  List,
-  Megaphone,
-  MessageCircle,
-  Package,
-  Plus,
-  Search,
-  Tag as TagIcon,
-} from "lucide-react";
+import { List, Plus, Search } from "lucide-react";
 import PostCard from "@/components/dao-forum/Post";
 import NewPostDialog from "@/components/dao-forum/NewPostDialog";
 import PostThread from "./PostThread";
@@ -20,6 +11,10 @@ import {
   withOwnPostCapability,
 } from "../mappers";
 import type { ForumThreadSort } from "../types";
+import {
+  POST_TYPES_IN_ORDER,
+  POST_TYPE_PRESENTATION,
+} from "../postTypePresentation";
 import type {
   CommentSubmitPayload,
   ForumCommentPreview,
@@ -62,37 +57,27 @@ type ForumPanelProps = {
 
 type PostTypeFilter = "All" | PostType;
 
-const POST_TYPES: Array<{
-  label: PostTypeFilter;
+/**
+ * The filter list is the post types plus an "All" entry, which is a filter-only
+ * pseudo-type and so deliberately lives here rather than in the shared
+ * post type presentation config.
+ */
+const POST_TYPE_FILTERS: Array<{
+  value: PostTypeFilter;
+  label: string;
   icon: typeof List;
   iconClassName: string;
 }> = [
-  { label: "All", icon: List, iconClassName: "bg-purple-100 text-purple-700" },
   {
-    label: "Announcement",
-    icon: Megaphone,
-    iconClassName: "bg-amber-100 text-amber-700",
+    value: "All",
+    label: "All",
+    icon: List,
+    iconClassName: "bg-purple-100 text-purple-700",
   },
-  {
-    label: "Proposal",
-    icon: Package,
-    iconClassName: "bg-indigo-100 text-indigo-700",
-  },
-  {
-    label: "Question",
-    icon: CircleHelp,
-    iconClassName: "bg-rose-100 text-rose-700",
-  },
-  {
-    label: "Discussion",
-    icon: MessageCircle,
-    iconClassName: "bg-slate-100 text-slate-600",
-  },
-  {
-    label: "Resource",
-    icon: TagIcon,
-    iconClassName: "bg-emerald-100 text-emerald-700",
-  },
+  ...POST_TYPES_IN_ORDER.map((type) => {
+    const { label, icon, filter } = POST_TYPE_PRESENTATION[type];
+    return { value: type, label, icon, iconClassName: filter };
+  }),
 ];
 
 function PostPreview({
@@ -315,36 +300,38 @@ export default function ForumPanel({
             Post type
           </h2>
           <div className="space-y-1">
-            {POST_TYPES.map(({ label, icon: Icon, iconClassName }) => {
-              const count =
-                label === "All"
-                  ? posts.length
-                  : posts.filter((post) => post.types.includes(label)).length;
-              const active = postType === label;
-              return (
-                <button
-                  key={label}
-                  aria-pressed={active}
-                  className={`flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm font-bold transition ${active ? "bg-purple-100 text-purple-700" : "text-slate-600 hover:bg-slate-50"}`}
-                  onClick={() => setPostType(label)}
-                  type="button"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    {label}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
+            {POST_TYPE_FILTERS.map(
+              ({ value, label, icon: Icon, iconClassName }) => {
+                const count =
+                  value === "All"
+                    ? posts.length
+                    : posts.filter((post) => post.types.includes(value)).length;
+                const active = postType === value;
+                return (
+                  <button
+                    key={value}
+                    aria-pressed={active}
+                    className={`flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm font-bold transition ${active ? "bg-purple-100 text-purple-700" : "text-slate-600 hover:bg-slate-50"}`}
+                    onClick={() => setPostType(value)}
+                    type="button"
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="flex items-center gap-2.5">
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      {label}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              },
+            )}
           </div>
         </section>
 

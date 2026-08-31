@@ -33,6 +33,7 @@ import type {
 import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
+import { getPostTypePresentation } from "../postTypePresentation";
 
 type PostThreadProps = {
   daoGroupId: string;
@@ -540,6 +541,10 @@ export default function PostThread({
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const showOwnerActions = Boolean(post.isOwnPost);
+  /** Untyped posts keep the generic book glyph. */
+  const PostTypeIcon = post.postType
+    ? getPostTypePresentation(post.postType).icon
+    : BookOpen;
 
   const handleUpdatePost = async (payload: PostSubmitPayload) => {
     await onUpdatePost?.(payload);
@@ -594,7 +599,7 @@ export default function PostThread({
         <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-7">
           <div className="flex items-start gap-4">
             <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md sm:flex">
-              <BookOpen aria-hidden="true" className="h-7 w-7" />
+              <PostTypeIcon aria-hidden="true" className="h-7 w-7" />
             </div>
 
             <div className="min-w-0 flex-1">

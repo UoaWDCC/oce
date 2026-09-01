@@ -5,6 +5,7 @@ import { UserProvider } from "../app/(with-navbar)/dao/userContext";
 import ClientNavigation from "@/components/clientNavigation";
 import { headers } from "next/headers";
 import ChatWrapper from "@/features/chatbot/components/chatWrapper";
+import QueryProvider from "@/lib/queryClient";
 
 const agreya = Alegreya_SC({
   weight: ["400", "500", "700", "800", "900"],
@@ -106,12 +107,14 @@ export default async function RootLayout({
       <body
         className={`${agreya.variable} ${inter.variable} antialiased bg-white`}
       >
-        <UserProvider>
-          <ChatWrapper />
-          <div className="relative w-full min-h-screen bg-white text-gray-800">
-            <ClientNavigation>{children}</ClientNavigation>
-          </div>
-        </UserProvider>
+        <QueryProvider>
+          <UserProvider>
+            <ChatWrapper />
+            <div className="relative w-full min-h-screen bg-white text-gray-800">
+              <ClientNavigation>{children}</ClientNavigation>
+            </div>
+          </UserProvider>
+        </QueryProvider>
       </body>
     </html>
   );

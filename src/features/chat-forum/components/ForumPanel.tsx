@@ -224,6 +224,7 @@ export default function ForumPanel({
     return (
       <PostThread
         daoGroupId={daoGroupId}
+        currentUserId={currentUserId}
         comments={threadComments}
         commentsError={commentsError}
         daoName={daoName}

@@ -58,6 +58,7 @@ type PostThreadProps = {
   className?: string;
   daoName?: string;
   token?: string;
+  currentUserId?: string | null;
 };
 
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
@@ -134,15 +135,18 @@ function ForumPollCard({
   daoGroupId,
   postId,
   token,
+  currentUserId,
 }: {
   daoGroupId: string;
   postId: string;
   token?: string;
+  currentUserId?: string | null;
 }) {
   const { poll, isLoading, isVoting, error, vote } = useDaoForumPoll(
     daoGroupId,
     postId,
     token,
+    currentUserId,
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -288,15 +292,18 @@ function AuthorBadges({ comment }: { comment: ForumThreadComment }) {
 
 type ThreadCommentProps = {
   comment: ForumThreadComment;
-  onLikeComment?: (commentId: string) => void;
+  onLikeComment?: (commentId: string) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
+  depth?: number;
+  parentAuthorName?: string;
   onCommentRefetch?: () => Promise<void>;
   token?: string;
 };
 
+const MAX_NESTING_DEPTH = 5;
 function ThreadComment({
   comment,
   onLikeComment,
@@ -304,6 +311,8 @@ function ThreadComment({
   replyingTo,
   onCancelReply,
   onSubmitComment,
+  depth = 0,
+  parentAuthorName,
   onCommentRefetch,
   token,
 }: ThreadCommentProps) {
@@ -337,6 +346,11 @@ function ThreadComment({
   return (
     <div>
       <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
+        {parentAuthorName && depth > MAX_NESTING_DEPTH && (
+          <div className="mb-2 text-xs font-semibold text-purple-600">
+            Replying to {parentAuthorName}
+          </div>
+        )}
         <div className="flex items-start justify-between">
           <StudentAvatar
             avatarColor={comment.author.avatarColor}
@@ -459,48 +473,103 @@ function ThreadComment({
       )}
 
       {(replyingTo?.id === comment.id ||
-        (comment.replies && comment.replies.length > 0)) && (
-        <div className="mt-3 space-y-3 border-l-2 border-purple-200 pl-3 sm:pl-6">
-          {replyingTo?.id === comment.id && (
-            <div>
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
-                <span>Replying to {replyingTo.authorName}</span>
-                {onCancelReply && (
-                  <button
-                    aria-label="Cancel reply"
-                    className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
-                    onClick={onCancelReply}
-                    type="button"
-                  >
-                    <X aria-hidden="true" className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-              <CommentEntryComposer
-                className="mt-2 border-purple-100"
-                disabled={!onSubmitComment}
-                onSubmit={onSubmitComment ?? (() => Promise.resolve())}
-                parentCommentId={replyingTo.id}
-                showAttachment
-                autoFocus
-              />
+        (comment.replies && comment.replies.length > 0)) &&
+        (depth < MAX_NESTING_DEPTH ? (
+          <div className="flex">
+            <div className="flex w-6 shrink-0 justify-start pl-1 sm:w-8">
+              <div className="w-0.5 bg-purple-200" />
             </div>
-          )}
-          {comment.replies?.map((reply) => (
-            <ThreadComment
-              key={reply.id}
-              comment={reply}
-              onLikeComment={onLikeComment}
-              onReplyToComment={onReplyToComment}
-              replyingTo={replyingTo}
-              onCancelReply={onCancelReply}
-              onSubmitComment={onSubmitComment}
-              onCommentRefetch={onCommentRefetch}
-              token={token}
-            />
-          ))}
-        </div>
-      )}
+
+            <div className="min-w-0 flex-1 pt-3">
+              {replyingTo?.id === comment.id && (
+                <div className="pb-3">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
+                    <span>Replying to {replyingTo.authorName}</span>
+                    {onCancelReply && (
+                      <button
+                        aria-label="Cancel reply"
+                        className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                        onClick={onCancelReply}
+                        type="button"
+                      >
+                        <X aria-hidden="true" className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <CommentEntryComposer
+                    className="mt-2 border-purple-100"
+                    disabled={!onSubmitComment}
+                    onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+                    parentCommentId={replyingTo.id}
+                    showAttachment
+                    autoFocus
+                  />
+                </div>
+              )}
+              {comment.replies?.map((reply) => (
+                <div key={reply.id} className="relative pb-3 last:pb-0">
+                  <div className="absolute -left-5 -top-3 h-8 w-5 rounded-bl-xl border-b-2 border-l-2 border-purple-200 sm:-left-7 sm:w-7" />
+                  <ThreadComment
+                    comment={reply}
+                    depth={depth + 1}
+                    parentAuthorName={comment.author.name}
+                    onLikeComment={onLikeComment}
+                    onReplyToComment={onReplyToComment}
+                    replyingTo={replyingTo}
+                    onCancelReply={onCancelReply}
+                    onSubmitComment={onSubmitComment}
+                    onCommentRefetch={onCommentRefetch}
+                    token={token}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <>
+            {replyingTo?.id === comment.id && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-purple-200 bg-purple-100/70 px-4 py-3 text-sm font-semibold text-purple-700">
+                  <span>Replying to {replyingTo.authorName}</span>
+                  {onCancelReply && (
+                    <button
+                      aria-label="Cancel reply"
+                      className="rounded-full p-1 transition hover:bg-purple-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                      onClick={onCancelReply}
+                      type="button"
+                    >
+                      <X aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                <CommentEntryComposer
+                  className="mt-2 border-purple-100"
+                  disabled={!onSubmitComment}
+                  onSubmit={onSubmitComment ?? (() => Promise.resolve())}
+                  parentCommentId={replyingTo.id}
+                  showAttachment
+                  autoFocus
+                />
+              </div>
+            )}
+            {comment.replies?.map((reply) => (
+              <div key={reply.id} className="mt-3">
+                <ThreadComment
+                  comment={reply}
+                  depth={depth + 1}
+                  parentAuthorName={comment.author.name}
+                  onLikeComment={onLikeComment}
+                  onReplyToComment={onReplyToComment}
+                  replyingTo={replyingTo}
+                  onCancelReply={onCancelReply}
+                  onSubmitComment={onSubmitComment}
+                  onCommentRefetch={onCommentRefetch}
+                  token={token}
+                />
+              </div>
+            ))}
+          </>
+        ))}
     </div>
   );
 }
@@ -535,6 +604,7 @@ export default function PostThread({
   className,
   daoName = "the DAO",
   token,
+  currentUserId,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
@@ -596,86 +666,47 @@ export default function PostThread({
           onSubmit={handleUpdatePost}
         />
       ) : (
-        <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-7">
-          <div className="flex items-start gap-4">
-            <div className="hidden h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-md sm:flex">
-              <PostTypeIcon aria-hidden="true" className="h-7 w-7" />
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                {post.postType && <Tag size="md" type={post.postType} />}
-                {post.statusLabel && (
-                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
-                    ● {post.statusLabel}
-                  </span>
-                )}
-                {post.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-3 flex items-start justify-between gap-3">
-                <h1
-                  id={`forum-thread-${post.id}`}
-                  className="max-w-5xl text-2xl font-bold leading-tight text-slate-950 sm:text-3xl"
-                >
-                  {post.title}
-                </h1>
-                {showOwnerActions && (
-                  <div className="flex shrink-0 items-center gap-2">
-                    {onUpdatePost && (
-                      <button
-                        type="button"
-                        aria-label="Edit post"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-purple-200 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-                        onClick={() => setIsEditing(true)}
-                      >
-                        <Pencil aria-hidden="true" className="h-4 w-4" />
-                        Edit
-                      </button>
-                    )}
-                    {onDeletePost && (
-                      <button
-                        type="button"
-                        aria-label="Delete post"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600 transition hover:border-red-200 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                        onClick={() => setIsDeleteConfirmOpen(true)}
-                      >
-                        <Trash2 aria-hidden="true" className="h-4 w-4" />
-                        Delete
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <StudentAvatar
-                  avatarColor={post.author.avatarColor}
-                  displayName={post.author.name}
-                  profileImageUrl={post.author.profileImageUrl}
-                  size="sm"
-                  timestamp={{
-                    label: post.createdAtLabel,
-                    dateTime: post.createdAt,
-                  }}
-                  walletAddress={post.author.walletAddress}
-                />
-                <span className="flex shrink-0 items-center gap-1.5 text-sm font-semibold text-slate-500">
-                  <Eye aria-hidden="true" className="h-4 w-4" />
-                  {viewLabel}
+        <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-6">
+          {/* Top row: type/tags/status (left) + avatar (right) */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-sm">
+                <PostTypeIcon aria-hidden="true" className="h-5 w-5" />
+              </span>
+              {post.postType && <Tag size="md" type={post.postType} />}
+              {post.statusLabel && (
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">
+                  ● {post.statusLabel}
                 </span>
-              </div>
+              )}
+              {post.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-purple-50 px-3 py-1 text-xs font-semibold text-purple-700"
+                >
+                  {tag}
+                </span>
+              ))}
             </div>
+            <StudentAvatar
+              avatarColor={post.author.avatarColor}
+              displayName={post.author.name}
+              profileImageUrl={post.author.profileImageUrl}
+              size="sm"
+              walletAddress={post.author.walletAddress}
+            />
           </div>
 
-          <div className="mt-7 border-t border-slate-100 pt-7">
+          {/* Title */}
+          <h1
+            id={`forum-thread-${post.id}`}
+            className="mt-4 pl-3 text-xl font-bold leading-snug text-slate-950 sm:text-2xl"
+          >
+            {post.title}
+          </h1>
+
+          {/* Body */}
+          <div className="mt-3 pl-3">
             <MarkdownContent content={post.body} />
             {post.imageUrl && (
               <AttachedImage src={post.imageUrl} alt="Post attachment" />
@@ -684,7 +715,54 @@ export default function PostThread({
               daoGroupId={daoGroupId}
               postId={post.id}
               token={token}
+              currentUserId={currentUserId}
             />
+          </div>
+
+          {/* Footer: views/comments (left) + timestamp (right) */}
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            <span className="flex items-center gap-3 text-xs font-semibold text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <Eye aria-hidden="true" className="h-4 w-4" />
+                {viewLabel}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <MessageCircle aria-hidden="true" className="h-4 w-4" />
+                {commentCount} {commentCount === 1 ? "comment" : "comments"}
+              </span>
+            </span>
+            <div className="flex items-center gap-2">
+              {showOwnerActions && (
+                <>
+                  {onUpdatePost && (
+                    <button
+                      type="button"
+                      aria-label="Edit post"
+                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-purple-50 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                      onClick={() => setIsEditing(true)}
+                    >
+                      <Pencil aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                  {onDeletePost && (
+                    <button
+                      type="button"
+                      aria-label="Delete post"
+                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                      onClick={() => setIsDeleteConfirmOpen(true)}
+                    >
+                      <Trash2 aria-hidden="true" className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
+              <time
+                className="text-xs font-semibold text-slate-400"
+                dateTime={post.createdAt}
+              >
+                {post.createdAtLabel}
+              </time>
+            </div>
           </div>
         </article>
       )}

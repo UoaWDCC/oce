@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPostComments } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
+import { forumKeys } from "../queryKeys";
 import type { ForumCommentPreview } from "../types";
 import type { ForumThreadSort } from "../types";
 
@@ -19,73 +21,56 @@ export function useDaoForumComments(
   enabled = true,
   currentUserId: string | null = null,
 ): UseDaoForumCommentsResult {
-  const [comments, setComments] = useState<ForumCommentPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const requestIdRef = useRef(0);
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const queryClient = useQueryClient();
 
-  const fetchComments = useCallback(async () => {
-    abortControllerRef.current?.abort();
-
-    if (!daoGroupId || !postId || !enabled) {
-      requestIdRef.current += 1;
-      setComments([]);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const currentRequestId = ++requestIdRef.current;
-    setIsLoading(true);
-
-    try {
+  const query = useQuery({
+    queryKey: forumKeys.comments(daoGroupId, postId, sort, currentUserId),
+    queryFn: async ({ signal }) => {
       const rawComments = await getPostComments(
-        daoGroupId,
-        postId,
+        daoGroupId as string,
+        postId as string,
         sort,
         token,
-        controller.signal,
+        signal,
       );
-      if (currentRequestId !== requestIdRef.current) {
-        return;
-      }
-      const mapped = rawComments.map((comment) =>
-        mapCommentToForumCommentPreview(comment, postId, currentUserId),
+      return rawComments.map((comment) =>
+        mapCommentToForumCommentPreview(
+          comment,
+          postId as string,
+          currentUserId,
+        ),
       );
-      setComments(mapped);
-      setError(null);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        return;
-      }
-      if (currentRequestId !== requestIdRef.current) {
-        return;
-      }
-      setError(
-        err instanceof Error
-          ? err
-          : new Error("Failed to load DAO forum comments"),
-      );
-    } finally {
-      if (currentRequestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [daoGroupId, postId, currentUserId, sort, token, enabled]);
+    },
+    enabled: Boolean(daoGroupId) && Boolean(postId) && enabled,
+    // Preserve the prior sort while another sort for the same thread loads,
+    // but never carry data across posts, DAOs, or authenticated users.
+    placeholderData: (previousData, previousQuery) => {
+      const previousKey = previousQuery?.queryKey;
+      const isSameViewerAndThread =
+        previousKey?.[2] === daoGroupId &&
+        previousKey?.[3] === postId &&
+        previousKey?.[4] === currentUserId;
+      return isSameViewerAndThread ? previousData : undefined;
+    },
+  });
 
-  useEffect(() => {
-    fetchComments();
-    return () => {
-      abortControllerRef.current?.abort();
-    };
-  }, [fetchComments]);
+  // Comment writes (create/edit/delete) can change any sort's ordering or
+  // contents, so every cached sort for this post is invalidated together —
+  // not just the one currently on screen — to avoid showing stale comments
+  // after switching sort tabs. `refetchType: "all"` refetches sorts that
+  // aren't currently mounted too, so they're already fresh by the time the
+  // user switches to them.
+  const refetch = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId),
+      refetchType: "all",
+    });
+  }, [queryClient, daoGroupId, postId, currentUserId]);
 
-  const refetch = useCallback(() => {
-    return fetchComments();
-  }, [fetchComments]);
-
-  return { comments, isLoading, error, refetch };
+  return {
+    comments: query.data ?? [],
+    isLoading: query.isPending && query.isFetching,
+    error: query.error as Error | null,
+    refetch,
+  };
 }

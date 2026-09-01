@@ -1,16 +1,6 @@
 import React from "react";
-import { POST_TYPE, type PostType } from "@app-types/dao-forum";
-
-const POST_TYPE_STYLES: Record<PostType, string> = {
-  [POST_TYPE.Announcement]:
-    "bg-amber-50 text-amber-800 border border-amber-600",
-  [POST_TYPE.Proposal]: "bg-sky-50 text-sky-800 border border-sky-600",
-  [POST_TYPE.Question]: "bg-rose-50 text-rose-800 border border-rose-600",
-  [POST_TYPE.Discussion]:
-    "bg-purple-50 text-purple-800 border border-purple-400",
-  [POST_TYPE.Resource]:
-    "bg-emerald-50 text-emerald-800 border border-emerald-600",
-};
+import { type PostType } from "@app-types/dao-forum";
+import { POST_TYPE_PRESENTATION } from "@/features/chat-forum/postTypePresentation";
 
 type TagSize = "sm" | "md";
 
@@ -32,16 +22,18 @@ function classNames(...classes: Array<string | false | null | undefined>) {
 const Tag = ({ type, className = "", size = "sm" }: TagProps) => {
   if (!type) return null;
 
+  const { label, badge } = POST_TYPE_PRESENTATION[type];
+
   return (
     <span
       className={classNames(
         "inline-flex items-center rounded-full font-semibold tracking-wide",
         TAG_SIZE_STYLES[size],
-        POST_TYPE_STYLES[type],
+        badge,
         className,
       )}
     >
-      {type}
+      {label}
     </span>
   );
 };

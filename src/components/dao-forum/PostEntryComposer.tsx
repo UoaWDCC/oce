@@ -1,17 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import {
-  X,
-  Megaphone,
-  HelpCircle,
-  MessageCircle,
-  Lightbulb,
-  BookOpen,
-  BarChart3,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { X, BarChart3, Plus, Trash2 } from "lucide-react";
 import {
   POST_TYPE,
   type PostSubmitPayload,
@@ -23,33 +13,11 @@ import { CONTENT_LIMITS } from "../../features/chat-forum/lib/contentLimits";
 import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
 import { CharacterCounter } from "./CharacterCounter";
 import { POLL_LIMITS } from "@/features/chat-forum/polls";
+import {
+  POST_TYPES_IN_ORDER,
+  POST_TYPE_PRESENTATION,
+} from "@/features/chat-forum/postTypePresentation";
 import type { PollSubmitPayload } from "@app-types/dao-forum";
-
-const POST_TYPE_CONFIG: Record<
-  PostType,
-  { icon: typeof Megaphone; bgColor: string }
-> = {
-  [POST_TYPE.Announcement]: {
-    icon: Megaphone,
-    bgColor: "bg-amber-400",
-  },
-  [POST_TYPE.Proposal]: {
-    icon: Lightbulb,
-    bgColor: "bg-sky-400",
-  },
-  [POST_TYPE.Question]: {
-    icon: HelpCircle,
-    bgColor: "bg-rose-400",
-  },
-  [POST_TYPE.Discussion]: {
-    icon: MessageCircle,
-    bgColor: "bg-purple-400",
-  },
-  [POST_TYPE.Resource]: {
-    icon: BookOpen,
-    bgColor: "bg-emerald-400",
-  },
-};
 
 export type PostComposerInitialValues = {
   title?: string;
@@ -266,7 +234,7 @@ export default function PostEntryComposer({
     onCancel?.();
   };
 
-  const postTypes = Object.values(POST_TYPE);
+  const postTypes = POST_TYPES_IN_ORDER;
 
   if (!isEditMode && !isLoaded) return null;
 
@@ -343,8 +311,11 @@ export default function PostEntryComposer({
           </label>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {postTypes.map((type) => {
-              const config = POST_TYPE_CONFIG[type];
-              const Icon = config.icon;
+              const {
+                label,
+                icon: Icon,
+                selection,
+              } = POST_TYPE_PRESENTATION[type];
               const isSelected = postType === type;
               return (
                 <button
@@ -367,7 +338,7 @@ export default function PostEntryComposer({
                   <span
                     className={classNames(
                       "flex h-10 w-10 items-center justify-center rounded-lg",
-                      config.bgColor,
+                      selection,
                     )}
                   >
                     <Icon className="h-5 w-5 text-white" />
@@ -378,7 +349,7 @@ export default function PostEntryComposer({
                       isSelected ? "text-violet-700" : "text-slate-700",
                     )}
                   >
-                    {type}
+                    {label}
                   </span>
                 </button>
               );

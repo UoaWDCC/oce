@@ -6,6 +6,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import {
   ArrowLeft,
+  BookOpen,
   Eye,
   Heart,
   MessageCircle,
@@ -32,6 +33,7 @@ import type {
 import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
+import { getPostTypePresentation } from "../postTypePresentation";
 
 type PostThreadProps = {
   daoGroupId: string;
@@ -609,6 +611,10 @@ export default function PostThread({
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const showOwnerActions = Boolean(post.isOwnPost);
+  /** Untyped posts keep the generic book glyph. */
+  const PostTypeIcon = post.postType
+    ? getPostTypePresentation(post.postType).icon
+    : BookOpen;
 
   const handleUpdatePost = async (payload: PostSubmitPayload) => {
     await onUpdatePost?.(payload);
@@ -661,9 +667,12 @@ export default function PostThread({
         />
       ) : (
         <article className="rounded-2xl border border-purple-100 bg-white p-5 shadow-sm sm:p-6">
-          {/* Top row: tags/status (left) + avatar & actions (right) */}
+          {/* Top row: type/tags/status (left) + avatar (right) */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-2">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-sm">
+                <PostTypeIcon aria-hidden="true" className="h-5 w-5" />
+              </span>
               {post.postType && <Tag size="md" type={post.postType} />}
               {post.statusLabel && (
                 <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">

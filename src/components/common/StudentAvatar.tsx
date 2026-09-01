@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type StudentAvatarSize = "sm" | "md" | "lg";
+type StudentAvatarSize = "xs" | "sm" | "md" | "lg";
 type WalletAddressDisplay = "short" | "full";
 
 export type Timestamp = {
@@ -40,6 +40,13 @@ const SIZE_CLASSES: Record<
     metadata: string;
   }
 > = {
+  xs: {
+    root: "gap-1.5",
+    avatar: "h-5 w-5",
+    initials: "text-[10px]",
+    name: "text-xs",
+    metadata: "text-[10px]",
+  },
   sm: {
     root: "gap-3",
     avatar: "h-10 w-10",

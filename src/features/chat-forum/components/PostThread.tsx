@@ -57,6 +57,7 @@ type PostThreadProps = {
   className?: string;
   daoName?: string;
   token?: string;
+  currentUserId?: string | null;
 };
 
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
@@ -133,15 +134,18 @@ function ForumPollCard({
   daoGroupId,
   postId,
   token,
+  currentUserId,
 }: {
   daoGroupId: string;
   postId: string;
   token?: string;
+  currentUserId?: string | null;
 }) {
   const { poll, isLoading, isVoting, error, vote } = useDaoForumPoll(
     daoGroupId,
     postId,
     token,
+    currentUserId,
   );
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -534,6 +538,7 @@ export default function PostThread({
   className,
   daoName = "the DAO",
   token,
+  currentUserId,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
@@ -679,6 +684,7 @@ export default function PostThread({
               daoGroupId={daoGroupId}
               postId={post.id}
               token={token}
+              currentUserId={currentUserId}
             />
           </div>
         </article>

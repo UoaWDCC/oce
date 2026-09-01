@@ -75,9 +75,7 @@ describe("useDaoForumPosts", () => {
     });
 
     resolvePosts([]);
-    await waitFor(() =>
-      expect(getForumPostsMock).toHaveBeenCalledTimes(1),
-    );
+    await waitFor(() => expect(getForumPostsMock).toHaveBeenCalledTimes(1));
   });
 
   it("shows cached posts immediately when remounted without a full reload", async () => {
@@ -104,5 +102,35 @@ describe("useDaoForumPosts", () => {
     // Cached data is available immediately; no loading state on remount.
     expect(secondResult.current.isLoading).toBe(false);
     expect(getForumPostsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reuse another user's cached posts", async () => {
+    getForumPostsMock.mockResolvedValue([]);
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const wrapper = createWrapper(client);
+
+    const firstUser = renderHook(
+      () => useDaoForumPosts("dao-1", "token-a", true, "user-a"),
+      { wrapper },
+    );
+    await waitFor(() => expect(firstUser.result.current.isLoading).toBe(false));
+    firstUser.unmount();
+
+    const secondUser = renderHook(
+      () => useDaoForumPosts("dao-1", "token-b", true, "user-b"),
+      { wrapper },
+    );
+
+    expect(secondUser.result.current.isLoading).toBe(true);
+    await waitFor(() => expect(getForumPostsMock).toHaveBeenCalledTimes(2));
+    expect(getForumPostsMock).toHaveBeenLastCalledWith(
+      "dao-1",
+      "token-b",
+      expect.any(AbortSignal),
+    );
   });
 });

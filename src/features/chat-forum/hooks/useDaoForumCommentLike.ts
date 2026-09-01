@@ -22,6 +22,7 @@ type BaselineEntry = { isLiked: boolean; likeCount: number };
 export function useDaoForumCommentLike(
   daoGroupId?: string | null,
   postId?: string | null,
+  currentUserId?: string | null,
 ): UseDaoForumCommentLikeResult {
   const [optimisticState, setOptimisticState] = useState<Record<string, { isLiked: boolean; likeCount: number }>>({});
   const [error, setError] = useState<Error | null>(null);
@@ -33,14 +34,14 @@ export function useDaoForumCommentLike(
   const patchCommentInAllSorts = useCallback(
     (commentId: string, patch: { isLiked: boolean; likeCount: number }) => {
       queryClient.setQueriesData<ForumCommentPreview[]>(
-        { queryKey: forumKeys.commentsAll(daoGroupId, postId) },
+        { queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId) },
         (current) =>
           current?.map((comment) =>
             comment.id === commentId ? { ...comment, ...patch } : comment,
           ),
       );
     },
-    [queryClient, daoGroupId, postId],
+    [queryClient, daoGroupId, postId, currentUserId],
   );
 
   // Mirrors optimisticState synchronously — never stale inside callbacks/timers

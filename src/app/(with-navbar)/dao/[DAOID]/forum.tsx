@@ -44,7 +44,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     refetch: refetchPosts,
     replacePost,
     removePost,
-  } = useDaoForumPosts(daoGroupId, token, isAuthenticated);
+  } = useDaoForumPosts(daoGroupId, token, isAuthenticated, currentUserId);
   const {
     comments,
     isLoading: isCommentsLoading,
@@ -83,7 +83,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     toggleLike,
     optimisticState,
     error: commentLikeError,
-  } = useDaoForumCommentLike(daoGroupId, selectedPostId);
+  } = useDaoForumCommentLike(daoGroupId, selectedPostId, currentUserId);
 
   const { recordView } = useRecordPostView(token);
 

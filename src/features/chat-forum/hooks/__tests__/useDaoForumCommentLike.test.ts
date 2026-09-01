@@ -38,16 +38,20 @@ describe("useDaoForumCommentLike", () => {
     const wrapper = createWrapper(client);
 
     client.setQueryData(
-      forumKeys.comments("dao-1", "post-1", "oldest"),
+      forumKeys.comments("dao-1", "post-1", "oldest", "user-1"),
       [makeComment()],
     );
     client.setQueryData(
-      forumKeys.comments("dao-1", "post-1", "latest"),
+      forumKeys.comments("dao-1", "post-1", "latest", "user-1"),
+      [makeComment()],
+    );
+    client.setQueryData(
+      forumKeys.comments("dao-1", "post-1", "oldest", "user-2"),
       [makeComment()],
     );
 
     const { result } = renderHook(
-      () => useDaoForumCommentLike("dao-1", "post-1"),
+      () => useDaoForumCommentLike("dao-1", "post-1", "user-1"),
       { wrapper },
     );
 
@@ -56,14 +60,18 @@ describe("useDaoForumCommentLike", () => {
     });
 
     const oldest = client.getQueryData<ForumCommentPreview[]>(
-      forumKeys.comments("dao-1", "post-1", "oldest"),
+      forumKeys.comments("dao-1", "post-1", "oldest", "user-1"),
     );
     const latest = client.getQueryData<ForumCommentPreview[]>(
-      forumKeys.comments("dao-1", "post-1", "latest"),
+      forumKeys.comments("dao-1", "post-1", "latest", "user-1"),
+    );
+    const otherUser = client.getQueryData<ForumCommentPreview[]>(
+      forumKeys.comments("dao-1", "post-1", "oldest", "user-2"),
     );
 
     expect(oldest?.[0]).toMatchObject({ isLiked: true, likeCount: 1 });
     expect(latest?.[0]).toMatchObject({ isLiked: true, likeCount: 1 });
+    expect(otherUser?.[0]).toMatchObject({ isLiked: false, likeCount: 0 });
 
     await waitFor(() => expect(likeCommentMock).toHaveBeenCalledTimes(1));
   });

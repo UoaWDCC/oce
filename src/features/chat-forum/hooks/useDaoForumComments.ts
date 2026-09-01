@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPostComments } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
 import { forumKeys } from "../queryKeys";
@@ -24,7 +24,7 @@ export function useDaoForumComments(
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: forumKeys.comments(daoGroupId, postId, sort),
+    queryKey: forumKeys.comments(daoGroupId, postId, sort, currentUserId),
     queryFn: async ({ signal }) => {
       const rawComments = await getPostComments(
         daoGroupId as string,
@@ -34,11 +34,24 @@ export function useDaoForumComments(
         signal,
       );
       return rawComments.map((comment) =>
-        mapCommentToForumCommentPreview(comment, postId as string, currentUserId),
+        mapCommentToForumCommentPreview(
+          comment,
+          postId as string,
+          currentUserId,
+        ),
       );
     },
     enabled: Boolean(daoGroupId) && Boolean(postId) && enabled,
-    placeholderData: keepPreviousData,
+    // Preserve the prior sort while another sort for the same thread loads,
+    // but never carry data across posts, DAOs, or authenticated users.
+    placeholderData: (previousData, previousQuery) => {
+      const previousKey = previousQuery?.queryKey;
+      const isSameViewerAndThread =
+        previousKey?.[2] === daoGroupId &&
+        previousKey?.[3] === postId &&
+        previousKey?.[4] === currentUserId;
+      return isSameViewerAndThread ? previousData : undefined;
+    },
   });
 
   // Comment writes (create/edit/delete) can change any sort's ordering or
@@ -49,10 +62,10 @@ export function useDaoForumComments(
   // user switches to them.
   const refetch = useCallback(async () => {
     await queryClient.invalidateQueries({
-      queryKey: forumKeys.commentsAll(daoGroupId, postId),
+      queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId),
       refetchType: "all",
     });
-  }, [queryClient, daoGroupId, postId]);
+  }, [queryClient, daoGroupId, postId, currentUserId]);
 
   return {
     comments: query.data ?? [],

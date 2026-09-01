@@ -8,11 +8,12 @@ export function useDaoForumPoll(
   daoGroupId: string,
   postId: string,
   token?: string,
+  currentUserId?: string | null,
 ) {
   const queryClient = useQueryClient();
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<Error | null>(null);
-  const queryKey = forumKeys.poll(daoGroupId, postId);
+  const queryKey = forumKeys.poll(daoGroupId, postId, currentUserId);
 
   const query = useQuery({
     queryKey,

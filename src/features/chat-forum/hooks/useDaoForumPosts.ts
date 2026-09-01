@@ -18,15 +18,18 @@ export function useDaoForumPosts(
   daoGroupId: string | undefined | null,
   token?: string,
   enabled = true,
+  currentUserId: string | undefined | null = null,
 ): UseDaoForumPostsResult {
   const queryClient = useQueryClient();
-  const queryKey = forumKeys.posts(daoGroupId);
+  const queryKey = forumKeys.posts(daoGroupId, currentUserId);
 
   const query = useQuery({
     queryKey,
     queryFn: async ({ signal }) => {
       const rawPosts = await getForumPosts(daoGroupId as string, token, signal);
-      return rawPosts.map((post) => mapPostToForumPostPreview(post));
+      return rawPosts.map((post) =>
+        mapPostToForumPostPreview(post, currentUserId),
+      );
     },
     enabled: Boolean(daoGroupId) && enabled,
   });

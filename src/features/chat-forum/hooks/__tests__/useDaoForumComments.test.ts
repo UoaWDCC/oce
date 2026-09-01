@@ -1,9 +1,10 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { useDaoForumComments } from "../useDaoForumComments";
 import { getPostComments } from "../../services";
 import { QueryClient } from "@tanstack/react-query";
 import { createTestQueryClient, createWrapper } from "./queryTestUtils";
+import type { FormattedComment } from "@app-types/dao-forum";
 
 vi.mock("../../services", () => ({
   getPostComments: vi.fn(),
@@ -71,6 +72,69 @@ describe("useDaoForumComments", () => {
     // Switching back to a previously-fetched sort should not trigger a
     // third request — it's already cached under its own key.
     expect(getPostCommentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not reuse another user's cached comments", async () => {
+    const firstUserComment: FormattedComment = {
+      id: "comment-a",
+      body: "private to the first cached response",
+      image_url: null,
+      author_id: "user-a",
+      username: "User A",
+      like_count: 0,
+      is_liked: false,
+      parent_comment_id: null,
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: null,
+      deleted_at: null,
+    };
+    let resolveSecondUser: (comments: FormattedComment[]) => void = () => {};
+    getPostCommentsMock
+      .mockResolvedValueOnce([firstUserComment])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveSecondUser = resolve;
+          }),
+      );
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const wrapper = createWrapper(client);
+
+    const { result, rerender } = renderHook(
+      ({ token, userId }: { token: string; userId: string }) =>
+        useDaoForumComments(
+          "dao-1",
+          "post-1",
+          token,
+          "oldest",
+          true,
+          userId,
+        ),
+      {
+        wrapper,
+        initialProps: { token: "token-a", userId: "user-a" },
+      },
+    );
+    await waitFor(() => expect(result.current.comments).toHaveLength(1));
+
+    rerender({ token: "token-b", userId: "user-b" });
+
+    expect(result.current.comments).toEqual([]);
+    expect(result.current.isLoading).toBe(true);
+    await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(2));
+    expect(getPostCommentsMock).toHaveBeenLastCalledWith(
+      "dao-1",
+      "post-1",
+      "oldest",
+      "token-b",
+      expect.any(AbortSignal),
+    );
+
+    await act(async () => resolveSecondUser([]));
   });
 
   it("refetch refreshes every cached sort for the post, not just the active one", async () => {

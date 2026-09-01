@@ -44,7 +44,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     refetch: refetchPosts,
     replacePost,
     removePost,
-  } = useDaoForumPosts(daoGroupId, token, isAuthenticated);
+  } = useDaoForumPosts(daoGroupId, token, isAuthenticated, currentUserId);
   const {
     comments,
     isLoading: isCommentsLoading,
@@ -83,7 +83,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     toggleLike,
     optimisticState,
     error: commentLikeError,
-  } = useDaoForumCommentLike();
+  } = useDaoForumCommentLike(daoGroupId, selectedPostId, currentUserId);
 
   const { recordView } = useRecordPostView(token);
 
@@ -140,7 +140,10 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     if (postId) {
       const succeeded = await recordView(postId);
       if (succeeded) {
-        refetchPosts();
+        const post = posts.find((item) => item.id === postId);
+        if (post && post.isUnread) {
+          replacePost({ ...post, isUnread: false });
+        }
       }
     }
   };

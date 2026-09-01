@@ -1,8 +1,9 @@
-import { StrictMode } from "react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
 import { useDaoForumPosts } from "../useDaoForumPosts";
 import { getForumPosts } from "../../services";
+import { QueryClient } from "@tanstack/react-query";
+import { createTestQueryClient, createWrapper } from "./queryTestUtils";
 
 vi.mock("../../services", () => ({
   getForumPosts: vi.fn(),
@@ -10,30 +11,27 @@ vi.mock("../../services", () => ({
 
 const getForumPostsMock = vi.mocked(getForumPosts);
 
-function rejectOnAbort(signal?: AbortSignal) {
-  return new Promise<never>((_, reject) => {
-    signal?.addEventListener("abort", () =>
-      reject(new DOMException("Aborted", "AbortError")),
-    );
-  });
-}
-
 beforeEach(() => {
   getForumPostsMock.mockReset();
 });
 
 describe("useDaoForumPosts", () => {
   it("does not fetch while disabled", () => {
-    renderHook(() => useDaoForumPosts("dao-1", undefined, false));
+    const client = createTestQueryClient();
+    renderHook(() => useDaoForumPosts("dao-1", undefined, false), {
+      wrapper: createWrapper(client),
+    });
 
     expect(getForumPostsMock).not.toHaveBeenCalled();
   });
 
   it("fetches exactly once with the token once enabled", async () => {
     getForumPostsMock.mockResolvedValue([]);
+    const client = createTestQueryClient();
 
-    const { result } = renderHook(() =>
-      useDaoForumPosts("dao-1", "token-123", true),
+    const { result } = renderHook(
+      () => useDaoForumPosts("dao-1", "token-123", true),
+      { wrapper: createWrapper(client) },
     );
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
@@ -46,63 +44,93 @@ describe("useDaoForumPosts", () => {
     );
   });
 
-  it("aborts the in-flight request when re-run before it resolves", async () => {
-    getForumPostsMock.mockImplementation((_id, _token, signal) =>
-      rejectOnAbort(signal),
-    );
-
-    const { rerender } = renderHook(
-      ({ enabled }) => useDaoForumPosts("dao-1", "token-123", enabled),
-      { initialProps: { enabled: true } },
-    );
-
-    const firstSignal = getForumPostsMock.mock.calls[0][2] as AbortSignal;
-    expect(firstSignal.aborted).toBe(false);
-
-    // Re-running the hook (Strict Mode's mount->cleanup->mount, or a dep change)
-    // should cancel the first request rather than letting it race the next one.
-    rerender({ enabled: false });
-
-    expect(firstSignal.aborted).toBe(true);
-  });
-
-  it("resolves a single request under Strict Mode double-mount", async () => {
-    // Strict Mode mounts the effect, cleans it up, then mounts again. The
-    // cleanup aborts the first request, so only the second one resolves.
-    let resolvedCount = 0;
-    getForumPostsMock.mockImplementation((_id, _token, signal) => {
-      if (signal?.aborted) return rejectOnAbort(signal);
-      return new Promise((resolve, reject) => {
-        signal?.addEventListener("abort", () =>
-          reject(new DOMException("Aborted", "AbortError")),
-        );
-        queueMicrotask(() => {
-          if (signal?.aborted) return;
-          resolvedCount += 1;
-          resolve([]);
-        });
-      });
-    });
+  it("surfaces a fetch error", async () => {
+    getForumPostsMock.mockRejectedValue(new Error("boom"));
+    const client = createTestQueryClient();
 
     const { result } = renderHook(
       () => useDaoForumPosts("dao-1", "token-123", true),
-      { wrapper: StrictMode },
-    );
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-
-    expect(resolvedCount).toBe(1);
-    const firstSignal = getForumPostsMock.mock.calls[0][2] as AbortSignal;
-    expect(firstSignal.aborted).toBe(true);
-  });
-
-  it("surfaces a fetch error", async () => {
-    getForumPostsMock.mockRejectedValue(new Error("boom"));
-
-    const { result } = renderHook(() =>
-      useDaoForumPosts("dao-1", "token-123", true),
+      { wrapper: createWrapper(client) },
     );
 
     await waitFor(() => expect(result.current.error?.message).toBe("boom"));
+  });
+
+  it("deduplicates identical in-flight requests across hook instances", async () => {
+    let resolvePosts: (value: never[]) => void = () => {};
+    getForumPostsMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolvePosts = resolve;
+        }),
+    );
+    const client = createTestQueryClient();
+    const wrapper = createWrapper(client);
+
+    renderHook(() => useDaoForumPosts("dao-1", "token-123", true), {
+      wrapper,
+    });
+    renderHook(() => useDaoForumPosts("dao-1", "token-123", true), {
+      wrapper,
+    });
+
+    resolvePosts([]);
+    await waitFor(() => expect(getForumPostsMock).toHaveBeenCalledTimes(1));
+  });
+
+  it("shows cached posts immediately when remounted without a full reload", async () => {
+    getForumPostsMock.mockResolvedValue([]);
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const wrapper = createWrapper(client);
+
+    const { result, unmount } = renderHook(
+      () => useDaoForumPosts("dao-1", "token-123", true),
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    unmount();
+
+    const { result: secondResult } = renderHook(
+      () => useDaoForumPosts("dao-1", "token-123", true),
+      { wrapper },
+    );
+
+    // Cached data is available immediately; no loading state on remount.
+    expect(secondResult.current.isLoading).toBe(false);
+    expect(getForumPostsMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not reuse another user's cached posts", async () => {
+    getForumPostsMock.mockResolvedValue([]);
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const wrapper = createWrapper(client);
+
+    const firstUser = renderHook(
+      () => useDaoForumPosts("dao-1", "token-a", true, "user-a"),
+      { wrapper },
+    );
+    await waitFor(() => expect(firstUser.result.current.isLoading).toBe(false));
+    firstUser.unmount();
+
+    const secondUser = renderHook(
+      () => useDaoForumPosts("dao-1", "token-b", true, "user-b"),
+      { wrapper },
+    );
+
+    expect(secondUser.result.current.isLoading).toBe(true);
+    await waitFor(() => expect(getForumPostsMock).toHaveBeenCalledTimes(2));
+    expect(getForumPostsMock).toHaveBeenLastCalledWith(
+      "dao-1",
+      "token-b",
+      expect.any(AbortSignal),
+    );
   });
 });

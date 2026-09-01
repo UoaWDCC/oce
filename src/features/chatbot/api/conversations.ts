@@ -1,4 +1,5 @@
 import { Conversation, TutorMessage } from "@/features/chatbot/types";
+import type { PageContextRequest } from "@/features/chatbot/pageContext";
 import type { Message } from "@/llm/types/Message";
 import { apiFetch } from "../utils/apiFetch";
 
@@ -113,12 +114,19 @@ export async function streamAssistantMessage(
   conversationId: string,
   messages: Message[],
   handlers: StreamAssistantMessageHandlers,
+  pageContext?: PageContextRequest,
 ) {
+  const requestBody = {
+    conversation_id: conversationId,
+    messages,
+    ...(pageContext ? { page_context: { path: pageContext.path } } : {}),
+  };
+
   const response = await apiFetch(
     "/api/ai-tutor/chat/stream",
     {
       method: "POST",
-      body: JSON.stringify({ conversation_id: conversationId, messages }),
+      body: JSON.stringify(requestBody),
     },
     true,
   );

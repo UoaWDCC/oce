@@ -106,6 +106,8 @@ export default function ChatFullscreen() {
   const {
     selectedConversationId,
     setSelectedConversationId,
+    targetMessageId,
+    setTargetMessageId,
     refreshConversationList,
     conversationListVersion,
     messageResetVersion,
@@ -118,7 +120,12 @@ export default function ChatFullscreen() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [targetedMessageId, setTargetedMessageId] = useState<string | null>(
+    null,
+  );
   const lastMessageRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextLatestScrollRef = useRef(false);
   const isSavingMessageRef = useRef(false);
   // Mirrors the currently selected conversation so async stream callbacks can
   // tell whether the user has switched away since the send started.
@@ -375,12 +382,62 @@ export default function ChatFullscreen() {
   }, [messageResetVersion, selectedConversationId, setError]);
 
   useEffect(() => {
-    lastMessageRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "nearest",
-    });
-  }, [messages]);
+    if (!targetMessageId) {
+      if (skipNextLatestScrollRef.current) {
+        skipNextLatestScrollRef.current = false;
+        return;
+      }
+
+      lastMessageRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      return;
+    }
+
+    let frame = 0;
+    let attempts = 0;
+    let timeout: number | undefined;
+
+    const scrollToTarget = () => {
+      const element = document.getElementById(`message-${targetMessageId}`);
+      const container = messagesContainerRef.current;
+      if (element && container) {
+        const containerBounds = container.getBoundingClientRect();
+        const elementBounds = element.getBoundingClientRect();
+        const targetTop =
+          container.scrollTop +
+          elementBounds.top -
+          containerBounds.top -
+          container.clientHeight / 2;
+
+        container.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: "smooth",
+        });
+        setTargetedMessageId(targetMessageId);
+        skipNextLatestScrollRef.current = true;
+        setTargetMessageId(null);
+        timeout = window.setTimeout(() => {
+          setTargetedMessageId(null);
+        }, 2400);
+      }
+
+      attempts += 1;
+      if (attempts < 8) {
+        frame = requestAnimationFrame(scrollToTarget);
+      }
+    };
+
+    frame = requestAnimationFrame(scrollToTarget);
+    return () => {
+      cancelAnimationFrame(frame);
+      if (timeout !== undefined) {
+        window.clearTimeout(timeout);
+      }
+    };
+  }, [messages, targetMessageId, setTargetMessageId]);
   return (
     <div
       className={`${open ? `` : `hidden`} flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-purple-100 bg-white ${
@@ -455,7 +512,10 @@ export default function ChatFullscreen() {
 
       <TokenUsageBanner usage={usage} />
 
-      <div className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60">
+      <div
+        ref={messagesContainerRef}
+        className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60"
+      >
         <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">
           <div className="flex min-h-full w-full flex-1 flex-col gap-4">
             {isLoadingHistory ? (
@@ -483,6 +543,7 @@ export default function ChatFullscreen() {
                     initialFavourited={message.favourited}
                     isLast={index === lastBotIndex}
                     conversationId={selectedConversationId}
+                    isTargeted={message.id === targetedMessageId}
                   >
                     {message.message}
                   </ChatReply>

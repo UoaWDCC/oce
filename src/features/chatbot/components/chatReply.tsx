@@ -12,6 +12,7 @@ interface ChatReplyType {
   // Only the last AI reply in a conversation shows the tutor request action.
   isLast?: boolean;
   conversationId?: string | null;
+  isTargeted?: boolean;
 }
 
 export default function ChatReply({
@@ -20,6 +21,7 @@ export default function ChatReply({
   initialFavourited = false,
   isLast = false,
   conversationId = null,
+  isTargeted = false,
 }: ChatReplyType) {
   const [copied, setCopied] = useState<boolean>(false);
   const { favourited, toggleFavourite } = useFavouriteMessage(
@@ -33,7 +35,12 @@ export default function ChatReply({
   const showTutorAction = isLast && Boolean(conversationId);
 
   return (
-    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+    <div
+      id={messageId ? `message-${messageId}` : undefined}
+      className={`min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
+        isTargeted ? "animate-favourite-message" : ""
+      }`}
+    >
       <div className="min-w-0 max-w-full overflow-x-auto">
         <div className="markdown min-w-0 max-w-full text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">
           <ReactMarkdown>{children}</ReactMarkdown>

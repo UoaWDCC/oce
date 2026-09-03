@@ -1,6 +1,11 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  normalizePageContextPath,
+  type PageContextRequest,
+} from "@/features/chatbot/pageContext";
 import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
 import { Bot, Maximize2, Minimize2, X } from "lucide-react";
@@ -101,6 +106,7 @@ function AssistantThinkingState() {
 }
 
 export default function ChatFullscreen() {
+  const pathname = usePathname();
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
   const {
@@ -134,6 +140,14 @@ export default function ChatFullscreen() {
     if (isSavingMessageRef.current) {
       return;
     }
+
+    const normalizedPath = pathname
+      ? normalizePageContextPath(pathname)
+      : undefined;
+    const pageContext: PageContextRequest | undefined =
+      normalizedPath?.status === "normalized"
+        ? { path: normalizedPath.path }
+        : undefined;
 
     isSavingMessageRef.current = true;
     setIsSavingMessage(true);
@@ -225,6 +239,7 @@ export default function ChatFullscreen() {
             refreshConversationList();
           },
         },
+        pageContext,
       );
 
       // Reconcile the streamed reply with persisted data so it carries the

@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  resolvePageContext,
+  type ResolvedPageContext,
+} from "@/features/chatbot/server/knowledge/resolvePageContext";
 import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import type { LLMConfig } from "@/llm/types/LLMConfig";
@@ -14,6 +18,7 @@ interface ChatRequestBody {
   messages?: Message[];
   config?: LLMConfig;
   conversation_id?: unknown;
+  page_context?: unknown;
 }
 
 // Streams the LLM reply, then saves it as an assistant message once the
@@ -102,8 +107,26 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const pageContextResult = resolvePageContext(body.page_context);
+  let pageContext: ResolvedPageContext | undefined;
+
+  switch (pageContextResult.status) {
+    case "malformed":
+      return NextResponse.json(
+        { error: "Invalid page_context" },
+        { status: 400 },
+      );
+    case "resolved":
+      pageContext = pageContextResult.context;
+      break;
+    case "absent":
+    case "unsupported":
+      pageContext = undefined;
+      break;
+  }
+
   const provider = createLLMProvider();
-  const systemInstruction = buildAiTutorInstruction();
+  const systemInstruction = buildAiTutorInstruction(pageContext);
   const stream = provider.stream(body.messages, {
     ...body.config,
     systemInstruction,

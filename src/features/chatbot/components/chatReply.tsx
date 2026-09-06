@@ -24,7 +24,7 @@ export default function ChatReply({
   isTargeted = false,
 }: ChatReplyType) {
   const [copied, setCopied] = useState<boolean>(false);
-  const { favourited, toggleFavourite } = useFavouriteMessage(
+  const { favourited, toggleFavourite, isPending } = useFavouriteMessage(
     messageId,
     initialFavourited,
   );
@@ -76,6 +76,7 @@ export default function ChatReply({
                   : "Add response to favourites"
               }
               aria-pressed={favourited}
+              disabled={isPending}
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#5e00b2] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5e00b2] focus-visible:ring-offset-2"
               onClick={toggleFavourite}
             >

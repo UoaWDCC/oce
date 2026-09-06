@@ -398,7 +398,6 @@ export default function ChatFullscreen() {
 
     let frame = 0;
     let attempts = 0;
-    let timeout: number | undefined;
 
     const scrollToTarget = () => {
       const element = document.getElementById(`message-${targetMessageId}`);
@@ -419,9 +418,6 @@ export default function ChatFullscreen() {
         setTargetedMessageId(targetMessageId);
         skipNextLatestScrollRef.current = true;
         setTargetMessageId(null);
-        timeout = window.setTimeout(() => {
-          setTargetedMessageId(null);
-        }, 2400);
       }
 
       attempts += 1;
@@ -433,11 +429,19 @@ export default function ChatFullscreen() {
     frame = requestAnimationFrame(scrollToTarget);
     return () => {
       cancelAnimationFrame(frame);
-      if (timeout !== undefined) {
-        window.clearTimeout(timeout);
-      }
     };
   }, [messages, targetMessageId, setTargetMessageId]);
+
+  useEffect(() => {
+    if (!targetedMessageId) return;
+
+    const timeout = window.setTimeout(() => {
+      setTargetedMessageId(null);
+    }, 2400);
+
+    return () => window.clearTimeout(timeout);
+  }, [targetedMessageId]);
+
   return (
     <div
       className={`${open ? `` : `hidden`} flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-purple-100 bg-white ${

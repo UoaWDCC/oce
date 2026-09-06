@@ -31,3 +31,12 @@ export interface TutorMessage {
   is_favourite: boolean;
   created_at: string;
 }
+
+export interface FavouriteMessage {
+  id: string;
+  content: string;
+  conversation_id: string;
+  conversation_title: string | null;
+  created_at: string;
+  favourited_at: string | null;
+}

@@ -89,6 +89,22 @@
   animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+@keyframes favourite-card-pulse {
+  0%,
+  100% {
+    background-color: rgb(250 245 255);
+  }
+
+  30%,
+  55% {
+    background-color: rgb(237 233 254);
+  }
+}
+
+.animate-favourite-message {
+  animation: favourite-card-pulse 0.8s ease-in-out;
+}
+
 html {
   scrollbar-width: none;
   /* Firefox */

@@ -1,6 +1,7 @@
 import {
   Conversation,
   GetConversationsResponse,
+  GetMessagesResponse,
   TutorMessage,
 } from "@/features/chatbot/types";
 import type { Message } from "@/llm/types/Message";
@@ -60,16 +61,38 @@ export async function createConversation(): Promise<Conversation> {
   return data.conversation;
 }
 
+interface GetConversationMessagesOptions {
+  offset?: number;
+  limit?: number;
+}
+
+// Pages walk backwards from the newest message (offset 0 is the most recent page)
 export async function getConversationMessages(
   conversationId: string,
-): Promise<TutorMessage[]> {
+  { offset = 0, limit = 15 }: GetConversationMessagesOptions = {},
+): Promise<GetMessagesResponse> {
+  const params = new URLSearchParams();
+  params.set("offset", offset.toString());
+  params.set("limit", limit.toString());
+
   const response = await apiFetch(
-    `/api/ai-tutor/conversations/${conversationId}/messages`,
+    `/api/ai-tutor/conversations/${conversationId}/messages?${params.toString()}`,
     {},
     true,
   );
-  const data = (await response.json()) as { messages: TutorMessage[] };
-  return data.messages;
+
+  const data = (await response.json()) as GetMessagesResponse;
+
+  if (
+    !Array.isArray(data.messages) ||
+    typeof data.hasMore !== "boolean" ||
+    !Number.isSafeInteger(data.nextOffset) ||
+    data.nextOffset < 0
+  ) {
+    throw new Error("Invalid messages response");
+  }
+
+  return data;
 }
 
 export async function saveUserMessage(

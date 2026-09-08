@@ -520,15 +520,10 @@ export default function ChatFullscreen() {
       >
         <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">
           <div className="flex min-h-full w-full flex-1 flex-col gap-4">
-            {hasOlderMessages && !isLoadingHistory && (
-              <button
-                type="button"
-                onClick={loadOlderMessages}
-                disabled={isLoadingOlder}
-                className="mx-auto rounded-xl border border-purple-100 bg-white px-4 py-1.5 text-xs font-medium text-slate-500 shadow-sm transition-colors hover:text-[#5e00b2] disabled:opacity-60"
-              >
-                {isLoadingOlder ? "Loading..." : "Load earlier messages"}
-              </button>
+            {isLoadingOlder && (
+              <p className="py-1 text-center text-xs text-slate-500">
+                Loading earlier messages...
+              </p>
             )}
             {isLoadingHistory ? (
               <HistoryLoadingState />

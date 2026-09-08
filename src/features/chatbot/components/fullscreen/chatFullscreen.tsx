@@ -123,6 +123,7 @@ export default function ChatFullscreen() {
   // Set while older messages are being prepended, so the scroll-to-latest
   // effect doesn't pull the user away from what they were reading.
   const isPrependingRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
   // Mirrors the currently selected conversation so async stream callbacks can
   // tell whether the user has switched away since the send started.
   const selectedConversationIdRef = useRef(selectedConversationId);
@@ -327,6 +328,7 @@ export default function ChatFullscreen() {
     setSaveError(null);
     setError(undefined);
     setHasOlderMessages(false);
+    lastScrollTopRef.current = 0;
 
     if (!selectedConversationId) {
       setIsLoadingHistory(false);
@@ -411,6 +413,19 @@ export default function ChatFullscreen() {
     } finally {
       isLoadingOlderRef.current = false;
       setIsLoadingOlder(false);
+    }
+  }
+
+  // Only an upward scroll loads older messages. The chat opens by scrolling
+  // down to the newest message, which would otherwise pass the top of the
+  // container and trigger a load before the user has done anything.
+  function handleMessagesScroll(event: React.UIEvent<HTMLDivElement>) {
+    const { scrollTop } = event.currentTarget;
+    const movedUp = scrollTop < lastScrollTopRef.current;
+    lastScrollTopRef.current = scrollTop;
+
+    if (movedUp && scrollTop < 120) {
+      loadOlderMessages();
     }
   }
 
@@ -500,6 +515,7 @@ export default function ChatFullscreen() {
 
       <div
         ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
         className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60"
       >
         <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">

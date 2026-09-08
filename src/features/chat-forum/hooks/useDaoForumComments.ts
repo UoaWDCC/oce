@@ -3,13 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPostComments } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
 import { forumKeys } from "../queryKeys";
+import { toForumAsyncState, type ForumAsyncState } from "../lib/asyncState";
 import type { ForumCommentPreview } from "../types";
 import type { ForumThreadSort } from "../types";
 
-export interface UseDaoForumCommentsResult {
+export interface UseDaoForumCommentsResult extends ForumAsyncState {
   comments: ForumCommentPreview[];
-  isLoading: boolean;
-  error: Error | null;
   refetch: () => Promise<void>;
 }
 
@@ -22,6 +21,7 @@ export function useDaoForumComments(
   currentUserId: string | null = null,
 ): UseDaoForumCommentsResult {
   const queryClient = useQueryClient();
+  const isEnabled = Boolean(daoGroupId) && Boolean(postId) && enabled;
 
   const query = useQuery({
     queryKey: forumKeys.comments(daoGroupId, postId, sort, currentUserId),
@@ -41,7 +41,7 @@ export function useDaoForumComments(
         ),
       );
     },
-    enabled: Boolean(daoGroupId) && Boolean(postId) && enabled,
+    enabled: isEnabled,
     // Preserve the prior sort while another sort for the same thread loads,
     // but never carry data across posts, DAOs, or authenticated users.
     placeholderData: (previousData, previousQuery) => {
@@ -69,8 +69,10 @@ export function useDaoForumComments(
 
   return {
     comments: query.data ?? [],
-    isLoading: query.isPending && query.isFetching,
-    error: query.error as Error | null,
+    // Retrying a thread goes through the same all-sorts invalidation as any
+    // other refresh, so a retry after a failure cannot leave a sibling sort
+    // holding the stale data that just failed to refresh.
+    ...toForumAsyncState(query, isEnabled, () => void refetch()),
     refetch,
   };
 }

@@ -36,7 +36,7 @@ describe("useDaoForumComments", () => {
       { wrapper: createWrapper(client) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
 
     expect(getPostCommentsMock).toHaveBeenCalledTimes(1);
     expect(getPostCommentsMock).toHaveBeenCalledWith(
@@ -62,7 +62,7 @@ describe("useDaoForumComments", () => {
         useDaoForumComments("dao-1", "post-1", "token-123", sort, true),
       { wrapper, initialProps: { sort: "oldest" } },
     );
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
 
     rerender({ sort: "latest" });
     await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(2));
@@ -124,7 +124,7 @@ describe("useDaoForumComments", () => {
     rerender({ token: "token-b", userId: "user-b" });
 
     expect(result.current.comments).toEqual([]);
-    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isInitialLoading).toBe(true);
     await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(2));
     expect(getPostCommentsMock).toHaveBeenLastCalledWith(
       "dao-1",
@@ -150,13 +150,13 @@ describe("useDaoForumComments", () => {
       () => useDaoForumComments("dao-1", "post-1", "token-123", "oldest", true),
       { wrapper },
     );
-    await waitFor(() => expect(oldest.result.current.isLoading).toBe(false));
+    await waitFor(() => expect(oldest.result.current.isInitialLoading).toBe(false));
 
     const latest = renderHook(
       () => useDaoForumComments("dao-1", "post-1", "token-123", "latest", true),
       { wrapper },
     );
-    await waitFor(() => expect(latest.result.current.isLoading).toBe(false));
+    await waitFor(() => expect(latest.result.current.isInitialLoading).toBe(false));
 
     // "latest" is no longer observed by any mounted hook, but should still
     // be refreshed by refetch() below — not left stale until someone

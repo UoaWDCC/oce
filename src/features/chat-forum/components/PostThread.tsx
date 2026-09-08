@@ -34,6 +34,7 @@ import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
 import { getPostTypePresentation } from "../postTypePresentation";
+import { PENDING_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
 
 type PostThreadProps = {
   daoGroupId: string;
@@ -53,7 +54,8 @@ type PostThreadProps = {
   mutationError?: string | null;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
-  isLoadingComments?: boolean;
+  /** Loading/refresh/failure state for this thread's comments. */
+  commentsState?: ForumAsyncState;
   commentsError?: string | null;
   className?: string;
   daoName?: string;
@@ -142,12 +144,8 @@ function ForumPollCard({
   token?: string;
   currentUserId?: string | null;
 }) {
-  const { poll, isLoading, isVoting, error, vote } = useDaoForumPoll(
-    daoGroupId,
-    postId,
-    token,
-    currentUserId,
-  );
+  const { poll, isInitialLoading, isRefreshing, isVoting, error, retry, vote } =
+    useDaoForumPoll(daoGroupId, postId, token, currentUserId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -158,7 +156,7 @@ function ForumPollCard({
     );
   }, [poll]);
 
-  if (isLoading) {
+  if (isInitialLoading) {
     return (
       <div
         className="mt-6 h-36 animate-pulse rounded-2xl bg-violet-100"
@@ -168,7 +166,17 @@ function ForumPollCard({
   }
   if (!poll) {
     return error ? (
-      <p className="mt-4 text-sm text-red-600">{error.message}</p>
+      <p className="mt-4 flex flex-wrap items-center gap-3 text-sm text-red-600">
+        <span>{error.message}</span>
+        <button
+          className="rounded-full border border-red-300 px-3 py-1 font-bold transition hover:bg-red-50 disabled:opacity-60"
+          disabled={isRefreshing}
+          onClick={retry}
+          type="button"
+        >
+          {isRefreshing ? "Retrying…" : "Retry"}
+        </button>
+      </p>
     ) : null;
   }
 
@@ -599,7 +607,7 @@ export default function PostThread({
   mutationError = null,
   replyingTo = null,
   onCancelReply,
-  isLoadingComments = false,
+  commentsState = PENDING_ASYNC_STATE,
   commentsError = null,
   className,
   daoName = "the DAO",
@@ -607,6 +615,17 @@ export default function PostThread({
   currentUserId,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
+  /**
+   * Comment counts are derived from the loaded thread, so they are only
+   * meaningful once it has settled. Until then the labels drop the number
+   * rather than asserting a zero the user is about to see replaced.
+   */
+  const commentCountLabel = commentsState.hasResolved
+    ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}`
+    : "comments";
+  const replyCountLabel = commentsState.hasResolved
+    ? `${commentCount} ${commentCount === 1 ? "Reply" : "Replies"}`
+    : "Replies";
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -728,7 +747,7 @@ export default function PostThread({
               </span>
               <span className="flex items-center gap-1.5">
                 <MessageCircle aria-hidden="true" className="h-4 w-4" />
-                {commentCount} {commentCount === 1 ? "comment" : "comments"}
+                {commentCountLabel}
               </span>
             </span>
             <div className="flex items-center gap-2">
@@ -787,7 +806,15 @@ export default function PostThread({
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
           <MessageCircle aria-hidden="true" className="h-5 w-5" />
-          {commentCount} {commentCount === 1 ? "Reply" : "Replies"}
+          {replyCountLabel}
+          {commentsState.isRefreshing && (
+            <span
+              className="text-xs font-semibold text-purple-500"
+              role="status"
+            >
+              Refreshing…
+            </span>
+          )}
         </h2>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
           <span>Sort by:</span>
@@ -818,14 +845,28 @@ export default function PostThread({
       )}
 
       <div className="mt-5 space-y-4">
-        {commentsError ? (
+        {/* A failed refresh leaves the previously loaded replies in the cache,
+            so the banner stacks above them instead of taking their place. Only
+            a failure with nothing behind it replaces the list outright. */}
+        {commentsError && (
           <div
-            className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
             role="alert"
           >
-            {commentsError}
+            <span>{commentsError}</span>
+            {commentsState.error && (
+              <button
+                className="rounded-full border border-red-300 bg-white px-4 py-1.5 font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                disabled={commentsState.isRefreshing}
+                onClick={commentsState.retry}
+                type="button"
+              >
+                {commentsState.isRefreshing ? "Retrying…" : "Retry"}
+              </button>
+            )}
           </div>
-        ) : isLoadingComments ? (
+        )}
+        {commentsState.isInitialLoading ? (
           <div className="space-y-3" aria-label="Loading replies">
             {[0, 1].map((item) => (
               <div
@@ -849,9 +890,12 @@ export default function PostThread({
             />
           ))
         ) : (
-          <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
-            No replies yet. Start the discussion.
-          </div>
+          commentsState.hasResolved &&
+          !commentsState.isBlockingError && (
+            <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+              No replies yet. Start the discussion.
+            </div>
+          )
         )}
       </div>
     </section>

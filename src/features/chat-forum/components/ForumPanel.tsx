@@ -11,6 +11,7 @@ import {
   withOwnPostCapability,
 } from "../mappers";
 import type { ForumThreadSort } from "../types";
+import { PENDING_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
 import {
   POST_TYPES_IN_ORDER,
   POST_TYPE_PRESENTATION,
@@ -29,8 +30,10 @@ type ForumPanelProps = {
   posts: ForumPostPreview[];
   comments?: ForumCommentPreview[];
   currentUserId?: string | null;
-  isLoading?: boolean;
-  isCommentsLoading?: boolean;
+  /** Loading/refresh/failure state for the post list. */
+  postsState?: ForumAsyncState;
+  /** Loading/refresh/failure state for the open thread's comments. */
+  commentsState?: ForumAsyncState;
   error?: string | null;
   commentsError?: string | null;
   mutationError?: string | null;
@@ -109,8 +112,8 @@ export default function ForumPanel({
   posts,
   comments = [],
   currentUserId = null,
-  isLoading = false,
-  isCommentsLoading = false,
+  postsState = PENDING_ASYNC_STATE,
+  commentsState = PENDING_ASYNC_STATE,
   error = null,
   commentsError = null,
   mutationError = null,
@@ -229,7 +232,7 @@ export default function ForumPanel({
         commentsError={commentsError}
         daoName={daoName}
         isDeletingPost={isDeletingPost}
-        isLoadingComments={isCommentsLoading}
+        commentsState={commentsState}
         isUpdatingPost={isUpdatingPost}
         mutationError={mutationError}
         onBack={closeThread}
@@ -290,9 +293,11 @@ export default function ForumPanel({
               />
               Unread only
             </span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
-              {unreadCount}
-            </span>
+            {postsState.hasResolved && (
+              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+                {unreadCount}
+              </span>
+            )}
           </label>
         </section>
 
@@ -324,11 +329,13 @@ export default function ForumPanel({
                       </span>
                       {label}
                     </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
-                    >
-                      {count}
-                    </span>
+                    {postsState.hasResolved && (
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
+                      >
+                        {count}
+                      </span>
+                    )}
                   </button>
                 );
               },
@@ -361,9 +368,25 @@ export default function ForumPanel({
             <h1 className="text-2xl font-bold text-slate-950 md:text-3xl">
               {daoName} Forum
             </h1>
-            <p className="mt-1 text-sm font-semibold text-slate-400">
-              {posts.length} posts <span className="mx-2">/</span> {unreadCount}{" "}
-              unread
+            {/* Counts stay hidden until the query settles, so the page never
+                claims "0 posts" for a forum it has not finished reading. */}
+            <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-slate-400">
+              {postsState.hasResolved ? (
+                <span>
+                  {posts.length} posts <span className="mx-2">/</span>{" "}
+                  {unreadCount} unread
+                </span>
+              ) : (
+                <span>Loading posts…</span>
+              )}
+              {postsState.isRefreshing && (
+                <span
+                  className="text-xs font-semibold text-purple-500"
+                  role="status"
+                >
+                  Refreshing…
+                </span>
+              )}
             </p>
           </div>
           <NewPostDialog
@@ -383,15 +406,28 @@ export default function ForumPanel({
           />
         </header>
 
+        {/* The banner sits above the list rather than replacing it: when a
+            background refresh fails, the posts already on screen are still the
+            best thing we have to show. */}
         {error && (
           <div
-            className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700"
+            className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700"
             role="alert"
           >
-            {error}
+            <span>{error}</span>
+            {postsState.error && (
+              <button
+                className="rounded-full border border-red-300 bg-white px-4 py-1.5 font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                disabled={postsState.isRefreshing}
+                onClick={postsState.retry}
+                type="button"
+              >
+                {postsState.isRefreshing ? "Retrying…" : "Retry"}
+              </button>
+            )}
           </div>
         )}
-        {isLoading ? (
+        {postsState.isInitialLoading ? (
           <div className="space-y-4" aria-label="Loading forum posts">
             {[0, 1, 2].map((item) => (
               <div
@@ -400,7 +436,7 @@ export default function ForumPanel({
               />
             ))}
           </div>
-        ) : (
+        ) : postsState.isBlockingError ? null : (
           <>
             {pinnedPosts.length > 0 && (
               <section className="mb-7" aria-labelledby="pinned-posts-heading">
@@ -437,14 +473,18 @@ export default function ForumPanel({
                   ))}
                 </div>
               ) : (
-                <div className="rounded-2xl border border-dashed border-purple-200 bg-white/70 px-6 py-12 text-center">
-                  <p className="font-bold text-slate-700">
-                    No posts match these filters.
-                  </p>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Try another search or post type.
-                  </p>
-                </div>
+                /* Only claim there is nothing here once the query has actually
+                   settled — a disabled or in-flight query knows nothing yet. */
+                postsState.hasResolved && (
+                  <div className="rounded-2xl border border-dashed border-purple-200 bg-white/70 px-6 py-12 text-center">
+                    <p className="font-bold text-slate-700">
+                      No posts match these filters.
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Try another search or post type.
+                    </p>
+                  </div>
+                )
               )}
             </section>
           </>

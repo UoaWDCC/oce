@@ -156,14 +156,20 @@ function ForumPollCard({
     );
   }, [poll]);
 
-  if (isInitialLoading) {
-    return (
-      <div
-        className="mt-6 h-36 animate-pulse rounded-2xl bg-violet-100"
-        aria-label="Loading poll"
-      />
-    );
-  }
+  /**
+   * Polls are optional and most posts do not have one, but nothing in the post
+   * list says which do — the poll is only discoverable by fetching it. A
+   * skeleton here therefore reserved a block of space on *every* thread and
+   * then collapsed it again for the majority that turned out to have no poll,
+   * shunting the footer, the replies heading and the whole comment thread
+   * upwards as it went.
+   *
+   * Reserving no space is the honest option while we don't know: a post with a
+   * poll grows once when it arrives, and a post without one never moves at all.
+   * Reserving space correctly needs the post list to tell us whether a poll
+   * exists, which is a backend change.
+   */
+  if (isInitialLoading) return null;
   if (!poll) {
     return error ? (
       <p className="mt-4 flex flex-wrap items-center gap-3 text-sm text-red-600">

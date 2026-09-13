@@ -37,12 +37,13 @@ export async function POST(
     );
   }
 
-  // Check if user already reacted to this comment
+  // 1. Check specifically if user has already liked (heart reaction) this comment
   const { data: existingReaction, error: reactionError } = await supabase
     .from("comment_reactions")
     .select("*")
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
+    .eq("reaction", "heart")
     .maybeSingle();
 
   if (reactionError) {
@@ -77,7 +78,6 @@ export async function POST(
     );
   }
 
-  // Maintaining return object format for backward compatibility
   return NextResponse.json(
     { like: data },
     { status: 201, headers: corsHeaders },
@@ -119,6 +119,7 @@ export async function DELETE(
     .select("*")
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
+    .eq("reaction", "heart")
     .maybeSingle();
 
   if (reactionError) {
@@ -135,12 +136,12 @@ export async function DELETE(
     );
   }
 
-  // Delete all user reactions for this comment (unlikes the comment)
   const { error } = await supabase
     .from("comment_reactions")
     .delete()
     .eq("comment_id", commentId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("reaction", "heart");
 
   if (error) {
     return NextResponse.json(

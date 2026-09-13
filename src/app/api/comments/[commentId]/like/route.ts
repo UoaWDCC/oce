@@ -37,32 +37,35 @@ export async function POST(
     );
   }
 
-  const { data: existingLike, error: likeError } = await supabase
-    .from("comment_likes")
+  // Check if user already reacted to this comment
+  const { data: existingReaction, error: reactionError } = await supabase
+    .from("comment_reactions")
     .select("*")
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (likeError) {
+  if (reactionError) {
     return NextResponse.json(
-      { error: likeError.message },
+      { error: reactionError.message },
       { status: 500, headers: corsHeaders },
     );
   }
 
-  if (existingLike) {
+  if (existingReaction) {
     return NextResponse.json(
       { error: "You have already liked this comment" },
       { status: 409, headers: corsHeaders },
     );
   }
 
+  // Insert reaction with default 'heart' reaction type
   const { data, error } = await supabase
-    .from("comment_likes")
+    .from("comment_reactions")
     .insert({
       comment_id: commentId,
       user_id: user.id,
+      reaction: "heart",
     })
     .select("*")
     .maybeSingle();
@@ -74,6 +77,7 @@ export async function POST(
     );
   }
 
+  // Maintaining return object format for backward compatibility
   return NextResponse.json(
     { like: data },
     { status: 201, headers: corsHeaders },
@@ -110,29 +114,30 @@ export async function DELETE(
     );
   }
 
-  const { data: existingLike, error: likeError } = await supabase
-    .from("comment_likes")
+  const { data: existingReaction, error: reactionError } = await supabase
+    .from("comment_reactions")
     .select("*")
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (likeError) {
+  if (reactionError) {
     return NextResponse.json(
-      { error: likeError.message },
+      { error: reactionError.message },
       { status: 500, headers: corsHeaders },
     );
   }
 
-  if (!existingLike) {
+  if (!existingReaction) {
     return NextResponse.json(
       { error: "You have not liked this comment" },
       { status: 404, headers: corsHeaders },
     );
   }
 
+  // Delete all user reactions for this comment (unlikes the comment)
   const { error } = await supabase
-    .from("comment_likes")
+    .from("comment_reactions")
     .delete()
     .eq("comment_id", commentId)
     .eq("user_id", user.id);

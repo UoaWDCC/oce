@@ -52,6 +52,7 @@ export async function POST(
     .eq("id", postId)
     .eq("dao_group_id", daoGroupId)
     .maybeSingle();
+
   if (postError || !parentPost || parentPost.deleted_at !== null) {
     return NextResponse.json(
       { error: "Post not found" },
@@ -257,33 +258,39 @@ export async function GET(
     );
   }
 
-  const commentIds = commentsData?.map((c) => c.id) || [];
-
-  const { data: likeCounts, error: likeCountsError } = await supabase
-    .from("comment_likes")
-    .select("comment_id, user_id")
-    .in("comment_id", commentIds);
-
-  if (likeCountsError) {
-    return NextResponse.json(
-      { error: likeCountsError.message },
-      { status: 500, headers: corsHeaders },
-    );
-  }
-
   if (!commentsData) {
     return NextResponse.json([], { headers: corsHeaders });
   }
 
+  const commentIds = commentsData.map((c) => c.id);
+
+  // 1. Add "reaction" to your select statement
+  const { data: reactionsData, error: reactionsError } = await supabase
+    .from("comment_reactions")
+    .select("comment_id, user_id, reaction") // <--- Added reaction here
+    .in("comment_id", commentIds);
+
+  if (reactionsError) {
+    return NextResponse.json(
+      { error: reactionsError.message },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
   const comments = commentsData as unknown as RawComment[];
+
   const likeCountMap: Record<string, number> = {};
-  likeCounts?.forEach((lc) => {
-    likeCountMap[lc.comment_id] = (likeCountMap[lc.comment_id] || 0) + 1;
+  reactionsData?.forEach((reaction) => {
+    if (reaction.reaction === "heart") {
+      likeCountMap[reaction.comment_id] = (likeCountMap[reaction.comment_id] || 0) + 1;
+    }
   });
+
+  // 3. Track if the current user left a heart reaction
   const likedByUser = new Set(
-    likeCounts
-      ?.filter((lc) => lc.user_id === user.id)
-      .map((lc) => lc.comment_id),
+    reactionsData
+      ?.filter((r) => r.user_id === user.id && r.reaction === "heart") // <--- Added heart check here too
+      .map((r) => r.comment_id),
   );
 
   const activeChildCounts: Record<string, number> = {};

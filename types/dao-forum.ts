@@ -154,14 +154,27 @@ export interface RawComment {
   author: CommentAuthor | null;
 }
 
+// Reaction types matching database ENUM
+export type ReactionType = "heart" | "thumbs_up" | "fire" | "thumbs_down";
+
+export type ReactionCounts = Record<ReactionType, number>;
+export type UserReactions = Record<ReactionType, boolean>;
+
+export interface CommentReaction {
+  comment_id: string;
+  user_id: string;
+  reaction: ReactionType;
+  created_at: string;
+}
+
 export interface FormattedComment {
   id: string;
   body: string | null;
   image_url: string | null;
   author_id: string;
   username: string;
-  like_count: number;
-  is_liked: boolean;
+  like_count: number; // Kept for legacy compatibility (maps to counts.heart or total_reactions)
+  is_liked: boolean;  // Kept for legacy compatibility (maps to user_reactions.heart or any reaction)
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;
@@ -207,9 +220,9 @@ export interface ForumCommentPreview {
   body: string;
   createdAt: string;
   createdAtLabel: string;
-  likeCount: number;
+  likeCount: number; // Kept for frontend components expecting single like count
+  isLiked?: boolean; // Kept for frontend components expecting boolean toggle state
   isOwnComment?: boolean;
-  isLiked?: boolean;
   isDeleted?: boolean;
   imageUrl?: string | null;
 }

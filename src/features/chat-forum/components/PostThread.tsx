@@ -9,6 +9,7 @@ import {
   BookOpen,
   Eye,
   Heart,
+  Loader2,
   MessageCircle,
   MoreHorizontal,
   Pencil,
@@ -814,11 +815,12 @@ export default function PostThread({
           <MessageCircle aria-hidden="true" className="h-5 w-5" />
           {replyCountLabel}
           {commentsState.isRefreshing && (
-            <span
-              className="text-xs font-semibold text-purple-500"
-              role="status"
-            >
-              Refreshing…
+            <span role="status">
+              <Loader2
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin text-purple-500"
+              />
+              <span className="sr-only">Refreshing replies</span>
             </span>
           )}
         </h2>

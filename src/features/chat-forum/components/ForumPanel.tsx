@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { List, Plus, Search } from "lucide-react";
+import { List, Loader2, Plus, Search } from "lucide-react";
 import PostCard from "@/components/dao-forum/Post";
 import NewPostDialog from "@/components/dao-forum/NewPostDialog";
 import PostThread from "./PostThread";
@@ -380,11 +380,12 @@ export default function ForumPanel({
                 <span>Loading posts…</span>
               )}
               {postsState.isRefreshing && (
-                <span
-                  className="text-xs font-semibold text-purple-500"
-                  role="status"
-                >
-                  Refreshing…
+                <span role="status">
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 animate-spin text-purple-500"
+                  />
+                  <span className="sr-only">Refreshing posts</span>
                 </span>
               )}
             </p>

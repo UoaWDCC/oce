@@ -617,8 +617,8 @@ export default function PostThread({
   const commentCount = countComments(comments);
   /**
    * Comment counts are derived from the loaded thread, so they are only
-   * meaningful once it has settled. Until then the labels drop the number
-   * rather than asserting a zero the user is about to see replaced.
+   * meaningful once it has settled. Until then the labels say what is actually
+   * happening rather than asserting a zero the user is about to see replaced.
    */
   const commentCountLabel = commentsState.hasResolved
     ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}`

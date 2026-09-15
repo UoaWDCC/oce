@@ -353,10 +353,8 @@ function ThreadComment({
         )}
         <div className="flex items-start justify-between">
           <StudentAvatar
-            avatarColor={comment.author.avatarColor}
             badges={<AuthorBadges comment={comment} />}
             displayName={comment.author.name}
-            profileImageUrl={comment.author.profileImageUrl}
             size="sm"
             timestamp={{
               label: comment.createdAtLabel,
@@ -689,9 +687,7 @@ export default function PostThread({
               ))}
             </div>
             <StudentAvatar
-              avatarColor={post.author.avatarColor}
               displayName={post.author.name}
-              profileImageUrl={post.author.profileImageUrl}
               size="sm"
               walletAddress={post.author.walletAddress}
             />

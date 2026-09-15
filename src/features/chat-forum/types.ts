@@ -10,8 +10,6 @@ export type ForumThreadSort = "oldest" | "latest" | "most_likes";
 export type ForumThreadAuthor = {
   name: string;
   walletAddress?: string;
-  profileImageUrl?: string;
-  avatarColor?: string;
   badges?: string[];
   isEndorsed?: boolean;
 };

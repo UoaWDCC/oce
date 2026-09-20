@@ -25,6 +25,15 @@ export interface GetMessagesResponse {
   hasMore: boolean;
 }
 
+// Response of GET /api/ai-tutor/token-usage. Named "Summary" to stay distinct
+// from the per-request TokenUsage in @/llm/types/TokenUsage.
+export interface TokenUsageSummary {
+  availableTokens: number;
+  usedTokens: number;
+  totalTokens: number;
+  oldestMessage: string | null;
+}
+
 export interface TutorMessage {
   id: string;
   conversation_id: string;
@@ -32,4 +41,13 @@ export interface TutorMessage {
   content: string;
   is_favourite: boolean;
   created_at: string;
+}
+
+export interface FavouriteMessage {
+  id: string;
+  content: string;
+  conversation_id: string;
+  conversation_title: string | null;
+  created_at: string;
+  favourited_at: string | null;
 }

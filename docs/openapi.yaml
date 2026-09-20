@@ -1128,6 +1128,29 @@ paths:
                           - assistant
                       content:
                         type: string
+                page_context:
+                  type: object
+                  description: >
+                    Optional, transient context describing the page reported for
+                    this request. Unsupported but well-formed paths are ignored
+                    and chat continues normally. The server derives the page
+                    label from verified navigation knowledge; client-supplied
+                    titles or instructions are not part of this contract. This
+                    context does not establish access rights or provide the
+                    page's actual content.
+                  required:
+                    - path
+                  properties:
+                    path:
+                      type: string
+                      maxLength: 200
+                      description: >
+                        A local pathname beginning with a single slash. Full URLs,
+                        protocol-relative URLs, query strings, fragments, control
+                        characters, encoded paths, and traversal-like paths are
+                        invalid. Recognised dynamic DAO paths are normalised to
+                        their canonical template.
+                      example: /dao/{DAOID}
                 config:
                   type: object
                   additionalProperties: true
@@ -1148,6 +1171,8 @@ paths:
               messages:
                 - role: user
                   content: Explain what a DAO is in three concise bullet points.
+              page_context:
+                path: /dao/{DAOID}
               config:
                 temperature: 0.7
                 maxOutputTokens: 512
@@ -1169,7 +1194,9 @@ paths:
                 data: [DONE]
 
         "400":
-          description: Invalid request body, such as a missing or empty messages array
+          description: >
+            Invalid request body, such as a missing or empty messages array or
+            malformed page_context
           content:
             application/json:
               schema:

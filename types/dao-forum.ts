@@ -37,6 +37,7 @@ export interface PostListItem {
   updated_at: string | null;
   comment_count: number;
   view_count: number;
+  is_unread: boolean;
   author: {
     id: string;
     username: string | null;
@@ -54,6 +55,7 @@ export interface CreatePostFields {
   anonymous: boolean;
   is_pinned: boolean;
   image_url: string | null;
+  poll?: CreatePollFields;
 }
 
 export interface UpdatePostFields {
@@ -72,7 +74,35 @@ export type PostSubmitPayload = {
   postType: PostType;
   anonymous: boolean;
   isPinned: boolean;
-  imageUrl?: string;
+  imageUrl?: string | null;
+  poll?: PollSubmitPayload;
+};
+
+export type PollSubmitPayload = {
+  question: string;
+  options: string[];
+  allowMultiple: boolean;
+};
+
+export type CreatePollFields = {
+  question: string;
+  options: string[];
+  allow_multiple: boolean;
+};
+
+export type ForumPollOption = {
+  id: string;
+  label: string;
+  voteCount: number;
+  isSelected: boolean;
+};
+
+export type ForumPoll = {
+  id: string;
+  question: string;
+  allowMultiple: boolean;
+  totalVoters: number;
+  options: ForumPollOption[];
 };
 
 export interface CreateCommentFields {
@@ -135,6 +165,7 @@ export interface FormattedComment {
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;
+  deleted_at: string | null;
 }
 
 export type CommentListItem = FormattedComment;
@@ -150,6 +181,7 @@ export interface ForumPostPreview {
   daoId: string;
   title: string;
   excerpt: string;
+  authorId?: string;
   authorName: string;
   authorWallet?: string;
   createdAt: string;
@@ -158,8 +190,10 @@ export interface ForumPostPreview {
   viewCount: number;
   types: PostType[];
   tags: string[];
+  anonymous?: boolean;
   isPinned?: boolean;
   isUnread?: boolean;
+  isOwnPost?: boolean;
   imageUrl?: string | null;
 }
 
@@ -167,12 +201,14 @@ export interface ForumCommentPreview {
   id: string;
   postId: string;
   parentCommentId: string | null;
+  authorId?: string;
   authorName: string;
   authorWallet?: string;
   body: string;
   createdAt: string;
   createdAtLabel: string;
   likeCount: number;
+  isOwnComment?: boolean;
   isLiked?: boolean;
   isDeleted?: boolean;
   imageUrl?: string | null;

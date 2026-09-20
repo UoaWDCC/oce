@@ -3,6 +3,7 @@ import type {
   CreatePostFields,
   ForumCommentPreview,
   ForumPostPreview,
+  Post,
   PostListItem,
   PostSubmitPayload,
   PostType,
@@ -20,6 +21,15 @@ export function mapPostSubmitPayloadToCreatePostFields(
     anonymous: payload.anonymous,
     is_pinned: payload.isPinned,
     image_url: payload.imageUrl ?? null,
+    ...(payload.poll
+      ? {
+          poll: {
+            question: payload.poll.question,
+            options: payload.poll.options,
+            allow_multiple: payload.poll.allowMultiple,
+          },
+        }
+      : {}),
   };
 }
 
@@ -38,41 +48,89 @@ export function mapPostSubmitPayloadToUpdatePostFields(
   };
 }
 
-export function mapPostToForumPostPreview(
-  post: PostListItem,
+export function getIsOwnPost(
+  post: Pick<ForumPostPreview, "authorId" | "isOwnPost">,
+  currentUserId?: string | null,
+): boolean {
+  if (post.authorId) {
+    return Boolean(currentUserId && post.authorId === currentUserId);
+  }
+  return post.isOwnPost === true;
+}
+
+export function withOwnPostCapability(
+  post: ForumPostPreview,
+  currentUserId?: string | null,
 ): ForumPostPreview {
   return {
-    id: post.id,
-    daoId: post.dao_group_id,
-    title: post.title ?? "",
-    // Keep the full body available for search and let the card clamp it visually.
-    excerpt: post.body ?? "",
-    authorName: post.author?.Name ?? "Anonymous",
-    authorWallet: undefined,
-    createdAt: post.created_at,
-    createdAtLabel: new Date(post.created_at).toLocaleDateString("en", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    commentCount: post.comment_count,
-    viewCount: post.view_count ?? 0,
-    types: post.post_type ? [post.post_type as PostType] : [],
-    tags: post.tags,
-    isPinned: post.is_pinned,
-    isUnread: undefined,
-    imageUrl: post.image_url,
+    ...post,
+    isOwnPost: getIsOwnPost(post, currentUserId),
   };
+}
+
+export function applyUpdatedPostToPreview(
+  existing: ForumPostPreview,
+  updated: Post,
+  currentUserId?: string | null,
+): ForumPostPreview {
+  return withOwnPostCapability(
+    {
+      ...existing,
+      title: updated.title ?? existing.title,
+      excerpt: updated.body ?? existing.excerpt,
+      types: updated.post_type ? [updated.post_type] : existing.types,
+      anonymous: updated.anonymous,
+      isPinned: updated.is_pinned,
+      imageUrl: updated.image_url,
+      authorId: updated.author_id || existing.authorId,
+    },
+    currentUserId,
+  );
+}
+
+export function mapPostToForumPostPreview(
+  post: PostListItem,
+  currentUserId?: string | null,
+): ForumPostPreview {
+  return withOwnPostCapability(
+    {
+      id: post.id,
+      daoId: post.dao_group_id,
+      title: post.title ?? "",
+      // Keep the full body available for search and let the card clamp it visually.
+      excerpt: post.body ?? "",
+      authorId: post.author_id,
+      authorName: post.author?.Name ?? "Anonymous",
+      authorWallet: undefined,
+      createdAt: post.created_at,
+      createdAtLabel: new Date(post.created_at).toLocaleDateString("en", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      commentCount: post.comment_count,
+      viewCount: post.view_count ?? 0,
+      types: post.post_type ? [post.post_type as PostType] : [],
+      tags: post.tags,
+      anonymous: post.anonymous,
+      isPinned: post.is_pinned,
+      isUnread: post.is_unread,
+      imageUrl: post.image_url,
+    },
+    currentUserId,
+  );
 }
 
 export function mapCommentToForumCommentPreview(
   comment: CommentListItem,
   postId: string,
+  currentUserId: string | null,
 ): ForumCommentPreview {
   return {
     id: comment.id,
     postId,
     parentCommentId: comment.parent_comment_id,
+    authorId: comment.author_id,
     authorName: comment.username ?? "Anonymous",
     authorWallet: undefined,
     body: comment.body ?? "",
@@ -84,7 +142,8 @@ export function mapCommentToForumCommentPreview(
     }),
     likeCount: comment.like_count,
     isLiked: comment.is_liked,
-    isDeleted: comment.body === null,
+    isDeleted: comment.deleted_at !== null,
+    isOwnComment: comment.author_id === currentUserId,
     imageUrl: comment.image_url,
   };
 }
@@ -106,6 +165,9 @@ export function mapForumPostPreviewToThreadPost(
     createdAtLabel: post.createdAtLabel,
     imageUrl: post.imageUrl,
     viewCount: post.viewCount,
+    anonymous: post.anonymous,
+    isPinned: post.isPinned,
+    isOwnPost: post.isOwnPost,
   };
 }
 
@@ -127,6 +189,7 @@ export function buildForumThreadComments(
       likeCount: comment.likeCount,
       isLiked: comment.isLiked,
       isDeleted: comment.isDeleted,
+      isOwnComment: comment.isOwnComment,
       imageUrl: comment.isDeleted ? null : comment.imageUrl,
       replies: [],
     });

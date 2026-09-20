@@ -13,6 +13,7 @@ import {
 } from "@/app/api/dao-forum/[daoGroupId]/posts/[postId]/comments/route";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type { CommentListItem } from "@app-types/dao-forum";
 
 vi.mock("@/utils/authHelper", () => ({
@@ -58,6 +59,28 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json.comment.id).toBe("comment-1");
   });
 
+  it("trims trailing empty blocks without decoding entities before insert", async () => {
+    mockSupabase.maybeSingle.mockResolvedValueOnce({
+      data: { deleted_at: null },
+      error: null,
+    });
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "comment-1" },
+      error: null,
+    });
+
+    const req = createMockRequest("POST", {
+      ...defaultCommentBody,
+      body: "<p>Fish &amp; chips</p><div><br /></div>",
+    });
+    const res = await POST(req, mockParamsWithPostId);
+
+    expect(res.status).toBe(201);
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ body: "<p>Fish &amp; chips</p>" }),
+    );
+  });
+
   it("returns 400 when comment is empty", async () => {
     mockSupabase.maybeSingle.mockImplementation(() =>
       Promise.resolve({
@@ -74,6 +97,23 @@ describe("POST /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     const res = await POST(req, mockParamsWithPostId);
 
     expect(res.status).toBe(400);
+  });
+
+  it("returns 422 when visible comment text exceeds the character limit", async () => {
+    mockSupabase.maybeSingle.mockResolvedValueOnce({
+      data: { deleted_at: null },
+      error: null,
+    });
+
+    const req = createMockRequest("POST", {
+      ...defaultCommentBody,
+      body: `<strong>${"a".repeat(CONTENT_LIMITS.COMMENT_BODY + 1)}</strong>`,
+    });
+    const res = await POST(req, mockParamsWithPostId);
+    const json = await readJson<{ errors: { body: string } }>(res);
+
+    expect(res.status).toBe(422);
+    expect(json.errors.body).toContain(String(CONTENT_LIMITS.COMMENT_BODY));
   });
 
   it("returns 400 when parent comment not found", async () => {
@@ -596,6 +636,8 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json).toHaveLength(2);
     expect(json[0].body).toBeNull();
     expect(json[0].image_url).toBeNull();
+    expect(json[0].deleted_at).toBe("2026-06-01");
     expect(json[1].body).toBe("active child");
+    expect(json[1].deleted_at).toBeNull();
   });
 });

@@ -11,6 +11,9 @@ export type CommentEntryComposerProps = {
   showAttachment?: boolean;
   className?: string;
   autoFocus?: boolean;
+  initialBody?: string;
+  initialImageUrl?: string | null;
+  onCancel?: () => void;
 };
 
 export default function CommentEntryComposer({
@@ -20,11 +23,17 @@ export default function CommentEntryComposer({
   showAttachment = false,
   className = "",
   autoFocus = false,
+  initialBody,
+  initialImageUrl,
+  onCancel,
 }: CommentEntryComposerProps) {
-  const handleSubmit = async (data: { body: string; imageUrl?: string }) => {
+  const handleSubmit = async (data: {
+    body: string;
+    imageUrl?: string | null;
+  }) => {
     await onSubmit({
       body: data.body,
-      imageUrl: data.imageUrl,
+      imageUrl: data.imageUrl ?? undefined,
       parentCommentId,
     });
   };
@@ -38,6 +47,11 @@ export default function CommentEntryComposer({
       className={className}
       showAttachButton={showAttachment}
       autoFocus={autoFocus}
+      initialBody={initialBody}
+      initialImageUrl={initialImageUrl}
+      onCancel={onCancel}
+      showCancelButton={!!onCancel}
+      limitKey="COMMENT_BODY"
     />
   );
 }

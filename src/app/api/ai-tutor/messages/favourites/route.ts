@@ -1,37 +1,52 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient, supabaseAdmin } from "@/utils/supabase/server";
+import { supabaseAdmin } from "@/utils/supabase/server";
+import { authenticateUser } from "@/utils/authHelper";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
 
 export async function GET(req: NextRequest) {
-  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-  const supabase = await createClient(token);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const auth = await authenticateUser(req, corsHeaders);
+  if (auth.response) return auth.response;
+  const { user } = auth;
 
   const { data, error } = await supabaseAdmin
     .from("messages")
     .select(
-      "id, content, conversation_id, created_at, conversations!inner(user_id)",
+      "id, content, conversation_id, created_at, favourited_at, conversations!inner(user_id, title)",
     )
     .eq("is_favourite", true)
     .eq("role", "assistant")
     .eq("conversations.user_id", user.id)
-    .order("created_at", { ascending: false });
+    .order("favourited_at", { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: error.message },
+      { status: 500, headers: corsHeaders },
+    );
   }
 
-  const messages = data.map((row) => ({
-    id: row.id,
-    content: row.content,
-    conversation_id: row.conversation_id,
-    created_at: row.created_at,
-  }));
+  const messages = data.map((row) => {
+    const conversation = row.conversations as unknown as
+      | { title?: string | null }
+      | undefined;
+    return {
+      id: row.id,
+      content: row.content,
+      conversation_id: row.conversation_id,
+      conversation_title: conversation?.title ?? null,
+      created_at: row.created_at,
+      favourited_at: row.favourited_at,
+    };
+  });
 
-  return NextResponse.json({ messages });
+  return NextResponse.json({ messages }, { headers: corsHeaders });
+}
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: corsHeaders });
 }

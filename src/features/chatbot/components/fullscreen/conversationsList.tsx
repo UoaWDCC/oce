@@ -1,11 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { ArrowLeft, Star } from "lucide-react";
 import Conversation from "./conversation";
 import ConversationSearchInput from "./conversationSearchInput";
 import EndConversationDialog from "./endConversationDialog";
 import NewConversationButton from "../newConversationButton";
 import LoadMoreSentinel from "./loadMoreSentinel";
+import FavouritesList from "./favouritesList";
 import { useConversations } from "@/features/chatbot/hooks/useConversations";
 import { useConversationSearch } from "@/features/chatbot/hooks/useConversationSearch";
 import { useConversation } from "@/features/chatbot/providers/ConversationProvider";
@@ -59,12 +61,17 @@ export default function ConversationsList() {
   const {
     selectedConversationId,
     setSelectedConversationId,
+    setTargetMessageId,
     conversationListVersion,
     refreshConversationList,
     clearCurrentMessages,
     setError,
   } = useConversation();
 
+  const [showFavourites, setShowFavourites] = useState(false);
+  const [selectedFavouriteMessageId, setSelectedFavouriteMessageId] = useState<
+    string | null
+  >(null);
   const [searchQuery, setSearchQuery] = useState("");
   const isSearching = searchQuery.trim().length > 0;
 
@@ -118,6 +125,16 @@ export default function ConversationsList() {
     error: searchError,
   } = useConversationSearch(searchQuery);
 
+  const handleOpenConversationFromFavourite = (
+    conversationId: string,
+    messageId: string,
+  ) => {
+    setSelectedFavouriteMessageId(messageId);
+    setSelectedConversationId(conversationId);
+    setTargetMessageId(messageId);
+    clearCurrentMessages();
+  };
+
   // Clearing the input flips isSearching back to false, which restores the
   // normal list without refetching it.
   const shownConversations = (isSearching ? results : conversations).filter(
@@ -128,57 +145,95 @@ export default function ConversationsList() {
 
   return (
     <>
-      <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-4 overflow-hidden rounded-2xl border border-purple-100 bg-white p-4 shadow-sm">
-        <div className="flex shrink-0 flex-col gap-3">
-          <div>
-            <NewConversationButton />
-          </div>
-
-          <ConversationSearchInput
-            value={searchQuery}
-            onChange={setSearchQuery}
-            onClear={() => setSearchQuery("")}
-          />
-        </div>
-
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-          {shownIsLoading ? (
-            <StatusMessage
-              title={isSearching ? "Searching..." : "Loading..."}
-              description={
-                isSearching
-                  ? "Looking for matching conversations."
-                  : "Loading your conversations."
-              }
-              variant="loading"
-            />
-          ) : shownError ? (
-            <StatusMessage
-              title={
-                isSearching
-                  ? "Could not load search results."
-                  : "Could not load conversations."
-              }
-              description="Please try again."
-              variant="error"
-            />
-          ) : shownConversations.length === 0 ? (
-            <StatusMessage
-              title={
-                isSearching
-                  ? "No conversations match your search."
-                  : "No conversations yet."
-              }
-              description={
-                isSearching
-                  ? "Try another search term."
-                  : "Start a new conversation to see it here."
-              }
-              variant="empty"
-            />
+      <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-purple-100 bg-white p-3.5 shadow-sm">
+        <div className="flex shrink-0 flex-col gap-2.5">
+          {showFavourites ? (
+            <div className="flex items-center justify-between px-1 py-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedFavouriteMessageId(null);
+                  setShowFavourites(false);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-purple-50 hover:text-[#5e00b2]"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back</span>
+              </button>
+            </div>
           ) : (
             <>
-              {shownConversations.map((conversation) => {
+              <NewConversationButton />
+              <ConversationSearchInput
+                value={searchQuery}
+                onChange={setSearchQuery}
+                onClear={() => setSearchQuery("")}
+              />
+            </>
+          )}
+        </div>
+
+        {showFavourites ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <FavouritesList
+              onOpenConversation={handleOpenConversationFromFavourite}
+              onFavouriteRemoved={(messageId) => {
+                if (selectedFavouriteMessageId === messageId) {
+                  setSelectedFavouriteMessageId(null);
+                }
+              }}
+              selectedFavouriteMessageId={selectedFavouriteMessageId}
+            />
+          </div>
+        ) : (
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+            {!isSearching && (
+              <button
+                type="button"
+                onClick={() => setShowFavourites(true)}
+                className="group flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-[#5e00b2] transition-colors hover:bg-purple-50"
+              >
+                <Star className="h-4 w-4 fill-[#5e00b2] text-[#5e00b2] shrink-0" />
+                <span>View saved messages</span>
+              </button>
+            )}
+
+            {shownIsLoading ? (
+              <StatusMessage
+                title={isSearching ? "Searching..." : "Loading..."}
+                description={
+                  isSearching
+                    ? "Looking for matching conversations."
+                    : "Loading your conversations."
+                }
+                variant="loading"
+              />
+            ) : shownError ? (
+              <StatusMessage
+                title={
+                  isSearching
+                    ? "Could not load search results."
+                    : "Could not load conversations."
+                }
+                description="Please try again."
+                variant="error"
+              />
+            ) : shownConversations.length === 0 ? (
+              <StatusMessage
+                title={
+                  isSearching
+                    ? "No conversations match your search."
+                    : "No conversations yet."
+                }
+                description={
+                  isSearching
+                    ? "Try another search term."
+                    : "Start a new conversation to see it here."
+                }
+                variant="empty"
+              />
+            ) : (
+              shownConversations.map((conversation) => {
                 const { title, id } = conversation;
                 const name = title?.trim() || "Untitled";
                 return (
@@ -196,23 +251,20 @@ export default function ConversationsList() {
                     isEnding={endingIds.has(id)}
                   />
                 );
-              })}
-
-              {/* Search results are not paged, so only the normal list
-                  loads more. */}
-              {!isSearching && hasMore && (
-                <>
-                  <LoadMoreSentinel onVisible={loadMore} />
-                  {isLoadingMore && (
-                    <p className="py-2 text-center text-xs text-slate-500">
-                      Loading more...
-                    </p>
-                  )}
-                </>
-              )}
-            </>
-          )}
-        </div>
+              })
+            )}
+            {!isSearching && !shownIsLoading && !shownError && hasMore && (
+              <>
+                <LoadMoreSentinel onVisible={loadMore} />
+                {isLoadingMore && (
+                  <p className="py-2 text-center text-xs text-slate-500">
+                    Loading more...
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {pendingEnd && (

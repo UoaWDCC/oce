@@ -1,24 +1,20 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import {
-  CircleHelp,
-  List,
-  Megaphone,
-  MessageCircle,
-  Package,
-  Plus,
-  Search,
-  Tag as TagIcon,
-} from "lucide-react";
+import { List, Plus, Search } from "lucide-react";
 import PostCard from "@/components/dao-forum/Post";
-import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
+import NewPostDialog from "@/components/dao-forum/NewPostDialog";
 import PostThread from "./PostThread";
 import {
   buildForumThreadComments,
   mapForumPostPreviewToThreadPost,
+  withOwnPostCapability,
 } from "../mappers";
 import type { ForumThreadSort } from "../types";
+import {
+  POST_TYPES_IN_ORDER,
+  POST_TYPE_PRESENTATION,
+} from "../postTypePresentation";
 import type {
   CommentSubmitPayload,
   ForumCommentPreview,
@@ -32,55 +28,56 @@ type ForumPanelProps = {
   daoName: string;
   posts: ForumPostPreview[];
   comments?: ForumCommentPreview[];
+  currentUserId?: string | null;
   isLoading?: boolean;
   isCommentsLoading?: boolean;
   error?: string | null;
   commentsError?: string | null;
+  mutationError?: string | null;
   commentSort?: ForumThreadSort;
+  isUpdatingPost?: boolean;
+  isDeletingPost?: boolean;
   onCreatePost?: () => void;
   onSubmitPost?: (payload: PostSubmitPayload) => Promise<void> | void;
+  onUpdatePost?: (
+    postId: string,
+    payload: PostSubmitPayload,
+  ) => Promise<void> | void;
+  onDeletePost?: (postId: string) => Promise<boolean> | boolean;
   onSelectPost?: (postId: string | null) => void;
   onSubmitComment?: (
     postId: string,
     payload: CommentSubmitPayload,
   ) => Promise<void> | void;
+  onCommentRefetch?: () => Promise<void>;
   onLikeComment?: (commentId: string) => void | Promise<void>;
   onCommentSortChange?: (sort: ForumThreadSort) => void;
+  token?: string;
 };
 
 type PostTypeFilter = "All" | PostType;
 
-const POST_TYPES: Array<{
-  label: PostTypeFilter;
+/**
+ * The filter list is the post types plus an "All" entry, which is a filter-only
+ * pseudo-type and so deliberately lives here rather than in the shared
+ * post type presentation config.
+ */
+const POST_TYPE_FILTERS: Array<{
+  value: PostTypeFilter;
+  label: string;
   icon: typeof List;
   iconClassName: string;
 }> = [
-  { label: "All", icon: List, iconClassName: "bg-purple-100 text-purple-700" },
   {
-    label: "Announcement",
-    icon: Megaphone,
-    iconClassName: "bg-amber-100 text-amber-700",
+    value: "All",
+    label: "All",
+    icon: List,
+    iconClassName: "bg-purple-100 text-purple-700",
   },
-  {
-    label: "Proposal",
-    icon: Package,
-    iconClassName: "bg-indigo-100 text-indigo-700",
-  },
-  {
-    label: "Question",
-    icon: CircleHelp,
-    iconClassName: "bg-rose-100 text-rose-700",
-  },
-  {
-    label: "Discussion",
-    icon: MessageCircle,
-    iconClassName: "bg-slate-100 text-slate-600",
-  },
-  {
-    label: "Resource",
-    icon: TagIcon,
-    iconClassName: "bg-emerald-100 text-emerald-700",
-  },
+  ...POST_TYPES_IN_ORDER.map((type) => {
+    const { label, icon, filter } = POST_TYPE_PRESENTATION[type];
+    return { value: type, label, icon, iconClassName: filter };
+  }),
 ];
 
 function PostPreview({
@@ -111,17 +108,25 @@ export default function ForumPanel({
   daoName,
   posts,
   comments = [],
+  currentUserId = null,
   isLoading = false,
   isCommentsLoading = false,
   error = null,
   commentsError = null,
+  mutationError = null,
   commentSort = "latest",
+  isUpdatingPost = false,
+  isDeletingPost = false,
   onCreatePost,
   onSubmitPost,
+  onUpdatePost,
+  onDeletePost,
   onSelectPost,
   onSubmitComment,
+  onCommentRefetch,
   onLikeComment,
   onCommentSortChange,
+  token,
 }: ForumPanelProps) {
   const [query, setQuery] = useState("");
   const [postType, setPostType] = useState<PostTypeFilter>("All");
@@ -130,16 +135,20 @@ export default function ForumPanel({
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(
     null,
   );
-  const [isComposerOpen, setIsComposerOpen] = useState(false);
+
+  const ownedPosts = useMemo(
+    () => posts.map((post) => withOwnPostCapability(post, currentUserId)),
+    [currentUserId, posts],
+  );
 
   const tags = useMemo(
-    () => Array.from(new Set(posts.flatMap((post) => post.tags))),
-    [posts],
+    () => Array.from(new Set(ownedPosts.flatMap((post) => post.tags))),
+    [ownedPosts],
   );
 
   const filteredPosts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const filtered = posts.filter((post) => {
+    const filtered = ownedPosts.filter((post) => {
       const matchesQuery =
         !normalizedQuery ||
         post.title.toLowerCase().includes(normalizedQuery) ||
@@ -151,11 +160,11 @@ export default function ForumPanel({
     return [...filtered].sort((left, right) => {
       return Date.parse(right.createdAt) - Date.parse(left.createdAt);
     });
-  }, [postType, posts, query, unreadOnly]);
+  }, [ownedPosts, postType, query, unreadOnly]);
 
   const pinnedPosts = filteredPosts.filter((post) => post.isPinned);
   const regularPosts = filteredPosts.filter((post) => !post.isPinned);
-  const selectedPost = posts.find((post) => post.id === selectedPostId);
+  const selectedPost = ownedPosts.find((post) => post.id === selectedPostId);
   const selectedComments = useMemo(
     () => comments.filter((comment) => comment.postId === selectedPostId),
     [comments, selectedPostId],
@@ -170,7 +179,7 @@ export default function ForumPanel({
   const replyingToComment = selectedComments.find(
     (comment) => comment.id === replyingToCommentId,
   );
-  const unreadCount = posts.filter((post) => post.isUnread).length;
+  const unreadCount = ownedPosts.filter((post) => post.isUnread).length;
 
   const selectPost = (postId: string) => {
     setReplyingToCommentId(null);
@@ -184,21 +193,8 @@ export default function ForumPanel({
     onSelectPost?.(null);
   };
 
-  const openComposer = () => {
-    setIsComposerOpen(true);
-    onCreatePost?.();
-  };
-
   const submitPost = async (payload: PostSubmitPayload) => {
-    try {
-      await onSubmitPost?.(payload);
-      // Only close modal after successful submission
-      setIsComposerOpen(false);
-    } catch (err) {
-      // Keep modal open when submission fails so user can see error and retry
-      // Error will be displayed by the composer component
-      throw err;
-    }
+    await onSubmitPost?.(payload);
   };
 
   const submitComment = async (payload: CommentSubmitPayload) => {
@@ -210,19 +206,43 @@ export default function ForumPanel({
     setReplyingToCommentId(null);
   };
 
+  const submitUpdatedPost = async (payload: PostSubmitPayload) => {
+    if (!selectedPost) return;
+    await onUpdatePost?.(selectedPost.id, payload);
+  };
+
+  const deleteSelectedPost = async () => {
+    if (!selectedPost) return false;
+    const deleted = await onDeletePost?.(selectedPost.id);
+    if (deleted) {
+      closeThread();
+    }
+    return Boolean(deleted);
+  };
+
   if (threadPost) {
     return (
       <PostThread
+        daoGroupId={daoGroupId}
+        currentUserId={currentUserId}
         comments={threadComments}
         commentsError={commentsError}
+        daoName={daoName}
+        isDeletingPost={isDeletingPost}
         isLoadingComments={isCommentsLoading}
+        isUpdatingPost={isUpdatingPost}
+        mutationError={mutationError}
         onBack={closeThread}
         onCancelReply={() => setReplyingToCommentId(null)}
+        onDeletePost={onDeletePost ? deleteSelectedPost : undefined}
         onLikeComment={onLikeComment}
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
         onSubmitComment={submitComment}
+        onCommentRefetch={onCommentRefetch}
+        onUpdatePost={onUpdatePost ? submitUpdatedPost : undefined}
         post={threadPost}
+        token={token}
         replyingTo={
           replyingToComment
             ? {
@@ -281,36 +301,38 @@ export default function ForumPanel({
             Post type
           </h2>
           <div className="space-y-1">
-            {POST_TYPES.map(({ label, icon: Icon, iconClassName }) => {
-              const count =
-                label === "All"
-                  ? posts.length
-                  : posts.filter((post) => post.types.includes(label)).length;
-              const active = postType === label;
-              return (
-                <button
-                  key={label}
-                  aria-pressed={active}
-                  className={`flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm font-bold transition ${active ? "bg-purple-100 text-purple-700" : "text-slate-600 hover:bg-slate-50"}`}
-                  onClick={() => setPostType(label)}
-                  type="button"
-                >
-                  <span className="flex items-center gap-2.5">
-                    <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    {label}
-                  </span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
+            {POST_TYPE_FILTERS.map(
+              ({ value, label, icon: Icon, iconClassName }) => {
+                const count =
+                  value === "All"
+                    ? posts.length
+                    : posts.filter((post) => post.types.includes(value)).length;
+                const active = postType === value;
+                return (
+                  <button
+                    key={value}
+                    aria-pressed={active}
+                    className={`flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm font-bold transition ${active ? "bg-purple-100 text-purple-700" : "text-slate-600 hover:bg-slate-50"}`}
+                    onClick={() => setPostType(value)}
+                    type="button"
                   >
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
+                    <span className="flex items-center gap-2.5">
+                      <span
+                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      {label}
+                    </span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              },
+            )}
           </div>
         </section>
 
@@ -336,10 +358,7 @@ export default function ForumPanel({
       <main className="min-w-0">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wider text-purple-600">
-              Community forum
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">
+            <h1 className="text-2xl font-bold text-slate-950 md:text-3xl">
               {daoName} Forum
             </h1>
             <p className="mt-1 text-sm font-semibold text-slate-400">
@@ -347,13 +366,21 @@ export default function ForumPanel({
               unread
             </p>
           </div>
-          <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-700 to-violet-500 px-5 font-bold text-white shadow-lg shadow-purple-200 transition hover:from-purple-800 hover:to-violet-600"
-            onClick={openComposer}
-            type="button"
-          >
-            <Plus className="h-5 w-5" /> New Post
-          </button>
+          <NewPostDialog
+            userId={currentUserId}
+            daoGroupId={daoGroupId}
+            daoName={daoName}
+            onSubmit={submitPost}
+            trigger={
+              <button
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-gradient-to-r from-purple-700 to-violet-500 px-5 font-bold text-white shadow-lg shadow-purple-200 transition hover:from-purple-800 hover:to-violet-600"
+                onClick={() => onCreatePost?.()}
+                type="button"
+              >
+                <Plus className="h-5 w-5" /> New Post
+              </button>
+            }
+          />
         </header>
 
         {error && (
@@ -363,17 +390,6 @@ export default function ForumPanel({
           >
             {error}
           </div>
-        )}
-        {isComposerOpen && (
-          <section className="mb-6" aria-label="Create a post">
-            <PostEntryComposer
-              className="border border-purple-200 shadow-sm"
-              daoName={daoName}
-              onCancel={() => setIsComposerOpen(false)}
-              onClose={() => setIsComposerOpen(false)}
-              onSubmit={submitPost}
-            />
-          </section>
         )}
         {isLoading ? (
           <div className="space-y-4" aria-label="Loading forum posts">
@@ -433,9 +449,6 @@ export default function ForumPanel({
             </section>
           </>
         )}
-        <p className="mt-6 text-xs text-slate-400">
-          DAO group reference: {daoGroupId}
-        </p>
       </main>
     </div>
   );

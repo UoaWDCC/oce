@@ -1,6 +1,11 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import {
+  normalizePageContextPath,
+  type PageContextRequest,
+} from "@/features/chatbot/pageContext";
 import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
 import { Bot, Maximize2, Minimize2, X } from "lucide-react";
@@ -17,6 +22,9 @@ import {
   streamAssistantMessage,
 } from "@/features/chatbot/api/conversations";
 import ErrorMessage from "../errorMessage";
+import TokenUsageBanner from "../tokenUsageBanner";
+import { isTokenLimitReached, useTokenUsage } from "../../hooks/useTokenUsage";
+import { ApiError } from "../../utils/apiFetch";
 import type { Message } from "@/llm/types/Message";
 
 const MESSAGES_PAGE_SIZE = 15;
@@ -100,24 +108,34 @@ function AssistantThinkingState() {
 }
 
 export default function ChatFullscreen() {
+  const pathname = usePathname();
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
   const {
     selectedConversationId,
     setSelectedConversationId,
+    targetMessageId,
+    setTargetMessageId,
     refreshConversationList,
+    conversationListVersion,
     messageResetVersion,
     error,
     setError,
   } = useConversation();
+  const usage = useTokenUsage(conversationListVersion);
+  const isOverLimit = isTokenLimitReached(usage);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
+  const [targetedMessageId, setTargetedMessageId] = useState<string | null>(
+    null,
+  );
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const skipNextLatestScrollRef = useRef(false);
   const isSavingMessageRef = useRef(false);
   const isLoadingOlderRef = useRef(false);
   // Set while older messages are being prepended, so the scroll-to-latest
@@ -126,6 +144,9 @@ export default function ChatFullscreen() {
   const lastScrollTopRef = useRef(0);
   const lastAutoFillOffsetRef = useRef<number | null>(null);
   const loadedConversationIdRef = useRef<string | null>(null);
+  const historyGenerationRef = useRef(0);
+  const nextMessagesOffsetRef = useRef(0);
+  const lastRequestedOffsetRef = useRef<number | null>(null);
   // Mirrors the currently selected conversation so async stream callbacks can
   // tell whether the user has switched away since the send started.
   const selectedConversationIdRef = useRef(selectedConversationId);
@@ -141,10 +162,19 @@ export default function ChatFullscreen() {
       return;
     }
 
+    const normalizedPath = pathname
+      ? normalizePageContextPath(pathname)
+      : undefined;
+    const pageContext: PageContextRequest | undefined =
+      normalizedPath?.status === "normalized"
+        ? { path: normalizedPath.path }
+        : undefined;
+
     isSavingMessageRef.current = true;
     setIsSavingMessage(true);
     setSaveError(null);
     setError(undefined);
+    let userMessageSaved = false;
 
     try {
       let conversationId = selectedConversationId;
@@ -162,6 +192,7 @@ export default function ChatFullscreen() {
       streamingConversationIdRef.current = conversationId;
 
       const savedMessage = await saveUserMessage(conversationId, content);
+      userMessageSaved = true;
       const userMessage = mapTutorMessageToChatMessage(savedMessage);
       const assistantMessage: ChatMessageType = {
         type: "bot",
@@ -229,6 +260,7 @@ export default function ChatFullscreen() {
             refreshConversationList();
           },
         },
+        pageContext,
       );
 
       // Reconcile the streamed reply with persisted data so it carries the
@@ -241,6 +273,13 @@ export default function ChatFullscreen() {
             limit: MESSAGES_PAGE_SIZE,
           });
           if (selectedConversationIdRef.current === conversationId) {
+            historyGenerationRef.current += 1;
+            isLoadingOlderRef.current = false;
+            setIsLoadingOlder(false);
+            nextMessagesOffsetRef.current = page.nextOffset;
+            lastRequestedOffsetRef.current = null;
+            lastAutoFillOffsetRef.current = null;
+            loadedConversationIdRef.current = conversationId;
             setMessages(page.messages.map(mapTutorMessageToChatMessage));
             setHasOlderMessages(page.hasMore);
           }
@@ -256,6 +295,22 @@ export default function ChatFullscreen() {
       if (
         selectedConversationIdRef.current === streamingConversationIdRef.current
       ) {
+        // Only the quota response from the save request means the draft was not
+        // persisted. Other 429s retain the pre-existing generic error behaviour.
+        if (
+          !userMessageSaved &&
+          error instanceof ApiError &&
+          error.status === 429 &&
+          error.message === "exceeded daily token limit"
+        ) {
+          refreshConversationList();
+          setSaveError(
+            "Your message was not sent. Daily AI Tutor limit reached.",
+          );
+          setError(undefined);
+          throw error;
+        }
+
         const message =
           error instanceof Error
             ? error.message
@@ -323,6 +378,13 @@ export default function ChatFullscreen() {
     }
 
     let ignore = false;
+    historyGenerationRef.current += 1;
+    isLoadingOlderRef.current = false;
+    setIsLoadingOlder(false);
+    nextMessagesOffsetRef.current = 0;
+    lastRequestedOffsetRef.current = null;
+    isPrependingRef.current = false;
+    skipNextLatestScrollRef.current = false;
 
     // Clear immediately so a stale conversation's messages/errors are never
     // shown while the next one loads (or if its load fails).
@@ -330,6 +392,7 @@ export default function ChatFullscreen() {
     setSaveError(null);
     setError(undefined);
     setHasOlderMessages(false);
+    setTargetedMessageId(null);
     lastScrollTopRef.current = 0;
     lastAutoFillOffsetRef.current = null;
     loadedConversationIdRef.current = null;
@@ -348,6 +411,7 @@ export default function ChatFullscreen() {
         });
         if (ignore) return;
         loadedConversationIdRef.current = conversationId;
+        nextMessagesOffsetRef.current = page.nextOffset;
         setMessages(page.messages.map(mapTutorMessageToChatMessage));
         setHasOlderMessages(page.hasMore);
       } catch (err) {
@@ -375,10 +439,19 @@ export default function ChatFullscreen() {
 
   async function loadOlderMessages() {
     const conversationId = selectedConversationIdRef.current;
-    if (!conversationId || isLoadingOlderRef.current || !hasOlderMessages) {
+    const generation = historyGenerationRef.current;
+    const offset = nextMessagesOffsetRef.current;
+    if (
+      !conversationId ||
+      loadedConversationIdRef.current !== conversationId ||
+      isLoadingOlderRef.current ||
+      !hasOlderMessages ||
+      lastRequestedOffsetRef.current === offset
+    ) {
       return;
     }
 
+    lastRequestedOffsetRef.current = offset;
     isLoadingOlderRef.current = true;
     setIsLoadingOlder(true);
 
@@ -387,14 +460,16 @@ export default function ChatFullscreen() {
     const previousScrollTop = container?.scrollTop ?? 0;
 
     try {
-      // Deriving the offset from the messages on screen keeps it correct when
-      // new messages arrive while the user is scrolled back.
       const page = await getConversationMessages(conversationId, {
         limit: MESSAGES_PAGE_SIZE,
-        offset: messages.filter(({ id }) => id).length,
+        offset,
       });
 
-      if (selectedConversationIdRef.current !== conversationId) return;
+      if (
+        selectedConversationIdRef.current !== conversationId ||
+        historyGenerationRef.current !== generation
+      )
+        return;
 
       const older = page.messages.map(mapTutorMessageToChatMessage);
       isPrependingRef.current = true;
@@ -402,11 +477,14 @@ export default function ChatFullscreen() {
         const seen = new Set(currentMessages.map(({ id }) => id));
         return [...older.filter(({ id }) => !seen.has(id)), ...currentMessages];
       });
+      nextMessagesOffsetRef.current = page.nextOffset;
       setHasOlderMessages(page.hasMore);
 
       // Prepending grows the scroll height, so shift scrollTop by the same
       // amount to leave the reading position where it was.
       requestAnimationFrame(() => {
+        if (historyGenerationRef.current !== generation) return;
+        if (targetMessageId) return;
         const element = messagesContainerRef.current;
         if (!element) return;
         element.scrollTop =
@@ -414,10 +492,14 @@ export default function ChatFullscreen() {
       });
     } catch {
       // Stop paging so a failing request isn't retried on every scroll.
-      setHasOlderMessages(false);
+      if (historyGenerationRef.current === generation) {
+        setHasOlderMessages(false);
+      }
     } finally {
-      isLoadingOlderRef.current = false;
-      setIsLoadingOlder(false);
+      if (historyGenerationRef.current === generation) {
+        isLoadingOlderRef.current = false;
+        setIsLoadingOlder(false);
+      }
     }
   }
 
@@ -426,7 +508,7 @@ export default function ChatFullscreen() {
   // indicator has gone away, since its height is not message content.
   useEffect(() => {
     const container = messagesContainerRef.current;
-    const offset = messages.filter(({ id }) => id).length;
+    const offset = nextMessagesOffsetRef.current;
     if (
       !container ||
       isLoadingHistory ||
@@ -457,18 +539,83 @@ export default function ChatFullscreen() {
     }
   }
 
+  // A saved message may be outside the first page of its conversation.
   useEffect(() => {
-    if (isPrependingRef.current) {
-      isPrependingRef.current = false;
+    if (
+      targetMessageId &&
+      !document.getElementById(`message-${targetMessageId}`) &&
+      hasOlderMessages &&
+      loadedConversationIdRef.current === selectedConversationId
+    ) {
+      void loadOlderMessages();
+    }
+  });
+
+  useEffect(() => {
+    if (!targetMessageId) {
+      if (isPrependingRef.current) {
+        isPrependingRef.current = false;
+        return;
+      }
+      if (skipNextLatestScrollRef.current) {
+        skipNextLatestScrollRef.current = false;
+        return;
+      }
+
+      lastMessageRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
       return;
     }
 
-    lastMessageRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-      inline: "nearest",
-    });
-  }, [messages]);
+    let frame = 0;
+    let attempts = 0;
+
+    const scrollToTarget = () => {
+      const element = document.getElementById(`message-${targetMessageId}`);
+      const container = messagesContainerRef.current;
+      if (element && container) {
+        const containerBounds = container.getBoundingClientRect();
+        const elementBounds = element.getBoundingClientRect();
+        const targetTop =
+          container.scrollTop +
+          elementBounds.top -
+          containerBounds.top -
+          container.clientHeight / 2;
+
+        container.scrollTo({
+          top: Math.max(0, targetTop),
+          behavior: "smooth",
+        });
+        setTargetedMessageId(targetMessageId);
+        skipNextLatestScrollRef.current = true;
+        setTargetMessageId(null);
+      }
+
+      attempts += 1;
+      if (attempts < 8) {
+        frame = requestAnimationFrame(scrollToTarget);
+      }
+    };
+
+    frame = requestAnimationFrame(scrollToTarget);
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [messages, targetMessageId, setTargetMessageId]);
+
+  useEffect(() => {
+    if (!targetedMessageId) return;
+
+    const timeout = window.setTimeout(() => {
+      setTargetedMessageId(null);
+    }, 2400);
+
+    return () => window.clearTimeout(timeout);
+  }, [targetedMessageId]);
+
   return (
     <div
       className={`${open ? `` : `hidden`} flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-purple-100 bg-white ${
@@ -541,6 +688,8 @@ export default function ChatFullscreen() {
         </div>
       )}
 
+      <TokenUsageBanner usage={usage} />
+
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
@@ -584,6 +733,7 @@ export default function ChatFullscreen() {
                     initialFavourited={message.favourited}
                     isLast={index === lastBotIndex}
                     conversationId={selectedConversationId}
+                    isTargeted={message.id === targetedMessageId}
                   >
                     {message.message}
                   </ChatReply>
@@ -599,6 +749,8 @@ export default function ChatFullscreen() {
           submitMessage={submitMessage}
           isSubmitting={isSavingMessage}
           errorMessage={saveError}
+          disabled={isOverLimit}
+          placeholder={isOverLimit ? "Daily AI Tutor limit reached" : undefined}
         />
       </div>
     </div>

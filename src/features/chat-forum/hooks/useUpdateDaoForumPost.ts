@@ -21,11 +21,15 @@ export function useUpdateDaoForumPost(
   const updatePost = useCallback(
     async (payload: PostSubmitPayload): Promise<Post | null> => {
       if (!daoGroupId || !postId) {
-        setError(
-          new Error(
-            "Cannot update post: DAO group id and post id are both required.",
-          ),
+        const err = new Error(
+          "Cannot update post: DAO group id and post id are both required.",
         );
+        setError(err);
+        throw err;
+      }
+
+      if (!token) {
+        setError(new Error("Cannot update post: not signed in"));
         return null;
       }
 
@@ -47,12 +51,12 @@ export function useUpdateDaoForumPost(
         setError(null);
         return updatedPost;
       } catch (err) {
-        setError(
+        const error =
           err instanceof Error
             ? err
-            : new Error("Failed to update DAO forum post"),
-        );
-        return null;
+            : new Error("Failed to update DAO forum post");
+        setError(error);
+        throw error;
       } finally {
         isSubmittingRef.current = false;
         setIsSubmitting(false);

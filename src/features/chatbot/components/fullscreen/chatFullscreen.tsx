@@ -124,6 +124,8 @@ export default function ChatFullscreen() {
   // effect doesn't pull the user away from what they were reading.
   const isPrependingRef = useRef(false);
   const lastScrollTopRef = useRef(0);
+  const lastAutoFillOffsetRef = useRef<number | null>(null);
+  const loadedConversationIdRef = useRef<string | null>(null);
   // Mirrors the currently selected conversation so async stream callbacks can
   // tell whether the user has switched away since the send started.
   const selectedConversationIdRef = useRef(selectedConversationId);
@@ -329,6 +331,8 @@ export default function ChatFullscreen() {
     setError(undefined);
     setHasOlderMessages(false);
     lastScrollTopRef.current = 0;
+    lastAutoFillOffsetRef.current = null;
+    loadedConversationIdRef.current = null;
 
     if (!selectedConversationId) {
       setIsLoadingHistory(false);
@@ -343,6 +347,7 @@ export default function ChatFullscreen() {
           limit: MESSAGES_PAGE_SIZE,
         });
         if (ignore) return;
+        loadedConversationIdRef.current = conversationId;
         setMessages(page.messages.map(mapTutorMessageToChatMessage));
         setHasOlderMessages(page.hasMore);
       } catch (err) {
@@ -415,6 +420,29 @@ export default function ChatFullscreen() {
       setIsLoadingOlder(false);
     }
   }
+
+  // A short page may not create a scrollbar, leaving no upward scroll event
+  // that could request the rest of the history. Measure only after the loading
+  // indicator has gone away, since its height is not message content.
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    const offset = messages.filter(({ id }) => id).length;
+    if (
+      !container ||
+      isLoadingHistory ||
+      isLoadingOlder ||
+      !hasOlderMessages ||
+      loadedConversationIdRef.current !== selectedConversationId ||
+      offset === 0 ||
+      container.scrollHeight > container.clientHeight ||
+      lastAutoFillOffsetRef.current === offset
+    ) {
+      return;
+    }
+
+    lastAutoFillOffsetRef.current = offset;
+    void loadOlderMessages();
+  });
 
   // Only an upward scroll loads older messages. The chat opens by scrolling
   // down to the newest message, which would otherwise pass the top of the

@@ -5,6 +5,7 @@ import type {
 } from "@/features/chatbot/types";
 
 const reactMocks = vi.hoisted(() => ({
+  useCallback: vi.fn(),
   useEffect: vi.fn(),
   useRef: vi.fn(),
   useState: vi.fn(),
@@ -47,7 +48,7 @@ function configureStateSetters(setters: Array<ReturnType<typeof vi.fn>>) {
   let index = 0;
   reactMocks.useState.mockImplementation((initial) => [
     initial,
-    setters[index++],
+    setters[index++] ?? vi.fn(),
   ]);
 }
 
@@ -58,7 +59,8 @@ function capturedEffect() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  reactMocks.useCallback.mockImplementation((callback) => callback);
 });
 
 afterEach(() => {
@@ -66,6 +68,42 @@ afterEach(() => {
 });
 
 describe("useConversations", () => {
+  function createHookHarness() {
+    const state: unknown[] = [];
+    const refs: Array<{ current: unknown }> = [];
+    let stateIndex = 0;
+    let refIndex = 0;
+
+    reactMocks.useState.mockImplementation((initial) => {
+      const index = stateIndex++;
+      if (!(index in state)) state[index] = initial;
+      return [
+        state[index],
+        (next: unknown) => {
+          state[index] =
+            typeof next === "function"
+              ? (next as (previous: unknown) => unknown)(state[index])
+              : next;
+        },
+      ];
+    });
+    reactMocks.useRef.mockImplementation((initial) => {
+      const index = refIndex++;
+      if (!refs[index]) refs[index] = { current: initial };
+      return refs[index];
+    });
+
+    return {
+      state,
+      refs,
+      Render(version: number) {
+        stateIndex = 0;
+        refIndex = 0;
+        return useConversations(version);
+      },
+    };
+  }
+
   it("loads the first page initially", async () => {
     const setConversations = vi.fn();
     configureStateSetters([setConversations, vi.fn(), vi.fn()]);
@@ -124,6 +162,79 @@ describe("useConversations", () => {
       ]);
     });
     expect(refreshSetConversations.mock.calls[0][0]).not.toBeTypeOf("function");
+  });
+
+  it("merges a later page without duplicates and uses nextOffset", async () => {
+    const harness = createHookHarness();
+    const second = { ...refreshedConversation, id: "conv-3" };
+    conversationApiMocks.getConversations
+      .mockResolvedValueOnce({
+        conversation: [firstConversation],
+        hasMore: true,
+        nextOffset: 1,
+      })
+      .mockResolvedValueOnce({
+        conversation: [firstConversation, second],
+        hasMore: false,
+        nextOffset: 3,
+      });
+
+    harness.Render(0);
+    capturedEffect()();
+    await vi.waitFor(() => expect(harness.state[3]).toBe(true));
+
+    await harness.Render(0).loadMore();
+
+    expect(conversationApiMocks.getConversations).toHaveBeenLastCalledWith({
+      offset: 1,
+    });
+    expect(harness.state[0]).toEqual([firstConversation, second]);
+    expect(harness.state[3]).toBe(false);
+    expect(harness.refs[1].current).toBe(3);
+  });
+
+  it("ignores a later page resolved after refresh", async () => {
+    const harness = createHookHarness();
+    let resolveOldPage!: (value: GetConversationsResponse) => void;
+    const oldPage = new Promise<GetConversationsResponse>((resolve) => {
+      resolveOldPage = resolve;
+    });
+    conversationApiMocks.getConversations
+      .mockResolvedValueOnce({
+        conversation: [firstConversation],
+        hasMore: true,
+        nextOffset: 1,
+      })
+      .mockReturnValueOnce(oldPage)
+      .mockResolvedValueOnce({
+        conversation: [refreshedConversation],
+        hasMore: true,
+        nextOffset: 7,
+      });
+
+    harness.Render(0);
+    capturedEffect()();
+    await vi.waitFor(() => expect(harness.state[3]).toBe(true));
+    const pending = harness.Render(0).loadMore();
+
+    harness.Render(1);
+    capturedEffect()();
+    await vi.waitFor(() => {
+      expect(harness.state[0]).toEqual([refreshedConversation]);
+      expect(harness.refs[1].current).toBe(7);
+    });
+
+    resolveOldPage({
+      conversation: [firstConversation],
+      hasMore: false,
+      nextOffset: 2,
+    });
+    await pending;
+
+    expect(harness.state[0]).toEqual([refreshedConversation]);
+    expect(harness.state[3]).toBe(true);
+    expect(harness.refs[1].current).toBe(7);
+    expect(harness.state[2]).toBe(false);
   });
 });
 

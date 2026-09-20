@@ -19,6 +19,12 @@ export interface GetConversationsResponse {
   nextOffset: number;
   hasMore: boolean;
 }
+export interface GetMessagesResponse {
+  messages: TutorMessage[];
+  nextOffset: number;
+  hasMore: boolean;
+}
+
 export interface TutorMessage {
   id: string;
   conversation_id: string;

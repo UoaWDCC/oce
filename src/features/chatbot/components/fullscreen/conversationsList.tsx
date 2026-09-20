@@ -5,6 +5,7 @@ import Conversation from "./conversation";
 import ConversationSearchInput from "./conversationSearchInput";
 import EndConversationDialog from "./endConversationDialog";
 import NewConversationButton from "../newConversationButton";
+import LoadMoreSentinel from "./loadMoreSentinel";
 import { useConversations } from "@/features/chatbot/hooks/useConversations";
 import { useConversationSearch } from "@/features/chatbot/hooks/useConversationSearch";
 import { useConversation } from "@/features/chatbot/providers/ConversationProvider";
@@ -108,9 +109,8 @@ export default function ConversationsList() {
     if (didEnd) setPendingEnd(null);
   }
 
-  const { conversations, isLoading, error } = useConversations(
-    conversationListVersion,
-  );
+  const { conversations, isLoading, isLoadingMore, hasMore, loadMore, error } =
+    useConversations(conversationListVersion);
 
   const {
     results,
@@ -177,25 +177,40 @@ export default function ConversationsList() {
               variant="empty"
             />
           ) : (
-            shownConversations.map((conversation) => {
-              const { title, id } = conversation;
-              const name = title?.trim() || "Untitled";
-              return (
-                <Conversation
-                  name={name}
-                  key={id}
-                  isSelected={selectedConversationId === id}
-                  onSelect={() => {
-                    setSelectedConversationId(id);
-                    clearCurrentMessages();
-                  }}
-                  onRequestEnd={(trigger) => {
-                    setPendingEnd({ id, name, trigger });
-                  }}
-                  isEnding={endingIds.has(id)}
-                />
-              );
-            })
+            <>
+              {shownConversations.map((conversation) => {
+                const { title, id } = conversation;
+                const name = title?.trim() || "Untitled";
+                return (
+                  <Conversation
+                    name={name}
+                    key={id}
+                    isSelected={selectedConversationId === id}
+                    onSelect={() => {
+                      setSelectedConversationId(id);
+                      clearCurrentMessages();
+                    }}
+                    onRequestEnd={(trigger) => {
+                      setPendingEnd({ id, name, trigger });
+                    }}
+                    isEnding={endingIds.has(id)}
+                  />
+                );
+              })}
+
+              {/* Search results are not paged, so only the normal list
+                  loads more. */}
+              {!isSearching && hasMore && (
+                <>
+                  <LoadMoreSentinel onVisible={loadMore} />
+                  {isLoadingMore && (
+                    <p className="py-2 text-center text-xs text-slate-500">
+                      Loading more...
+                    </p>
+                  )}
+                </>
+              )}
+            </>
           )}
         </div>
       </div>

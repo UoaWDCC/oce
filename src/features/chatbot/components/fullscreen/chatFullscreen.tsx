@@ -145,6 +145,7 @@ export default function ChatFullscreen() {
   const lastAutoFillOffsetRef = useRef<number | null>(null);
   const loadedConversationIdRef = useRef<string | null>(null);
   const historyGenerationRef = useRef(0);
+  const lastMessageResetVersionRef = useRef(messageResetVersion);
   const nextMessagesOffsetRef = useRef(0);
   const lastRequestedOffsetRef = useRef<number | null>(null);
   // Mirrors the currently selected conversation so async stream callbacks can
@@ -175,6 +176,12 @@ export default function ChatFullscreen() {
     setSaveError(null);
     setError(undefined);
     let userMessageSaved = false;
+    let streamConversationId: string | null = null;
+    let streamHistoryGeneration = historyGenerationRef.current;
+    const isCurrentStreamView = () =>
+      streamConversationId !== null &&
+      selectedConversationIdRef.current === streamConversationId &&
+      historyGenerationRef.current === streamHistoryGeneration;
 
     try {
       let conversationId = selectedConversationId;
@@ -183,6 +190,7 @@ export default function ChatFullscreen() {
         const newConversation = await createConversation();
         conversationId = newConversation.id;
         setSelectedConversationId(conversationId);
+        selectedConversationIdRef.current = conversationId;
         refreshConversationList();
       }
 
@@ -190,6 +198,8 @@ export default function ChatFullscreen() {
       // skips reloading this id while saving so it doesn't clobber the
       // optimistic/streamed messages; a switch to a *different* id still loads.
       streamingConversationIdRef.current = conversationId;
+      streamConversationId = conversationId;
+      streamHistoryGeneration = historyGenerationRef.current;
 
       const savedMessage = await saveUserMessage(conversationId, content);
       userMessageSaved = true;
@@ -202,11 +212,13 @@ export default function ChatFullscreen() {
 
       const messagesForStream = [...messages, userMessage];
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        userMessage,
-        assistantMessage,
-      ]);
+      if (isCurrentStreamView()) {
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          userMessage,
+          assistantMessage,
+        ]);
+      }
       refreshConversationList();
 
       await streamAssistantMessage(
@@ -216,7 +228,7 @@ export default function ChatFullscreen() {
           onText: (text) => {
             // Ignore chunks if the user has switched to another conversation,
             // so a background stream never leaks into the current view.
-            if (selectedConversationIdRef.current !== conversationId) {
+            if (!isCurrentStreamView()) {
               return;
             }
             setMessages((currentMessages) => {
@@ -237,7 +249,7 @@ export default function ChatFullscreen() {
             });
           },
           onMessageId: (id) => {
-            if (selectedConversationIdRef.current !== conversationId) {
+            if (!isCurrentStreamView()) {
               return;
             }
             setMessages((currentMessages) => {
@@ -267,12 +279,12 @@ export default function ChatFullscreen() {
       // authoritative id/is_favourite for favourites & tutor-request flows.
       // Best-effort — the streamed text + onMessageId id already work if this
       // fails. Skipped after a mid-stream switch so we don't overwrite the new view.
-      if (selectedConversationIdRef.current === conversationId) {
+      if (isCurrentStreamView()) {
         try {
           const page = await getConversationMessages(conversationId, {
             limit: MESSAGES_PAGE_SIZE,
           });
-          if (selectedConversationIdRef.current === conversationId) {
+          if (isCurrentStreamView()) {
             historyGenerationRef.current += 1;
             isLoadingOlderRef.current = false;
             setIsLoadingOlder(false);
@@ -293,7 +305,9 @@ export default function ChatFullscreen() {
       // show its error in the now-selected conversation. (streamingConversationIdRef
       // still holds the target here — it is cleared in finally, which runs after.)
       if (
-        selectedConversationIdRef.current === streamingConversationIdRef.current
+        selectedConversationIdRef.current ===
+          streamingConversationIdRef.current &&
+        (streamConversationId === null || isCurrentStreamView())
       ) {
         // Only the quota response from the save request means the draft was not
         // persisted. Other 429s retain the pre-existing generic error behaviour.
@@ -336,7 +350,10 @@ export default function ChatFullscreen() {
       // Drop the temporary assistant bubble if nothing useful streamed in (e.g.
       // the stream errored before the first chunk), so the UI isn't stuck showing
       // an empty "thinking" reply. Only touch the view if still on this conversation.
-      if (selectedConversationIdRef.current === streamedConversationId) {
+      if (
+        selectedConversationIdRef.current === streamedConversationId &&
+        isCurrentStreamView()
+      ) {
         setMessages((currentMessages) => {
           const lastMessage = currentMessages[currentMessages.length - 1];
           if (
@@ -370,9 +387,13 @@ export default function ChatFullscreen() {
   // While a stream is in flight we skip reloading only the conversation being
   // streamed (which would clobber its optimistic messages); others load normally.
   useEffect(() => {
+    const isRefresh =
+      lastMessageResetVersionRef.current !== messageResetVersion;
+    lastMessageResetVersionRef.current = messageResetVersion;
     if (
       isSavingMessageRef.current &&
-      selectedConversationId === streamingConversationIdRef.current
+      selectedConversationId === streamingConversationIdRef.current &&
+      !isRefresh
     ) {
       return;
     }

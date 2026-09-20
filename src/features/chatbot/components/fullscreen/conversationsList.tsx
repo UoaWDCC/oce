@@ -122,6 +122,9 @@ export default function ConversationsList() {
   const {
     results,
     isLoading: isSearchLoading,
+    isLoadingMore: isSearchLoadingMore,
+    hasMore: searchHasMore,
+    loadMore: loadMoreSearchResults,
     error: searchError,
   } = useConversationSearch(searchQuery);
 
@@ -253,16 +256,25 @@ export default function ConversationsList() {
                 );
               })
             )}
-            {!isSearching && !shownIsLoading && !shownError && hasMore && (
-              <>
-                <LoadMoreSentinel onVisible={loadMore} />
-                {isLoadingMore && (
-                  <p className="py-2 text-center text-xs text-slate-500">
-                    Loading more...
-                  </p>
-                )}
-              </>
-            )}
+            {!shownIsLoading &&
+              !shownError &&
+              (isSearching ? searchHasMore : hasMore) && (
+                <>
+                  <LoadMoreSentinel
+                    key={
+                      isSearching
+                        ? `search-${searchQuery.trim()}`
+                        : "conversations"
+                    }
+                    onVisible={isSearching ? loadMoreSearchResults : loadMore}
+                  />
+                  {(isSearching ? isSearchLoadingMore : isLoadingMore) && (
+                    <p className="py-2 text-center text-xs text-slate-500">
+                      Loading more...
+                    </p>
+                  )}
+                </>
+              )}
           </div>
         )}
       </div>

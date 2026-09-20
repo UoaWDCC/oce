@@ -239,23 +239,172 @@ describe("useConversations", () => {
 });
 
 describe("useConversationSearch", () => {
-  it("requests the first matching page and stores only its conversation array", async () => {
+  function createSearchHarness() {
+    const state: unknown[] = [];
+    const refs: Array<{ current: unknown }> = [];
+    let stateIndex = 0;
+    let refIndex = 0;
+    reactMocks.useState.mockImplementation((initial) => {
+      const index = stateIndex++;
+      if (!(index in state)) state[index] = initial;
+      return [
+        state[index],
+        (next: unknown) => {
+          state[index] =
+            typeof next === "function"
+              ? (next as (previous: unknown) => unknown)(state[index])
+              : next;
+        },
+      ];
+    });
+    reactMocks.useRef.mockImplementation((initial) => {
+      const index = refIndex++;
+      if (!refs[index]) refs[index] = { current: initial };
+      return refs[index];
+    });
+    return {
+      state,
+      Render(query: string) {
+        stateIndex = 0;
+        refIndex = 0;
+        return useConversationSearch(query);
+      },
+      Start(query: string) {
+        this.Render(query);
+        return capturedEffect()();
+      },
+    };
+  }
+
+  it("loads beyond 20 results, appends in order, and deduplicates one pending page", async () => {
     vi.useFakeTimers();
-    const setResults = vi.fn();
-    configureStateSetters([setResults, vi.fn(), vi.fn()]);
-    conversationApiMocks.getConversations.mockResolvedValue(
-      response([firstConversation]),
-    );
+    const harness = createSearchHarness();
+    const firstPage = Array.from({ length: 20 }, (_, index) => ({
+      ...firstConversation,
+      id: `conv-${index + 1}`,
+    }));
+    const laterPage = [
+      firstPage[19],
+      ...Array.from({ length: 5 }, (_, index) => ({
+        ...firstConversation,
+        id: `conv-${index + 21}`,
+      })),
+      { ...firstConversation, id: "conv-21" },
+    ];
+    let resolveLater!: (value: GetConversationsResponse) => void;
+    conversationApiMocks.getConversations
+      .mockResolvedValueOnce({
+        conversation: firstPage,
+        hasMore: true,
+        nextOffset: 20,
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveLater = resolve;
+        }),
+      );
 
-    useConversationSearch("  DAO  ");
-    capturedEffect()();
+    harness.Start("  DAO  ");
     await vi.advanceTimersByTimeAsync(300);
-
     expect(conversationApiMocks.getConversations).toHaveBeenCalledWith({
       query: "DAO",
       offset: 0,
     });
-    expect(setResults).toHaveBeenCalledWith([firstConversation]);
-    expect(setResults).not.toHaveBeenCalledWith(response([firstConversation]));
+    expect(harness.state[0]).toEqual(firstPage);
+    expect(harness.state[3]).toBe(true);
+
+    const pending = harness.Render("DAO").loadMore();
+    const duplicate = harness.Render("DAO").loadMore();
+    expect(conversationApiMocks.getConversations).toHaveBeenCalledTimes(2);
+    expect(conversationApiMocks.getConversations).toHaveBeenLastCalledWith({
+      query: "DAO",
+      offset: 20,
+    });
+    resolveLater({ conversation: laterPage, hasMore: false, nextOffset: 27 });
+    await Promise.all([pending, duplicate]);
+
+    expect((harness.state[0] as Conversation[]).map(({ id }) => id)).toEqual(
+      Array.from({ length: 25 }, (_, index) => `conv-${index + 1}`),
+    );
+    expect(harness.state[3]).toBe(false);
+  });
+
+  it("ignores an old initial page after the query changes", async () => {
+    vi.useFakeTimers();
+    const harness = createSearchHarness();
+    let resolveOld!: (value: GetConversationsResponse) => void;
+    conversationApiMocks.getConversations
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(response([refreshedConversation]));
+
+    const cleanup = harness.Start("old");
+    await vi.advanceTimersByTimeAsync(300);
+    cleanup?.();
+    harness.Start("new");
+    await vi.advanceTimersByTimeAsync(300);
+    resolveOld(response([firstConversation]));
+    await Promise.resolve();
+
+    expect(harness.state[0]).toEqual([refreshedConversation]);
+    expect(conversationApiMocks.getConversations.mock.calls).toEqual([
+      [{ query: "old", offset: 0 }],
+      [{ query: "new", offset: 0 }],
+    ]);
+  });
+
+  it("ignores an old later page after the query changes", async () => {
+    vi.useFakeTimers();
+    const harness = createSearchHarness();
+    let resolveOld!: (value: GetConversationsResponse) => void;
+    conversationApiMocks.getConversations
+      .mockResolvedValueOnce({
+        conversation: [firstConversation],
+        hasMore: true,
+        nextOffset: 1,
+      })
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveOld = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(response([refreshedConversation]));
+
+    const cleanup = harness.Start("old");
+    await vi.advanceTimersByTimeAsync(300);
+    const pending = harness.Render("old").loadMore();
+    cleanup?.();
+    harness.Start("new");
+    await vi.advanceTimersByTimeAsync(300);
+    resolveOld(response([firstConversation]));
+    await pending;
+
+    expect(harness.state[0]).toEqual([refreshedConversation]);
+    expect(harness.state[3]).toBe(false);
+  });
+
+  it("clears search while its first page is pending", async () => {
+    vi.useFakeTimers();
+    const harness = createSearchHarness();
+    let resolveOld!: (value: GetConversationsResponse) => void;
+    conversationApiMocks.getConversations.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOld = resolve;
+      }),
+    );
+
+    const cleanup = harness.Start("DAO");
+    await vi.advanceTimersByTimeAsync(300);
+    cleanup?.();
+    harness.Start("");
+    resolveOld(response([firstConversation]));
+    await Promise.resolve();
+
+    expect(harness.state[0]).toEqual([]);
+    expect(harness.state[1]).toBe(false);
+    expect(harness.state[3]).toBe(false);
   });
 });

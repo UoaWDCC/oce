@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
 import React from "react";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   getConversationMessages: vi.fn(),
+  saveUserMessage: vi.fn(),
+  streamAssistantMessage: vi.fn(),
   selectedConversationId: "conversation-a",
   messageResetVersion: 0,
   targetMessageId: null as string | null,
@@ -41,8 +50,8 @@ vi.mock("@/features/chatbot/providers/ConversationProvider", () => ({
 vi.mock("@/features/chatbot/api/conversations", () => ({
   getConversationMessages: mocks.getConversationMessages,
   createConversation: vi.fn(),
-  saveUserMessage: vi.fn(),
-  streamAssistantMessage: vi.fn(),
+  saveUserMessage: mocks.saveUserMessage,
+  streamAssistantMessage: mocks.streamAssistantMessage,
 }));
 vi.mock("@/features/chatbot/components/chatMessage", () => ({
   default: ({ children }: { children: React.ReactNode }) =>
@@ -65,7 +74,18 @@ vi.mock("@/features/chatbot/components/chatReply", () => ({
 vi.mock("@/features/chatbot/components/chatDownButton", () => ({
   default: () => null,
 }));
-vi.mock("@/features/textArea", () => ({ default: () => null }));
+vi.mock("@/features/textArea", () => ({
+  default: ({
+    submitMessage,
+  }: {
+    submitMessage: (content: string) => Promise<void>;
+  }) =>
+    React.createElement(
+      "button",
+      { onClick: () => void submitMessage("new question") },
+      "Send test message",
+    ),
+}));
 vi.mock("@/features/chatbot/components/errorMessage", () => ({
   default: () => null,
 }));
@@ -99,6 +119,10 @@ beforeEach(() => {
   mocks.messageResetVersion = 0;
   mocks.targetMessageId = null;
   mocks.viewportHeight = 400;
+  mocks.saveUserMessage.mockResolvedValue({
+    ...page("conversation-a", 2, 2, false).messages[0],
+    content: "new question",
+  });
   HTMLElement.prototype.scrollIntoView = vi.fn();
   vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) =>
     setTimeout(callback, 0),
@@ -291,5 +315,83 @@ describe("ChatFullscreen message pagination", () => {
       ["conversation-a", { limit: 15 }],
       ["conversation-a", { limit: 15, offset: 15 }],
     ]);
+  });
+
+  it("ignores a stream that finishes after refreshing the same conversation", async () => {
+    mocks.viewportHeight = 100;
+    let resolveStream!: () => void;
+    mocks.streamAssistantMessage.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveStream = resolve;
+      }),
+    );
+    mocks.getConversationMessages
+      .mockResolvedValueOnce(page("conversation-a", 1, 1, false))
+      .mockResolvedValueOnce(page("conversation-a", 100, 100, false));
+
+    const view = render(React.createElement(ChatFullscreen));
+    await waitFor(() => expect(screen.getByText("message-1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Send test message" }));
+    await waitFor(() =>
+      expect(mocks.streamAssistantMessage).toHaveBeenCalledTimes(1),
+    );
+
+    mocks.messageResetVersion += 1;
+    view.rerender(React.createElement(ChatFullscreen));
+    await waitFor(() => expect(screen.getByText("message-100")).toBeTruthy());
+
+    await act(async () => {
+      resolveStream();
+    });
+
+    expect(screen.getAllByTestId("chat-message")).toHaveLength(1);
+    expect(screen.queryByText("message-1")).toBeNull();
+    expect(mocks.getConversationMessages).toHaveBeenCalledTimes(2);
+  });
+
+  it("ignores a reconciliation response that arrives after refresh", async () => {
+    mocks.viewportHeight = 100;
+    let resolveReconciliation!: (value: ReturnType<typeof page>) => void;
+    mocks.streamAssistantMessage.mockResolvedValue(undefined);
+    mocks.getConversationMessages
+      .mockResolvedValueOnce(page("conversation-a", 1, 1, false))
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveReconciliation = resolve;
+        }),
+      )
+      .mockResolvedValueOnce(page("conversation-a", 100, 100, false));
+
+    const view = render(React.createElement(ChatFullscreen));
+    await waitFor(() => expect(screen.getByText("message-1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Send test message" }));
+    await waitFor(() => expect(resolveReconciliation).toBeTypeOf("function"));
+
+    mocks.messageResetVersion += 1;
+    view.rerender(React.createElement(ChatFullscreen));
+    await waitFor(() => expect(screen.getByText("message-100")).toBeTruthy());
+
+    await act(async () => {
+      resolveReconciliation(page("conversation-a", 1, 2, false));
+    });
+
+    expect(screen.getAllByTestId("chat-message")).toHaveLength(1);
+    expect(screen.queryByText("message-1")).toBeNull();
+  });
+
+  it("reconciles a normal stream when its history generation is current", async () => {
+    mocks.viewportHeight = 100;
+    mocks.streamAssistantMessage.mockResolvedValue(undefined);
+    mocks.getConversationMessages
+      .mockResolvedValueOnce(page("conversation-a", 1, 1, false))
+      .mockResolvedValueOnce(page("conversation-a", 1, 2, false));
+
+    render(React.createElement(ChatFullscreen));
+    await waitFor(() => expect(screen.getByText("message-1")).toBeTruthy());
+    fireEvent.click(screen.getByRole("button", { name: "Send test message" }));
+
+    await waitFor(() => expect(screen.getByText("message-2")).toBeTruthy());
+    expect(mocks.getConversationMessages).toHaveBeenCalledTimes(2);
+    expect(screen.getAllByTestId("chat-message")).toHaveLength(2);
   });
 });

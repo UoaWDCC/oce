@@ -235,13 +235,29 @@ export async function deleteForumComment(commentId: string, token?: string) {
   await request(`/comments/${commentId}`, { method: "DELETE" }, token);
 }
 
-// LIKE ENDPOINTS
-export async function likeComment(commentId: string, token?: string) {
-  await request(`/comments/${commentId}/like`, { method: "POST" }, token);
+// COMMENT REACTION ENDPOINTS
+export async function addCommentReaction(
+  commentId: string,
+  reactionType: "heart" | "thumbs_up" | "fire" | "thumbs_down",
+  token?: string,
+) {
+  await request(
+    `/comments/${commentId}/reaction/${reactionType}`,
+    { method: "POST" },
+    token,
+  );
   return true;
 }
 
-export async function unlikeComment(commentId: string, token?: string) {
-  await request(`/comments/${commentId}/like`, { method: "DELETE" }, token);
+export async function removeCommentReaction(
+  commentId: string,
+  reactionType: "heart" | "thumbs_up" | "fire" | "thumbs_down",
+  token?: string,
+) {
+  await request(
+    `/comments/${commentId}/reaction/${reactionType}`,
+    { method: "DELETE" },
+    token,
+  );
   return true;
 }

@@ -1,18 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderHook, waitFor, act } from "@testing-library/react";
 import { useDaoForumCommentLike } from "../useDaoForumCommentLike";
-import { likeComment, unlikeComment } from "../../services";
+import { addCommentReaction, removeCommentReaction } from "../../services";
 import { forumKeys } from "../../queryKeys";
 import { createTestQueryClient, createWrapper } from "./queryTestUtils";
 import type { ForumCommentPreview } from "../../types";
 
 vi.mock("../../services", () => ({
-  likeComment: vi.fn(),
-  unlikeComment: vi.fn(),
+  addCommentReaction: vi.fn(),
+  removeCommentReaction: vi.fn(),
 }));
 
-const likeCommentMock = vi.mocked(likeComment);
-const unlikeCommentMock = vi.mocked(unlikeComment);
+const addCommentReactionMock = vi.mocked(addCommentReaction);
+const removeCommentReactionMock = vi.mocked(removeCommentReaction);
 
 function makeComment(
   overrides: Partial<ForumCommentPreview> = {},
@@ -28,8 +28,8 @@ function makeComment(
 }
 
 beforeEach(() => {
-  likeCommentMock.mockReset().mockResolvedValue(true);
-  unlikeCommentMock.mockReset().mockResolvedValue(true);
+  addCommentReactionMock.mockReset().mockResolvedValue(true);
+  removeCommentReactionMock.mockReset().mockResolvedValue(true);
 });
 
 describe("useDaoForumCommentLike", () => {
@@ -73,6 +73,12 @@ describe("useDaoForumCommentLike", () => {
     expect(latest?.[0]).toMatchObject({ isLiked: true, likeCount: 1 });
     expect(otherUser?.[0]).toMatchObject({ isLiked: false, likeCount: 0 });
 
-    await waitFor(() => expect(likeCommentMock).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(addCommentReactionMock).toHaveBeenCalledWith(
+        "comment-1",
+        "heart",
+        "token-123",
+      ),
+    );
   });
 });

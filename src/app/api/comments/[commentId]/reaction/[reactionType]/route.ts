@@ -7,23 +7,51 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-export async function POST(
+const reactionTypes = ["heart", "thumbs_up", "fire", "thumbs_down"] as const;
+type ReactionType = (typeof reactionTypes)[number];
+
+function isReactionType(value: string): value is ReactionType {
+  return reactionTypes.includes(value as ReactionType);
+}
+
+async function getAuthenticatedReactionContext(
   req: NextRequest,
-  { params }: { params: Promise<{ commentId: string }> },
+  params: Promise<{ commentId: string; reactionType: string }>,
 ) {
-  const { commentId } = await params;
+  const { commentId, reactionType } = await params;
 
   if (!commentId) {
-    return NextResponse.json(
-      { error: "Comment does not exist" },
-      { status: 400, headers: corsHeaders },
-    );
+    return {
+      response: NextResponse.json(
+        { error: "Comment does not exist" },
+        { status: 400, headers: corsHeaders },
+      ),
+    };
+  }
+
+  if (!isReactionType(reactionType)) {
+    return {
+      response: NextResponse.json(
+        { error: "Invalid reaction type" },
+        { status: 400, headers: corsHeaders },
+      ),
+    };
   }
 
   const auth = await authenticateUser(req, corsHeaders);
-  if (auth.response) return auth.response;
-  const { supabase, user } = auth;
+  if (auth.response) return { response: auth.response };
 
+  return { ...auth, commentId, reactionType };
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ commentId: string; reactionType: string }> },
+) {
+  const context = await getAuthenticatedReactionContext(req, params);
+  if (context.response) return context.response;
+
+  const { supabase, user, commentId, reactionType } = context;
   const { data: comment, error: commentError } = await supabase
     .from("comments")
     .select("deleted_at")
@@ -37,13 +65,12 @@ export async function POST(
     );
   }
 
-  // 1. Check specifically if user has already liked (heart reaction) this comment
   const { data: existingReaction, error: reactionError } = await supabase
     .from("comment_reactions")
     .select("*")
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
-    .eq("reaction", "heart")
+    .eq("reaction", reactionType)
     .maybeSingle();
 
   if (reactionError) {
@@ -55,18 +82,19 @@ export async function POST(
 
   if (existingReaction) {
     return NextResponse.json(
-      { error: "You have already liked this comment" },
+      {
+        error: `You have already added a ${reactionType} reaction to this comment`,
+      },
       { status: 409, headers: corsHeaders },
     );
   }
 
-  // Insert reaction with default 'heart' reaction type
   const { data, error } = await supabase
     .from("comment_reactions")
     .insert({
       comment_id: commentId,
       user_id: user.id,
-      reaction: "heart",
+      reaction: reactionType,
     })
     .select("*")
     .maybeSingle();
@@ -79,28 +107,19 @@ export async function POST(
   }
 
   return NextResponse.json(
-    { like: data },
+    { reaction: data },
     { status: 201, headers: corsHeaders },
   );
 }
 
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: Promise<{ commentId: string }> },
+  { params }: { params: Promise<{ commentId: string; reactionType: string }> },
 ) {
-  const { commentId } = await params;
+  const context = await getAuthenticatedReactionContext(req, params);
+  if (context.response) return context.response;
 
-  if (!commentId) {
-    return NextResponse.json(
-      { error: "Comment does not exist" },
-      { status: 400, headers: corsHeaders },
-    );
-  }
-
-  const auth = await authenticateUser(req, corsHeaders);
-  if (auth.response) return auth.response;
-  const { supabase, user } = auth;
-
+  const { supabase, user, commentId, reactionType } = context;
   const { data: comment, error: commentError } = await supabase
     .from("comments")
     .select("deleted_at")
@@ -119,7 +138,7 @@ export async function DELETE(
     .select("*")
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
-    .eq("reaction", "heart")
+    .eq("reaction", reactionType)
     .maybeSingle();
 
   if (reactionError) {
@@ -131,7 +150,9 @@ export async function DELETE(
 
   if (!existingReaction) {
     return NextResponse.json(
-      { error: "You have not liked this comment" },
+      {
+        error: `You have not added a ${reactionType} reaction to this comment`,
+      },
       { status: 404, headers: corsHeaders },
     );
   }
@@ -141,7 +162,7 @@ export async function DELETE(
     .delete()
     .eq("comment_id", commentId)
     .eq("user_id", user.id)
-    .eq("reaction", "heart");
+    .eq("reaction", reactionType);
 
   if (error) {
     return NextResponse.json(
@@ -151,7 +172,7 @@ export async function DELETE(
   }
 
   return NextResponse.json(
-    { message: "Like removed" },
+    { message: `${reactionType} reaction removed` },
     { status: 200, headers: corsHeaders },
   );
 }

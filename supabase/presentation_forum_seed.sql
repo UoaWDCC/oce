@@ -104,7 +104,7 @@ BEGIN
 
   -- Permanently clear the selected DAO's forum. Dependencies must be removed
   -- before posts because the current foreign keys do not all cascade deletes.
-  DELETE FROM public.comment_likes
+  DELETE FROM public.comment_reactions
   WHERE comment_id IN (
     SELECT comment.id
     FROM public.comments AS comment
@@ -313,11 +313,11 @@ BEGIN
     );
 
   -- Give one nested comment a visible like count.
-  INSERT INTO public.comment_likes (comment_id, user_id, created_at)
+  INSERT INTO public.comment_reactions (comment_id, user_id, reaction, created_at)
   VALUES
-    ('40000000-0000-4000-8000-000000000001', v_owner_id, now() - interval '1 day'),
-    ('40000000-0000-4000-8000-000000000003', v_second_author_id, now() - interval '12 hours')
-  ON CONFLICT (comment_id, user_id) DO NOTHING;
+    ('40000000-0000-4000-8000-000000000001', v_owner_id, 'heart', now() - interval '1 day'),
+    ('40000000-0000-4000-8000-000000000003', v_second_author_id, 'heart', now() - interval '12 hours')
+  ON CONFLICT (comment_id, user_id, reaction) DO NOTHING;
 
   -- Mix read and unread posts for the overview. Post 4 was viewed before its
   -- newest comment, so it remains unread; posts 3 and 8 have never been viewed

@@ -431,10 +431,10 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     // c1 gets 1 like, c2 gets 3 likes — c2 should sort first
     mockSupabase.in.mockResolvedValueOnce({
       data: [
-        { comment_id: "c1", user_id: "user-1" },
-        { comment_id: "c2", user_id: "user-1" },
-        { comment_id: "c2", user_id: "user-2" },
-        { comment_id: "c2", user_id: "user-3" },
+        { comment_id: "c1", user_id: "user-1", reaction: "heart" },
+        { comment_id: "c2", user_id: "user-1", reaction: "heart" },
+        { comment_id: "c2", user_id: "user-2", reaction: "heart" },
+        { comment_id: "c2", user_id: "user-3", reaction: "heart" },
       ],
       error: null,
     });

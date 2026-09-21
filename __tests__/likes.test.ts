@@ -24,7 +24,11 @@ describe("POST /api/comments/[commentId]/like", () => {
       .mockResolvedValueOnce({ data: { deleted_at: null }, error: null })
       .mockResolvedValueOnce({ data: null, error: null })
       .mockResolvedValueOnce({
-        data: { comment_id: "comment-1", user_id: "test-user" },
+        data: {
+          comment_id: "comment-1",
+          user_id: "test-user",
+          reaction: "heart",
+        },
         error: null,
       });
 
@@ -160,15 +164,19 @@ describe("DELETE /api/comments/[commentId]/like", () => {
     // eq call count:
     // 1. comment-check .eq("id") -> chain
     // 2. like-check .eq("comment_id") -> chain
-    // 3. like-check .eq("user_id") -> chain to .maybeSingle()
-    // 4. delete .eq("comment_id") -> chain
-    // 5. delete .eq("user_id") -> terminal
+    // 3. like-check .eq("user_id") -> chain
+    // 4. like-check .eq("reaction") -> chain to .maybeSingle()
+    // 5. delete .eq("comment_id") -> chain
+    // 6. delete .eq("user_id") -> chain
+    // 7. delete .eq("reaction") -> terminal
     mockSupabase.eq
       .mockReturnValueOnce(mockSupabase) // #1
       .mockReturnValueOnce(mockSupabase) // #2
       .mockReturnValueOnce(mockSupabase) // #3
       .mockReturnValueOnce(mockSupabase) // #4
-      .mockReturnValueOnce(Promise.resolve({ error: null })); // #5
+      .mockReturnValueOnce(mockSupabase) // #5
+      .mockReturnValueOnce(mockSupabase) // #6
+      .mockReturnValueOnce(Promise.resolve({ error: null })); // #7
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
@@ -273,7 +281,11 @@ describe("DELETE /api/comments/[commentId]/like", () => {
         error: null,
       })
       .mockResolvedValueOnce({
-        data: { comment_id: "comment-1", user_id: "test-user" },
+        data: {
+          comment_id: "comment-1",
+          user_id: "test-user",
+          reaction: "heart",
+        },
         error: null,
       });
     // eq call count: same as success test
@@ -282,9 +294,11 @@ describe("DELETE /api/comments/[commentId]/like", () => {
       .mockReturnValueOnce(mockSupabase) // #2 like-check
       .mockReturnValueOnce(mockSupabase) // #3 like-check
       .mockReturnValueOnce(mockSupabase) // #4 delete
+      .mockReturnValueOnce(mockSupabase) // #5 delete
+      .mockReturnValueOnce(mockSupabase) // #6 delete
       .mockReturnValueOnce(
         Promise.resolve({ error: { message: "Like delete failed" } }),
-      ); // #5 delete terminal
+      ); // #7 delete terminal
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);

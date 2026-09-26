@@ -99,8 +99,9 @@ export function mapPostToForumPostPreview(
       title: post.title ?? "",
       // Keep the full body available for search and let the card clamp it visually.
       excerpt: post.body ?? "",
-      authorId: post.author_id,
+      authorId: post.author_id ?? undefined,
       authorName: post.author?.Name ?? "Anonymous",
+      isOwnPost: post.is_own_post,
       authorWallet: undefined,
       createdAt: post.created_at,
       createdAtLabel: new Date(post.created_at).toLocaleDateString("en", {

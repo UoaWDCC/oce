@@ -74,11 +74,12 @@ function formatPostListItem(
   commentCounts: Record<string, number>,
   viewCounts: Record<string, number>,
   unreadState: Record<string, boolean>,
+  userId: string,
 ): PostListItem {
   return {
     id: post.id,
     dao_group_id: post.dao_group_id,
-    author_id: post.author_id,
+    author_id: post.anonymous ? null : post.author_id,
     post_type: post.post_type,
     title: post.title,
     body: post.body,
@@ -90,6 +91,7 @@ function formatPostListItem(
     comment_count: commentCounts[post.id] ?? 0,
     view_count: viewCounts[post.id] ?? 0,
     is_unread: unreadState[post.id] ?? true,
+    is_own_post: post.anonymous ? post.author_id === userId: undefined,
     author: post.anonymous ? null : firstOrNull(post.author),
     tags:
       post.post_tags
@@ -229,7 +231,7 @@ export async function GET(
 
   return NextResponse.json(
     posts.map((post) =>
-      formatPostListItem(post, commentCounts, viewCounts, unreadState),
+      formatPostListItem(post, commentCounts, viewCounts, unreadState, user.id),
     ),
     { headers: corsHeaders },
   );

@@ -81,6 +81,8 @@ describe("useDaoForumComments", () => {
       image_url: null,
       author_id: "user-a",
       username: "User A",
+      wallet_address: null,
+      ens_name: null,
       like_count: 0,
       is_liked: false,
       parent_comment_id: null,

@@ -10,11 +10,23 @@ export type ForumAuthorIdentity = {
   ensName: string | null;
 };
 
+function formatForumEnsLabel(value?: string | null): string | null {
+  const name = value?.trim();
+  if (!name) return null;
+
+  // Show the OCE label whether storage contains a label or the full name.
+  // Keep unrelated ENS domains intact.
+  return name.replace(/\.onchaineducation\.eth$/i, "") || null;
+}
+
 export function resolveForumAuthorLabel(
-  identity: { ensName?: string | null; walletAddress?: string | null } | null | undefined,
+  identity:
+    | { ensName?: string | null; walletAddress?: string | null }
+    | null
+    | undefined,
   fallback = "Anonymous",
 ): string {
-  const ensName = identity?.ensName?.trim();
+  const ensName = formatForumEnsLabel(identity?.ensName);
   if (ensName) return ensName;
 
   const walletAddress = identity?.walletAddress?.trim();
@@ -41,8 +53,8 @@ export async function loadDaoAuthorIdentities(
   (students ?? []).forEach(
     (student: { UID?: string | null; Wallet?: StudentWallet[] | null }) => {
       if (!student.UID) return;
-      const wallet = (student.Wallet ?? []).find(
-        (w) => w.walletAddress?.trim(),
+      const wallet = (student.Wallet ?? []).find((w) =>
+        w.walletAddress?.trim(),
       );
       if (!wallet?.walletAddress) return;
       identities[student.UID] = {

@@ -11,7 +11,6 @@ export type PostCardProps = {
   types?: PostType[];
   displayName: string;
   walletAddress?: string | null;
-  profileImageUrl?: string | null;
   createdAt: Timestamp;
   commentCount: number;
   viewCount: number;
@@ -29,7 +28,6 @@ function PostCardContent({
   types,
   displayName,
   walletAddress,
-  profileImageUrl,
   createdAt,
   commentCount,
   viewCount,
@@ -60,7 +58,6 @@ function PostCardContent({
         <StudentAvatar
           displayName={displayName}
           walletAddress={walletAddress}
-          profileImageUrl={profileImageUrl}
           size="xs"
           className="shrink-0"
         />

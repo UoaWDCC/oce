@@ -2,6 +2,7 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ForumPanel from "@/features/chat-forum/components/ForumPanel";
+import StudentAvatar from "@/components/common/StudentAvatar";
 import type {
   ForumCommentPreview,
   ForumPostPreview,
@@ -25,6 +26,29 @@ afterEach(() => {
 });
 
 describe("forum identity rendering", () => {
+  it.each(["xs", "sm", "md", "lg"] as const)(
+    "preserves text metadata without an avatar at size %s",
+    (size) => {
+      const { container } = render(
+        <StudentAvatar
+          displayName="Jordan Smith"
+          walletAddress="0x1234567890123456789012345678901234567890"
+          badges={<span>Staff</span>}
+          timestamp={{ label: "Today", dateTime: "2026-09-27" }}
+          size={size}
+        />,
+      );
+      expect(screen.getByText("Jordan Smith")).toBeTruthy();
+      expect(screen.getByText("0x1234...7890")).toBeTruthy();
+      expect(screen.getByText("Staff")).toBeTruthy();
+      expect(screen.getByText("Today").getAttribute("datetime")).toBe(
+        "2026-09-27",
+      );
+      expect(screen.queryByText("JS")).toBeNull();
+      expect(container.querySelector("img, .rounded-full")).toBeNull();
+    },
+  );
+
   it.each([false, true])(
     "shows one identity per author (ENS: %s)",
     (hasEns) => {
@@ -72,12 +96,15 @@ describe("forum identity rendering", () => {
 
       expect(screen.getAllByText(names[0], { selector: "p" })).toHaveLength(1);
       expect(screen.queryByTitle(wallets[0])).toBeNull();
+      expect(screen.queryAllByRole("img")).toHaveLength(0);
+      expect(screen.queryByText(names[0].slice(0, 2).toUpperCase())).toBeNull();
       fireEvent.click(
         screen.getByRole("button", { name: /Identity test post/ }),
       );
 
       names.forEach((name, index) => {
         expect(screen.getAllByText(name, { selector: "p" })).toHaveLength(1);
+        expect(screen.queryByText(name.slice(0, 2).toUpperCase())).toBeNull();
         expect(screen.queryByTitle(wallets[index])).toBeNull();
         expect(
           screen.queryByText(
@@ -86,6 +113,10 @@ describe("forum identity rendering", () => {
         ).toBeNull();
         if (hasEns) expect(screen.queryByText(wallets[index])).toBeNull();
       });
+      expect(screen.queryAllByRole("img")).toHaveLength(0);
+      expect(
+        screen.getAllByText(post.createdAtLabel).length,
+      ).toBeGreaterThanOrEqual(2);
     },
   );
 });

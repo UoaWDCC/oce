@@ -7,8 +7,6 @@ import StudentAvatar, { Timestamp } from "@/components/common/StudentAvatar";
 export type CommentCardProps = {
   displayName: string;
   walletAddress?: string | null;
-  profileImageUrl?: string | null;
-  avatarColor?: string;
   badges?: React.ReactNode;
   timestamp: Timestamp;
   body: string;
@@ -27,8 +25,6 @@ function classNames(...classes: Array<string | false | null | undefined>) {
 export default function CommentCard({
   displayName,
   walletAddress,
-  profileImageUrl,
-  avatarColor,
   badges,
   timestamp,
   body,
@@ -47,10 +43,8 @@ export default function CommentCard({
       )}
     >
       <StudentAvatar
-        avatarColor={avatarColor}
         badges={badges}
         displayName={displayName}
-        profileImageUrl={profileImageUrl}
         size="sm"
         timestamp={timestamp}
         walletAddress={walletAddress}

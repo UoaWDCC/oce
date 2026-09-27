@@ -98,7 +98,6 @@ function PostPreview({
       tags={post.tags}
       title={post.title}
       types={post.types}
-      walletAddress={post.authorEns ? undefined : post.authorWallet}
     />
   );
 }

@@ -178,7 +178,6 @@ export function mapForumPostPreviewToThreadPost(
     tags: post.tags,
     author: {
       name: post.authorName,
-      walletAddress: post.authorEns ? undefined : post.authorWallet,
     },
     createdAt: post.createdAt,
     createdAtLabel: post.createdAtLabel,
@@ -201,10 +200,6 @@ export function buildForumThreadComments(
       body: comment.isDeleted ? "This comment was deleted." : comment.body,
       author: {
         name: comment.isDeleted ? "Deleted comment" : comment.authorName,
-        walletAddress:
-          comment.isDeleted || comment.authorEns
-            ? undefined
-            : comment.authorWallet,
       },
       createdAt: comment.createdAt,
       createdAtLabel: comment.createdAtLabel,

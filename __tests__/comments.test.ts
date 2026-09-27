@@ -264,7 +264,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json).toEqual([]);
   });
 
-  it("returns 200 with sorted comments", async () => {
+  it("returns sorted comments with counts and user likes from comment_likes", async () => {
     const fakeComments = [
       {
         id: "c1",
@@ -315,6 +315,20 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
         Promise.resolve({ data: fakeComments, error: null }),
       );
 
+    const likesQuery = {
+      select: vi.fn().mockReturnThis(),
+      in: vi.fn().mockResolvedValue({
+        data: [
+          { comment_id: "c1", user_id: "test-user" },
+          { comment_id: "c1", user_id: "another-user" },
+        ],
+        error: null,
+      }),
+    };
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === "comment_likes" ? likesQuery : mockSupabase,
+    );
+
     // Default sort is "oldest" — c1 should come first
     const req = createMockRequest("GET");
     const res = await GET(req, mockParamsWithPostId);
@@ -324,6 +338,12 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json).toHaveLength(2);
     expect(json[0].id).toBe("c1");
     expect(json[1].id).toBe("c2");
+    expect(mockSupabase.from).toHaveBeenCalledWith("comment_likes");
+    expect(likesQuery.in).toHaveBeenCalledWith("comment_id", ["c1", "c2"]);
+    expect(json[0].like_count).toBe(2);
+    expect(json[0].is_liked).toBe(true);
+    expect(json[1].like_count).toBe(0);
+    expect(json[1].is_liked).toBe(false);
   });
 
   it("returns 200 with comments sorted by latest", async () => {

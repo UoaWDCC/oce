@@ -265,7 +265,7 @@ export async function GET(
   const commentIds = commentsData?.map((c) => c.id) || [];
 
   const { data: likeCounts, error: likeCountsError } = await supabase
-    .from("comment_reactions")
+    .from("comment_likes")
     .select("comment_id, user_id")
     .in("comment_id", commentIds);
 

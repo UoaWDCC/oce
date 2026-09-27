@@ -8,6 +8,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
   },
+  oxc: { jsx: { runtime: "automatic" } },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),

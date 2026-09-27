@@ -45,6 +45,8 @@ export interface PostListItem {
     FirstName: string | null;
     LastName: string | null;
     Name: string | null;
+    walletAddress: string | null;
+    ensName: string | null;
   } | null;
   tags: string[];
 }
@@ -161,6 +163,8 @@ export interface FormattedComment {
   image_url: string | null;
   author_id: string;
   username: string;
+  wallet_address: string | null;
+  ens_name: string | null;
   like_count: number;
   is_liked: boolean;
   parent_comment_id: string | null;
@@ -185,6 +189,7 @@ export interface ForumPostPreview {
   authorId?: string;
   authorName: string;
   authorWallet?: string;
+  authorEns?: string;
   createdAt: string;
   createdAtLabel: string;
   commentCount: number;
@@ -205,6 +210,7 @@ export interface ForumCommentPreview {
   authorId?: string;
   authorName: string;
   authorWallet?: string;
+  authorEns?: string;
   body: string;
   createdAt: string;
   createdAtLabel: string;

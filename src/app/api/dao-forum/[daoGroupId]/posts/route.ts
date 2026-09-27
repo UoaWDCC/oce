@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import { isPostUnread } from "@/features/chat-forum/readState";
 import { validateAndNormalizePoll } from "@/features/chat-forum/polls";
+import { loadDaoAuthorIdentities } from "@/features/chat-forum/authorIdentity";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,8 +22,10 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "view_count" | "is_unread" | "tags" | "author"
+  "comment_count" | "view_count" | "is_unread" | "tags" | "author" | "author_id" | "is_own_post"
 > & {
+  // The database keeps the author ID; only the anonymous API response hides it.
+  author_id: string;
   author:
     | {
         id: string;
@@ -75,7 +78,11 @@ function formatPostListItem(
   viewCounts: Record<string, number>,
   unreadState: Record<string, boolean>,
   userId: string,
+  identities: Record<string, { walletAddress: string; ensName: string | null }>,
 ): PostListItem {
+  const profile = post.anonymous ? null : firstOrNull(post.author);
+  const identity = profile ? identities[post.author_id] : undefined;
+
   return {
     id: post.id,
     dao_group_id: post.dao_group_id,
@@ -91,8 +98,14 @@ function formatPostListItem(
     comment_count: commentCounts[post.id] ?? 0,
     view_count: viewCounts[post.id] ?? 0,
     is_unread: unreadState[post.id] ?? true,
-    is_own_post: post.anonymous ? post.author_id === userId: undefined,
-    author: post.anonymous ? null : firstOrNull(post.author),
+    is_own_post: post.anonymous ? post.author_id === userId : undefined,
+    author: profile
+      ? {
+          ...profile,
+          walletAddress: identity?.walletAddress ?? null,
+          ensName: identity?.ensName ?? null,
+        }
+      : null,
     tags:
       post.post_tags
         ?.flatMap((postTag) => {
@@ -154,6 +167,10 @@ export async function GET(
   }
 
   const posts = (data ?? []) as unknown as RawPostListItem[];
+  const identities = await loadDaoAuthorIdentities(
+    supabase,
+    posts.filter((post) => !post.anonymous).map((post) => post.author_id),
+  );
   const postIds = posts.map((post) => post.id);
   const commentCounts: Record<string, number> = {};
   const viewCounts: Record<string, number> = {};
@@ -231,7 +248,14 @@ export async function GET(
 
   return NextResponse.json(
     posts.map((post) =>
-      formatPostListItem(post, commentCounts, viewCounts, unreadState, user.id),
+      formatPostListItem(
+        post,
+        commentCounts,
+        viewCounts,
+        unreadState,
+        user.id,
+        identities,
+      ),
     ),
     { headers: corsHeaders },
   );

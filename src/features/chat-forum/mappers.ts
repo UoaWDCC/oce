@@ -10,6 +10,7 @@ import type {
   UpdatePostFields,
 } from "@app-types/dao-forum";
 import type { ForumThreadComment, ForumThreadPost } from "./types";
+import { resolveForumAuthorLabel } from "./authorIdentity";
 
 export function mapPostSubmitPayloadToCreatePostFields(
   payload: PostSubmitPayload,
@@ -83,6 +84,9 @@ export function applyUpdatedPostToPreview(
       isPinned: updated.is_pinned,
       imageUrl: updated.image_url,
       authorId: updated.author_id || existing.authorId,
+      authorName: updated.anonymous ? "Anonymous" : existing.authorName,
+      authorWallet: updated.anonymous ? undefined : existing.authorWallet,
+      authorEns: updated.anonymous ? undefined : existing.authorEns,
     },
     currentUserId,
   );
@@ -104,9 +108,16 @@ export function mapPostToForumPostPreview(
         ? post.is_own_post
           ? "Anonymous (You)"
           : "Anonymous"
-        : post.author?.Name ?? "Anonymous",
+        : resolveForumAuthorLabel(
+            {
+              ensName: post.author?.ensName,
+              walletAddress: post.author?.walletAddress,
+            },
+            "Unknown",
+          ),
       isOwnPost: post.is_own_post,
-      authorWallet: undefined,
+      authorWallet: post.anonymous ? undefined : (post.author?.walletAddress ?? undefined),
+      authorEns: post.anonymous ? undefined : (post.author?.ensName ?? undefined),
       createdAt: post.created_at,
       createdAtLabel: new Date(post.created_at).toLocaleDateString("en", {
         month: "short",
@@ -136,8 +147,14 @@ export function mapCommentToForumCommentPreview(
     postId,
     parentCommentId: comment.parent_comment_id,
     authorId: comment.author_id,
-    authorName: comment.username ?? "Anonymous",
-    authorWallet: undefined,
+    authorName: comment.deleted_at
+      ? "Deleted comment"
+      : resolveForumAuthorLabel(
+          { ensName: comment.ens_name, walletAddress: comment.wallet_address },
+          "Unknown",
+        ),
+    authorWallet: comment.deleted_at ? undefined : (comment.wallet_address ?? undefined),
+    authorEns: comment.deleted_at ? undefined : (comment.ens_name ?? undefined),
     body: comment.body ?? "",
     createdAt: comment.created_at,
     createdAtLabel: new Date(comment.created_at).toLocaleDateString("en", {
@@ -164,7 +181,6 @@ export function mapForumPostPreviewToThreadPost(
     tags: post.tags,
     author: {
       name: post.authorName,
-      walletAddress: post.authorWallet,
     },
     createdAt: post.createdAt,
     createdAtLabel: post.createdAtLabel,
@@ -187,7 +203,6 @@ export function buildForumThreadComments(
       body: comment.isDeleted ? "This comment was deleted." : comment.body,
       author: {
         name: comment.isDeleted ? "Deleted comment" : comment.authorName,
-        walletAddress: comment.authorWallet,
       },
       createdAt: comment.createdAt,
       createdAtLabel: comment.createdAtLabel,

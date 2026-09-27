@@ -323,6 +323,27 @@ describe("mapPostToForumPostPreview", () => {
   };
 
   it.each([
+    { isOwnPost: true, label: "Anonymous (You)" },
+    { isOwnPost: false, label: "Anonymous" },
+    { isOwnPost: undefined, label: "Anonymous" },
+  ])("labels anonymous feed and thread posts as $label (ownership: $isOwnPost)", ({ isOwnPost, label }) => {
+    const preview = mapPostToForumPostPreview({
+      ...listItem,
+      anonymous: true,
+      author_id: null,
+      author: null,
+      is_own_post: isOwnPost,
+    }, "user-1");
+
+    expect(preview.authorName).toBe(label);
+    expect(preview.authorId).toBeUndefined();
+    expect(preview.isOwnPost).toBe(isOwnPost === true);
+    const thread = mapForumPostPreviewToThreadPost(preview);
+    expect(thread.author.name).toBe(label);
+    expect(thread.isOwnPost).toBe(isOwnPost === true);
+  });
+
+  it.each([
     { ens: "jordan.eth", wallet: "0x123", anonymous: false, label: "jordan.eth" },
     { ens: null, wallet: "0x123", anonymous: false, label: "0x123" },
     { ens: null, wallet: null, anonymous: false, label: "Unknown" },
@@ -349,6 +370,7 @@ describe("mapPostToForumPostPreview", () => {
     const preview = mapPostToForumPostPreview(listItem, "user-1");
 
     expect(preview.authorId).toBe("user-1");
+    expect(preview.authorName).toBe("Unknown");
     expect(preview.isOwnPost).toBe(true);
     expect(preview.isUnread).toBe(true);
     expect(preview.anonymous).toBe(false);

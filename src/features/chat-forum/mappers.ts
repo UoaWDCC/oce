@@ -103,9 +103,11 @@ export function mapPostToForumPostPreview(
       title: post.title ?? "",
       // Keep the full body available for search and let the card clamp it visually.
       excerpt: post.body ?? "",
-      authorId: post.author_id,
+      authorId: post.author_id ?? undefined,
       authorName: post.anonymous
-        ? "Anonymous"
+        ? post.is_own_post
+          ? "Anonymous (You)"
+          : "Anonymous"
         : resolveForumAuthorLabel(
             {
               ensName: post.author?.ensName,
@@ -113,6 +115,7 @@ export function mapPostToForumPostPreview(
             },
             "Unknown",
           ),
+      isOwnPost: post.is_own_post,
       authorWallet: post.anonymous ? undefined : (post.author?.walletAddress ?? undefined),
       authorEns: post.anonymous ? undefined : (post.author?.ensName ?? undefined),
       createdAt: post.created_at,

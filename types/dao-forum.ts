@@ -26,7 +26,7 @@ export interface Post {
 export interface PostListItem {
   id: string;
   dao_group_id: string;
-  author_id: string;
+  author_id: string | null;
   post_type: PostType | null;
   title: string | null;
   body: string | null;
@@ -38,6 +38,7 @@ export interface PostListItem {
   comment_count: number;
   view_count: number;
   is_unread: boolean;
+  is_own_post?: boolean;
   author: {
     id: string;
     username: string | null;

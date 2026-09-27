@@ -22,8 +22,10 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "view_count" | "is_unread" | "tags" | "author"
+  "comment_count" | "view_count" | "is_unread" | "tags" | "author" | "author_id" | "is_own_post"
 > & {
+  // The database keeps the author ID; only the anonymous API response hides it.
+  author_id: string;
   author:
     | {
         id: string;
@@ -75,6 +77,7 @@ function formatPostListItem(
   commentCounts: Record<string, number>,
   viewCounts: Record<string, number>,
   unreadState: Record<string, boolean>,
+  userId: string,
   identities: Record<string, { walletAddress: string; ensName: string | null }>,
 ): PostListItem {
   const profile = post.anonymous ? null : firstOrNull(post.author);
@@ -83,7 +86,7 @@ function formatPostListItem(
   return {
     id: post.id,
     dao_group_id: post.dao_group_id,
-    author_id: post.author_id,
+    author_id: post.anonymous ? null : post.author_id,
     post_type: post.post_type,
     title: post.title,
     body: post.body,
@@ -95,11 +98,14 @@ function formatPostListItem(
     comment_count: commentCounts[post.id] ?? 0,
     view_count: viewCounts[post.id] ?? 0,
     is_unread: unreadState[post.id] ?? true,
-    author: profile ? {
+    is_own_post: post.anonymous ? post.author_id === userId : undefined,
+    author: profile
+      ? {
           ...profile,
           walletAddress: identity?.walletAddress ?? null,
           ensName: identity?.ensName ?? null,
-    } : null,
+        }
+      : null,
     tags:
       post.post_tags
         ?.flatMap((postTag) => {
@@ -242,7 +248,14 @@ export async function GET(
 
   return NextResponse.json(
     posts.map((post) =>
-      formatPostListItem(post, commentCounts, viewCounts, unreadState, identities),
+      formatPostListItem(
+        post,
+        commentCounts,
+        viewCounts,
+        unreadState,
+        user.id,
+        identities,
+      ),
     ),
     { headers: corsHeaders },
   );

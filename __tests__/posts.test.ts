@@ -37,8 +37,17 @@ const mockParamsWithPostId = {
 const mockParams = { params: Promise.resolve({ daoGroupId: "dao-1" }) };
 
 describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
+  const studentQuery = {
+    select: vi.fn().mockReturnThis(),
+    in: vi.fn(),
+  };
+
   beforeEach(() => {
     resetAll();
+    studentQuery.in.mockReset().mockResolvedValue({ data: [], error: null });
+    mockSupabase.from.mockImplementation((table: string) =>
+      table === "Student" ? studentQuery : mockSupabase,
+    );
   });
 
   it("returns posts on success", async () => {
@@ -69,6 +78,10 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
       },
     ];
     setMockQueryResult({ data: fakePosts, error: null });
+    studentQuery.in.mockResolvedValueOnce({
+      data: [{ UID: "author-1", Wallet: [{ walletAddress: "0x123", ENS: "alice.eth" }] }],
+      error: null,
+    });
     mockSupabase.in.mockResolvedValueOnce({
       data: [{ post_id: "post-1" }, { post_id: "post-1" }],
       error: null,
@@ -101,11 +114,15 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           FirstName: "Alice",
           LastName: "A",
           Name: "Alice A",
+          walletAddress: "0x123",
+          ensName: "alice.eth",
         },
         tags: ["Governance", "Technical"],
       },
     ]);
     expect(mockSupabase.is).toHaveBeenCalledWith("deleted_at", null);
+    expect(studentQuery.select).toHaveBeenCalledWith("UID, Wallet");
+    expect(studentQuery.in).toHaveBeenCalledWith("UID", ["author-1"]);
   });
 
   it("derives unread state from the current user's last view and new comments", async () => {
@@ -223,6 +240,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
 
     expect(res.status).toBe(200);
     expect(json[0].author).toBeNull();
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("Student");
   });
 
   it("returns 401 when not authenticated", async () => {

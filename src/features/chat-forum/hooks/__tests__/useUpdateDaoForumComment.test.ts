@@ -21,6 +21,8 @@ describe("useUpdateDaoForumComment", () => {
       image_url: "existing.png",
       author_id: "user-1",
       username: "Jordan",
+      wallet_address: null,
+      ens_name: null,
       like_count: 0,
       is_liked: false,
       parent_comment_id: null,

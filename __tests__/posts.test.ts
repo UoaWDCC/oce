@@ -189,13 +189,16 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
     });
   });
 
-  it("hides author display data for anonymous posts", async () => {
+  it.each([
+    { authorId: "test-user", isOwnPost: true },
+    { authorId: "author-1", isOwnPost: false },
+  ])("hides anonymous author data and reports ownership as $isOwnPost", async ({ authorId, isOwnPost }) => {
     setMockQueryResult({
       data: [
         {
           id: "post-1",
           dao_group_id: "dao-1",
-          author_id: "author-1",
+          author_id: authorId,
           post_type: "Announcement",
           title: "Anonymous post",
           body: "Post body",
@@ -223,6 +226,8 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
 
     expect(res.status).toBe(200);
     expect(json[0].author).toBeNull();
+    expect(json[0].author_id).toBeNull();
+    expect(json[0].is_own_post).toBe(isOwnPost);
   });
 
   it("returns 401 when not authenticated", async () => {

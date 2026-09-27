@@ -270,10 +270,32 @@ describe("mapPostToForumPostPreview", () => {
     tags: ["Governance"],
   };
 
+  it.each([
+    { isOwnPost: true, label: "Anonymous (You)" },
+    { isOwnPost: false, label: "Anonymous" },
+    { isOwnPost: undefined, label: "Anonymous" },
+  ])("labels anonymous feed and thread posts as $label (ownership: $isOwnPost)", ({ isOwnPost, label }) => {
+    const preview = mapPostToForumPostPreview({
+      ...listItem,
+      anonymous: true,
+      author_id: null,
+      author: null,
+      is_own_post: isOwnPost,
+    }, "user-1");
+
+    expect(preview.authorName).toBe(label);
+    expect(preview.authorId).toBeUndefined();
+    expect(preview.isOwnPost).toBe(isOwnPost === true);
+    const thread = mapForumPostPreviewToThreadPost(preview);
+    expect(thread.author.name).toBe(label);
+    expect(thread.isOwnPost).toBe(isOwnPost === true);
+  });
+
   it("includes authorId and isOwnPost on the frontend model", () => {
     const preview = mapPostToForumPostPreview(listItem, "user-1");
 
     expect(preview.authorId).toBe("user-1");
+    expect(preview.authorName).toBe("Jordan S.");
     expect(preview.isOwnPost).toBe(true);
     expect(preview.isUnread).toBe(true);
     expect(preview.anonymous).toBe(false);

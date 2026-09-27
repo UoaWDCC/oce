@@ -100,7 +100,11 @@ export function mapPostToForumPostPreview(
       // Keep the full body available for search and let the card clamp it visually.
       excerpt: post.body ?? "",
       authorId: post.author_id ?? undefined,
-      authorName: post.author?.Name ?? "Anonymous",
+      authorName: post.anonymous
+        ? post.is_own_post
+          ? "Anonymous (You)"
+          : "Anonymous"
+        : post.author?.Name ?? "Anonymous",
       isOwnPost: post.is_own_post,
       authorWallet: undefined,
       createdAt: post.created_at,

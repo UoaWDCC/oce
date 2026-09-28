@@ -236,7 +236,7 @@ export default function ChatForumPreviewClient() {
       body: payload.body,
       createdAt: new Date().toISOString(),
       createdAtLabel: "just now",
-      likeCount: 0,
+      reactionCounts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
     };
     setForumPanelComments((prev) => [...prev, newComment]);
   };

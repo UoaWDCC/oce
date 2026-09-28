@@ -178,8 +178,18 @@ export async function POST(
     image_url: inserted.image_url,
     author_id: inserted.author?.id || user.id,
     username: inserted.author?.username || "",
-    like_count: 0,
-    is_liked: false,
+    reaction_counts: {
+      heart: 0,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    },
+    user_reactions: {
+      heart: false,
+      thumbs_up: false,
+      fire: false,
+      thumbs_down: false,
+    },
     parent_comment_id: inserted.parent_comment_id,
     created_at: inserted.created_at,
     updated_at: inserted.updated_at,
@@ -326,8 +336,6 @@ export async function GET(
       image_url: comment.deleted_at ? null : comment.image_url,
       author_id: comment.author?.id || "",
       username: comment.author?.username || "",
-      like_count: reactionCountsMap[comment.id]?.heart || 0,
-      is_liked: userReactionsMap[comment.id]?.heart || false,
       reaction_counts: reactionCountsMap[comment.id] ?? {
         heart: 0,
         thumbs_up: 0,
@@ -354,7 +362,12 @@ export async function GET(
     }
 
     if (sort === "most_likes") {
-      return b.like_count - a.like_count;
+      const totalReactions = (comment: FormattedComment) =>
+        Object.values(comment.reaction_counts ?? {}).reduce(
+          (total, count) => total + count,
+          0,
+        );
+      return totalReactions(b) - totalReactions(a);
     }
 
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();

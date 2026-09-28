@@ -43,8 +43,6 @@ export type ForumThreadComment = {
   author: ForumThreadAuthor;
   createdAt: string;
   createdAtLabel: string;
-  likeCount: number;
-  isLiked?: boolean;
   reactionCounts?: ReactionCounts;
   userReactions?: UserReactions;
   isDeleted?: boolean;

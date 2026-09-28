@@ -175,6 +175,8 @@ export interface FormattedComment {
   username: string;
   like_count: number; // Kept for legacy compatibility (maps to counts.heart or total_reactions)
   is_liked: boolean;  // Kept for legacy compatibility (maps to user_reactions.heart or any reaction)
+  reaction_counts?: ReactionCounts;
+  user_reactions?: UserReactions;
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;
@@ -222,6 +224,8 @@ export interface ForumCommentPreview {
   createdAtLabel: string;
   likeCount: number; // Kept for frontend components expecting single like count
   isLiked?: boolean; // Kept for frontend components expecting boolean toggle state
+  reactionCounts?: ReactionCounts;
+  userReactions?: UserReactions;
   isOwnComment?: boolean;
   isDeleted?: boolean;
   imageUrl?: string | null;

@@ -12,6 +12,9 @@ import type {
   FormattedComment,
   InsertComment,
   RawComment,
+  ReactionCounts,
+  ReactionType,
+  UserReactions,
 } from "@app-types/dao-forum";
 
 const corsHeaders = {
@@ -279,19 +282,30 @@ export async function GET(
 
   const comments = commentsData as unknown as RawComment[];
 
-  const likeCountMap: Record<string, number> = {};
+  const reactionCountsMap: Record<string, ReactionCounts> = {};
   reactionsData?.forEach((reaction) => {
-    if (reaction.reaction === "heart") {
-      likeCountMap[reaction.comment_id] = (likeCountMap[reaction.comment_id] || 0) + 1;
-    }
+    const counts = reactionCountsMap[reaction.comment_id] ?? {
+      heart: 0,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    };
+    counts[reaction.reaction as ReactionType] += 1;
+    reactionCountsMap[reaction.comment_id] = counts;
   });
 
-  // 3. Track if the current user left a heart reaction
-  const likedByUser = new Set(
-    reactionsData
-      ?.filter((r) => r.user_id === user.id && r.reaction === "heart") // <--- Added heart check here too
-      .map((r) => r.comment_id),
-  );
+  const userReactionsMap: Record<string, UserReactions> = {};
+  reactionsData?.forEach((reaction) => {
+    if (reaction.user_id !== user.id) return;
+    const reactions = userReactionsMap[reaction.comment_id] ?? {
+      heart: false,
+      thumbs_up: false,
+      fire: false,
+      thumbs_down: false,
+    };
+    reactions[reaction.reaction as ReactionType] = true;
+    userReactionsMap[reaction.comment_id] = reactions;
+  });
 
   const activeChildCounts: Record<string, number> = {};
   comments.forEach((comment) => {
@@ -312,8 +326,20 @@ export async function GET(
       image_url: comment.deleted_at ? null : comment.image_url,
       author_id: comment.author?.id || "",
       username: comment.author?.username || "",
-      like_count: likeCountMap[comment.id] || 0,
-      is_liked: likedByUser.has(comment.id),
+      like_count: reactionCountsMap[comment.id]?.heart || 0,
+      is_liked: userReactionsMap[comment.id]?.heart || false,
+      reaction_counts: reactionCountsMap[comment.id] ?? {
+        heart: 0,
+        thumbs_up: 0,
+        fire: 0,
+        thumbs_down: 0,
+      },
+      user_reactions: userReactionsMap[comment.id] ?? {
+        heart: false,
+        thumbs_up: false,
+        fire: false,
+        thumbs_down: false,
+      },
       parent_comment_id: comment.parent_comment_id,
       created_at: comment.created_at,
       updated_at: comment.updated_at,

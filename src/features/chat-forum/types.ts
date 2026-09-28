@@ -1,4 +1,8 @@
-import type { PostType } from "@app-types/dao-forum";
+import type {
+  PostType,
+  ReactionCounts,
+  UserReactions,
+} from "@app-types/dao-forum";
 
 export type {
   ForumCommentPreview,
@@ -41,6 +45,8 @@ export type ForumThreadComment = {
   createdAtLabel: string;
   likeCount: number;
   isLiked?: boolean;
+  reactionCounts?: ReactionCounts;
+  userReactions?: UserReactions;
   isDeleted?: boolean;
   isOwnComment?: boolean;
   imageUrl?: string | null;

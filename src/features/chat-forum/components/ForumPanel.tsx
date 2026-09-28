@@ -26,6 +26,7 @@ import type {
   ForumPostPreview,
   PostSubmitPayload,
   PostType,
+  ReactionType,
 } from "@app-types/dao-forum";
 
 type ForumPanelProps = {
@@ -55,7 +56,10 @@ type ForumPanelProps = {
     payload: CommentSubmitPayload,
   ) => Promise<void> | void;
   onCommentRefetch?: () => Promise<void>;
-  onLikeComment?: (commentId: string) => void | Promise<void>;
+  onReaction?: (
+    commentId: string,
+    reaction: ReactionType,
+  ) => void | Promise<void>;
   onCommentSortChange?: (sort: ForumThreadSort) => void;
   token?: string;
 };
@@ -139,7 +143,7 @@ export default function ForumPanel({
   onSelectPost,
   onSubmitComment,
   onCommentRefetch,
-  onLikeComment,
+  onReaction,
   onCommentSortChange,
   token,
 }: ForumPanelProps) {
@@ -249,7 +253,7 @@ export default function ForumPanel({
         onBack={closeThread}
         onCancelReply={() => setReplyingToCommentId(null)}
         onDeletePost={onDeletePost ? deleteSelectedPost : undefined}
-        onLikeComment={onLikeComment}
+        onReaction={onReaction}
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
         onSubmitComment={submitComment}

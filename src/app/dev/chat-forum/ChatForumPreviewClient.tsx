@@ -10,6 +10,7 @@ import {
   type ForumCommentPreview,
   type ForumPostPreview,
   type PostSubmitPayload,
+  type ReactionType,
 } from "@app-types/dao-forum";
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
@@ -358,8 +359,8 @@ export default function ChatForumPreviewClient() {
             daoGroupId={PREVIEW_DAO_ID}
             comments={mockForumThreadComments}
             onBack={() => console.log("Back to forum")}
-            onLikeComment={(commentId) =>
-              console.log(`Like comment ${commentId}`)
+            onReaction={(commentId: string, reaction: ReactionType) =>
+              console.log(`${reaction} comment ${commentId}`)
             }
             onReplyToComment={(commentId) =>
               console.log(`Reply to comment ${commentId}`)

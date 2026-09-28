@@ -8,11 +8,11 @@ import {
   ArrowLeft,
   BookOpen,
   Eye,
-  Heart,
   MessageCircle,
   MoreHorizontal,
   Pencil,
   Reply,
+  SmilePlus,
   Trash2,
   X,
 } from "lucide-react";
@@ -30,6 +30,7 @@ import type {
   ForumThreadPost,
   ForumThreadSort,
 } from "../types";
+import type { ReactionType } from "@app-types/dao-forum";
 import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
@@ -44,7 +45,10 @@ type PostThreadProps = {
   onSortChange?: (sort: ForumThreadSort) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
   onCommentRefetch?: () => Promise<void>;
-  onLikeComment?: (commentId: string) => void | Promise<void>;
+  onReaction?: (
+    commentId: string,
+    reaction: ReactionType,
+  ) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   onUpdatePost?: (payload: PostSubmitPayload) => Promise<void>;
   onDeletePost?: () => Promise<boolean> | boolean;
@@ -292,7 +296,10 @@ function AuthorBadges({ comment }: { comment: ForumThreadComment }) {
 
 type ThreadCommentProps = {
   comment: ForumThreadComment;
-  onLikeComment?: (commentId: string) => void | Promise<void>;
+  onReaction?: (
+    commentId: string,
+    reaction: ReactionType,
+  ) => void | Promise<void>;
   onReplyToComment?: (commentId: string) => void;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
@@ -306,7 +313,7 @@ type ThreadCommentProps = {
 const MAX_NESTING_DEPTH = 5;
 function ThreadComment({
   comment,
-  onLikeComment,
+  onReaction,
   onReplyToComment,
   replyingTo,
   onCancelReply,
@@ -326,6 +333,14 @@ function ThreadComment({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
+
+  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> = [
+    { type: "heart", label: "Heart", emoji: "❤️" },
+    { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
+    { type: "fire", label: "Fire", emoji: "🔥" },
+    { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
+  ];
 
   const handleEdit = async (data: {
     body?: string | null;
@@ -427,26 +442,59 @@ function ThreadComment({
         )}
 
         <div className="mt-4 flex items-center gap-4 text-sm font-semibold text-slate-500">
-          {!comment.isDeleted && onLikeComment && (
-            <button
-              aria-label={
-                comment.isLiked ? "Unlike this comment" : "Like this comment"
-              }
-              aria-pressed={comment.isLiked}
-              className="inline-flex items-center gap-1.5 transition hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-              onClick={() => onLikeComment(comment.id)}
-              type="button"
-            >
-              <Heart
-                aria-hidden="true"
-                className={classNames(
-                  "h-4 w-4",
-                  comment.isLiked && "fill-red-500 text-red-500",
-                )}
-              />
-              {comment.likeCount}
-            </button>
+          {!comment.isDeleted && onReaction && (
+            <div className="relative">
+              <button
+                aria-expanded={isReactionPickerOpen}
+                aria-label="Add reaction"
+                className="inline-flex items-center gap-1.5 transition hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                onClick={() => setIsReactionPickerOpen((open) => !open)}
+                type="button"
+              >
+                <SmilePlus aria-hidden="true" className="h-4 w-4" />
+                React
+              </button>
+              {isReactionPickerOpen && (
+                <div className="absolute bottom-full left-0 z-10 mb-2 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
+                  {reactions.map(({ type, label, emoji }) => {
+                    const isActive = comment.userReactions?.[type] ?? false;
+                    return (
+                      <button
+                        aria-label={`${isActive ? "Remove" : "Add"} ${label} reaction`}
+                        aria-pressed={isActive}
+                        className={classNames(
+                          "rounded-md px-2 py-1 text-base transition hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500",
+                          isActive && "bg-purple-100",
+                        )}
+                        key={type}
+                        onClick={() => {
+                          onReaction(comment.id, type);
+                          setIsReactionPickerOpen(false);
+                        }}
+                        title={label}
+                        type="button"
+                      >
+                        {emoji}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
+          {reactions.map(({ type, emoji, label }) => {
+            const count = comment.reactionCounts?.[type] ?? 0;
+            if (count === 0) return null;
+            return (
+              <span
+                aria-label={`${count} ${label} reactions`}
+                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                key={type}
+              >
+                {emoji} {count}
+              </span>
+            );
+          })}
           {!comment.isDeleted && onReplyToComment && (
             <button
               className="inline-flex items-center gap-1.5 transition hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
@@ -513,7 +561,7 @@ function ThreadComment({
                     comment={reply}
                     depth={depth + 1}
                     parentAuthorName={comment.author.name}
-                    onLikeComment={onLikeComment}
+                    onReaction={onReaction}
                     onReplyToComment={onReplyToComment}
                     replyingTo={replyingTo}
                     onCancelReply={onCancelReply}
@@ -558,7 +606,7 @@ function ThreadComment({
                   comment={reply}
                   depth={depth + 1}
                   parentAuthorName={comment.author.name}
-                  onLikeComment={onLikeComment}
+                    onReaction={onReaction}
                   onReplyToComment={onReplyToComment}
                   replyingTo={replyingTo}
                   onCancelReply={onCancelReply}
@@ -590,7 +638,7 @@ export default function PostThread({
   onSortChange,
   onSubmitComment,
   onCommentRefetch,
-  onLikeComment,
+  onReaction,
   onReplyToComment,
   onUpdatePost,
   onDeletePost,
@@ -839,7 +887,7 @@ export default function PostThread({
             <ThreadComment
               key={comment.id}
               comment={comment}
-              onLikeComment={onLikeComment}
+              onReaction={onReaction}
               onReplyToComment={onReplyToComment}
               replyingTo={replyingTo}
               onCancelReply={onCancelReply}

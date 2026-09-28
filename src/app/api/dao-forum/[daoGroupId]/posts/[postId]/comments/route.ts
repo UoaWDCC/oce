@@ -16,6 +16,7 @@ import type {
   ReactionType,
   UserReactions,
 } from "@app-types/dao-forum";
+import { loadDaoAuthorIdentities } from "@/features/chat-forum/authorIdentity";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -171,6 +172,8 @@ export async function POST(
   }
 
   const inserted = newComment as unknown as RawComment;
+  const identities = await loadDaoAuthorIdentities(supabase, [inserted.author?.id || user.id]);
+  const identity = identities[inserted.author?.id || user.id];
 
   const formattedComment: FormattedComment = {
     id: inserted.id,
@@ -178,6 +181,8 @@ export async function POST(
     image_url: inserted.image_url,
     author_id: inserted.author?.id || user.id,
     username: inserted.author?.username || "",
+    wallet_address: identity?.walletAddress ?? null,
+    ens_name: identity?.ensName ?? null,
     reaction_counts: {
       heart: 0,
       thumbs_up: 0,
@@ -317,6 +322,11 @@ export async function GET(
     userReactionsMap[reaction.comment_id] = reactions;
   });
 
+  const identities = await loadDaoAuthorIdentities(
+    supabase,
+    comments.filter((c) => !c.deleted_at).map((c) => c.author?.id),
+  );
+
   const activeChildCounts: Record<string, number> = {};
   comments.forEach((comment) => {
     if (comment.parent_comment_id && !comment.deleted_at) {
@@ -330,29 +340,34 @@ export async function GET(
       if (!comment.deleted_at) return true;
       return (activeChildCounts[comment.id] || 0) > 0;
     })
-    .map((comment) => ({
-      id: comment.id,
-      body: comment.deleted_at ? null : comment.body,
-      image_url: comment.deleted_at ? null : comment.image_url,
-      author_id: comment.author?.id || "",
-      username: comment.author?.username || "",
-      reaction_counts: reactionCountsMap[comment.id] ?? {
-        heart: 0,
-        thumbs_up: 0,
-        fire: 0,
-        thumbs_down: 0,
-      },
-      user_reactions: userReactionsMap[comment.id] ?? {
-        heart: false,
-        thumbs_up: false,
-        fire: false,
-        thumbs_down: false,
-      },
-      parent_comment_id: comment.parent_comment_id,
-      created_at: comment.created_at,
-      updated_at: comment.updated_at,
-      deleted_at: comment.deleted_at,
-    }));
+    .map((comment) => {
+      const identity = comment.author?.id ? identities[comment.author.id] : undefined;
+      return {
+        id: comment.id,
+        body: comment.deleted_at ? null : comment.body,
+        image_url: comment.deleted_at ? null : comment.image_url,
+        author_id: comment.author?.id || "",
+        username: comment.author?.username || "",
+        wallet_address: comment.deleted_at ? null : (identity?.walletAddress ?? null),
+        ens_name: comment.deleted_at ? null : (identity?.ensName ?? null),
+        reaction_counts: reactionCountsMap[comment.id] ?? {
+          heart: 0,
+          thumbs_up: 0,
+          fire: 0,
+          thumbs_down: 0,
+        },
+        user_reactions: userReactionsMap[comment.id] ?? {
+          heart: false,
+          thumbs_up: false,
+          fire: false,
+          thumbs_down: false,
+        },
+        parent_comment_id: comment.parent_comment_id,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        deleted_at: comment.deleted_at,
+      };
+    });
 
   const sortedComments = filteredComments.sort((a, b) => {
     if (sort === "latest") {

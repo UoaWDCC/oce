@@ -23,6 +23,8 @@ describe("useUpdateDaoForumComment", () => {
       username: "Jordan",
       reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
       user_reactions: { heart: false, thumbs_up: false, fire: false, thumbs_down: false },
+      wallet_address: null,
+      ens_name: null,
       parent_comment_id: null,
       created_at: "2026-08-19T00:00:00.000Z",
       updated_at: "2026-08-19T01:00:00.000Z",

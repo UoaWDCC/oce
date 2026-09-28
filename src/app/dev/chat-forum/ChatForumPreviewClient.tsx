@@ -91,22 +91,17 @@ const previewAuthors: Record<
   string,
   {
     displayName: string;
-    profileImageUrl?: string;
-    avatarColor?: string;
     badges?: ReactNode;
   }
 > = {
   "0x8f120B15a672A97C86aC1E3D910B8512b8a14a90": {
     displayName: "Jordan S.",
-    avatarColor: "#7c3aed",
   },
   "0x41ca932f71DAb2870E9d118492e5d33F7c8691e3": {
     displayName: "Mia Chen",
-    profileImageUrl: "/images/jayden-hunt.png",
   },
   "0x1d05f97A59231F2ecF1A2FA980E58392B8d8c782": {
     displayName: "Dr. Rivera",
-    avatarColor: "#7c3aed",
     badges: (
       <span className="rounded-full bg-[#7c3aed] px-2 py-0.5 text-xs font-bold leading-none text-white">
         Staff
@@ -115,7 +110,6 @@ const previewAuthors: Record<
   },
   "0x77be19f504cB7E859D3157775F1B12c50E1a02dd": {
     displayName: "Anonymous",
-    avatarColor: "#10b981",
   },
 };
 
@@ -157,7 +151,6 @@ function PlaceholderPostCard({
       types={[POST_TYPE.Discussion]}
       displayName={author.displayName}
       walletAddress={post.authorId}
-      profileImageUrl={author.profileImageUrl}
       createdAt={createTimestamp(post.createdAt)}
       commentCount={commentCount}
       viewCount={0}
@@ -283,7 +276,6 @@ export default function ChatForumPreviewClient() {
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="rounded-lg bg-slate-50 p-5">
               <StudentAvatar
-                avatarColor="#7c3aed"
                 displayName="Jordan S."
                 size="lg"
                 walletAddress="0x8f120B15a672A97C86aC1E3D910B8512b8a14a90"
@@ -292,14 +284,12 @@ export default function ChatForumPreviewClient() {
             <div className="rounded-lg bg-slate-50 p-5">
               <StudentAvatar
                 displayName="Mia Chen"
-                profileImageUrl="/images/jayden-hunt.png"
                 size="md"
                 walletAddress="0x41ca932f71DAb2870E9d118492e5d33F7c8691e3"
               />
             </div>
             <div className="rounded-lg bg-slate-50 p-5">
               <StudentAvatar
-                avatarColor="#10b981"
                 badges={
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold leading-none text-emerald-800">
                     Endorsed
@@ -312,7 +302,6 @@ export default function ChatForumPreviewClient() {
             </div>
             <div className="rounded-lg bg-slate-50 p-5">
               <StudentAvatar
-                avatarColor="#f59e0b"
                 displayName="Kai L."
                 size="sm"
                 walletAddress="0x2fE394b7eE1D240241709672F78A1e4Dd4BD11a7"

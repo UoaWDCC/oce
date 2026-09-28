@@ -14,6 +14,17 @@ export interface Conversation {
   updated_at: string;
 }
 
+export interface GetConversationsResponse {
+  conversation: Conversation[];
+  nextOffset: number;
+  hasMore: boolean;
+}
+export interface GetMessagesResponse {
+  messages: TutorMessage[];
+  nextOffset: number;
+  hasMore: boolean;
+}
+
 // Response of GET /api/ai-tutor/token-usage. Named "Summary" to stay distinct
 // from the per-request TokenUsage in @/llm/types/TokenUsage.
 export interface TokenUsageSummary {

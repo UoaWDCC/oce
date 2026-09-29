@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { addCommentReaction, removeCommentReaction } from "../services";
 import { forumKeys } from "../queryKeys";
@@ -47,8 +47,18 @@ export function useDaoForumCommentReactions(
     Record<string, OptimisticCommentReactions>
   >({});
   const optimisticRef = useRef<Record<string, OptimisticCommentReactions>>({});
+  const requestQueuesRef = useRef<Record<string, Promise<void>>>({});
+  const contextVersionRef = useRef(0);
   const [error, setError] = useState<Error | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    contextVersionRef.current += 1;
+    optimisticRef.current = {};
+    requestQueuesRef.current = {};
+    setOptimisticState({});
+    setError(null);
+  }, [daoGroupId, postId, currentUserId]);
 
   const patchCommentInAllSorts = useCallback(
     (commentId: string, patch: OptimisticCommentReactions) => {
@@ -63,9 +73,27 @@ export function useDaoForumCommentReactions(
     [queryClient, daoGroupId, postId, currentUserId],
   );
 
+  const clearOptimisticState = useCallback(
+    (commentId: string, expected: OptimisticCommentReactions) => {
+      if (optimisticRef.current[commentId] !== expected) return;
+
+      const nextOptimistic = { ...optimisticRef.current };
+      delete nextOptimistic[commentId];
+      optimisticRef.current = nextOptimistic;
+      setOptimisticState((previous) => {
+        if (!previous[commentId]) return previous;
+        const next = { ...previous };
+        delete next[commentId];
+        return next;
+      });
+    },
+    [],
+  );
+
   const toggleReaction = useCallback(
     (commentId: string, reaction: ReactionType, token: string) => {
       if (!commentId || !token) return;
+      const contextVersion = contextVersionRef.current;
       const comment = queryClient
         .getQueriesData<ForumCommentPreview[]>({
           queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId),
@@ -95,23 +123,59 @@ export function useDaoForumCommentReactions(
       setOptimisticState((previous) => ({ ...previous, [commentId]: next }));
       patchCommentInAllSorts(commentId, next);
 
-      const request = isActive
-        ? removeCommentReaction(commentId, reaction, token)
-        : addCommentReaction(commentId, reaction, token);
-      request.catch((reason: unknown) => {
-        if (optimisticRef.current[commentId] !== next) return;
-        optimisticRef.current = {
-          ...optimisticRef.current,
-          [commentId]: current,
-        };
-        setOptimisticState((previous) => ({ ...previous, [commentId]: current }));
-        patchCommentInAllSorts(commentId, current);
-        setError(
-          reason instanceof Error
-            ? reason
-            : new Error("Failed to update comment reaction"),
-        );
+      const previousRequest =
+        requestQueuesRef.current[commentId] ?? Promise.resolve();
+      const request = previousRequest.catch(() => undefined).then(async () => {
+        if (contextVersion !== contextVersionRef.current) return;
+
+        try {
+          if (isActive) {
+            await removeCommentReaction(commentId, reaction, token);
+          } else {
+            await addCommentReaction(commentId, reaction, token);
+          }
+          if (contextVersion === contextVersionRef.current) {
+            setError(null);
+          }
+        } catch (reason: unknown) {
+          if (contextVersion !== contextVersionRef.current) return;
+
+          if (optimisticRef.current[commentId] === next) {
+            optimisticRef.current = {
+              ...optimisticRef.current,
+              [commentId]: current,
+            };
+            setOptimisticState((previous) => ({
+              ...previous,
+              [commentId]: current,
+            }));
+            patchCommentInAllSorts(commentId, current);
+          }
+          setError(
+            reason instanceof Error
+              ? reason
+              : new Error("Failed to update comment reaction"),
+          );
+        } finally {
+          if (contextVersion !== contextVersionRef.current) return;
+
+          await queryClient
+            .invalidateQueries({
+              queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId),
+              refetchType: "all",
+            })
+            .catch(() => undefined);
+          clearOptimisticState(commentId, next);
+        }
       });
+
+      requestQueuesRef.current[commentId] = request;
+      const clearQueue = () => {
+        if (requestQueuesRef.current[commentId] === request) {
+          delete requestQueuesRef.current[commentId];
+        }
+      };
+      void request.then(clearQueue, clearQueue);
     },
     [
       queryClient,
@@ -119,6 +183,7 @@ export function useDaoForumCommentReactions(
       postId,
       currentUserId,
       patchCommentInAllSorts,
+      clearOptimisticState,
     ],
   );
 

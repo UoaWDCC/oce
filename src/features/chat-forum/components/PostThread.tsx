@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
@@ -334,6 +334,8 @@ function ThreadComment({
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const reactionPickerRef = useRef<HTMLDivElement>(null);
 
   const reactions: Array<{ type: ReactionType; label: string; emoji: string }> = [
     { type: "heart", label: "Heart", emoji: "❤️" },
@@ -358,6 +360,37 @@ function ThreadComment({
       setIsDeleteConfirmOpen(false);
     }
   };
+
+  useEffect(() => {
+    if (!isMenuOpen && !isReactionPickerOpen) return;
+
+    const handleDismiss = (event: KeyboardEvent | PointerEvent) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        setIsMenuOpen(false);
+        setIsReactionPickerOpen(false);
+        return;
+      }
+
+      const target = event.target as Node;
+      if (
+        menuRef.current?.contains(target) ||
+        reactionPickerRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsMenuOpen(false);
+      setIsReactionPickerOpen(false);
+    };
+
+    document.addEventListener("keydown", handleDismiss);
+    document.addEventListener("pointerdown", handleDismiss);
+    return () => {
+      document.removeEventListener("keydown", handleDismiss);
+      document.removeEventListener("pointerdown", handleDismiss);
+    };
+  }, [isMenuOpen, isReactionPickerOpen]);
+
   return (
     <div>
       <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
@@ -378,7 +411,7 @@ function ThreadComment({
             walletAddress={comment.author.walletAddress}
           />
           {comment.isOwnComment && !comment.isDeleted && (
-            <div className="relative">
+            <div ref={menuRef} className="relative">
               <button
                 type="button"
                 aria-expanded={isMenuOpen}
@@ -441,11 +474,11 @@ function ThreadComment({
 
         <div className="mt-4 flex items-center gap-4 text-sm font-semibold text-slate-500">
           {!comment.isDeleted && onReaction && (
-            <div className="relative">
+            <div ref={reactionPickerRef} className="relative">
               <button
                 aria-expanded={isReactionPickerOpen}
                 aria-label="Add reaction"
-                className="inline-flex items-center gap-1.5 transition hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                className="inline-flex cursor-pointer items-center gap-1.5 transition hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
                 onClick={() => setIsReactionPickerOpen((open) => !open)}
                 type="button"
               >
@@ -483,14 +516,24 @@ function ThreadComment({
           {reactions.map(({ type, emoji, label }) => {
             const count = comment.reactionCounts?.[type] ?? 0;
             if (count === 0) return null;
+            const isActive = comment.userReactions?.[type] ?? false;
             return (
-              <span
+              <button
+                type="button"
                 aria-label={`${count} ${label} reactions`}
-                className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                aria-pressed={isActive}
+                className={classNames(
+                  "inline-flex cursor-pointer items-center gap-1 rounded-full px-2 py-1 text-xs transition hover:bg-purple-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-1",
+                  isActive
+                    ? "bg-purple-100 text-purple-700"
+                    : "bg-slate-100 text-slate-600",
+                )}
                 key={type}
+                onClick={() => onReaction?.(comment.id, type)}
+                title={`${isActive ? "Remove" : "Add"} ${label} reaction`}
               >
                 {emoji} {count}
-              </span>
+              </button>
             );
           })}
           {!comment.isDeleted && onReplyToComment && (
@@ -765,12 +808,12 @@ export default function PostThread({
 
           {/* Footer: views/comments (left) + timestamp (right) */}
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-            <span className="flex items-center gap-3 text-xs font-semibold text-slate-500">
-              <span className="flex items-center gap-1.5">
+            <span className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500">
+              <span className="flex shrink-0 items-center gap-1.5">
                 <Eye aria-hidden="true" className="h-4 w-4" />
                 {viewLabel}
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="flex shrink-0 items-center gap-1.5">
                 <MessageCircle aria-hidden="true" className="h-4 w-4" />
                 {commentCount} {commentCount === 1 ? "comment" : "comments"}
               </span>

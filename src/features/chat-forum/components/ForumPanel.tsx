@@ -244,6 +244,7 @@ export default function ForumPanel({
         daoGroupId={daoGroupId}
         comments={threadComments}
         commentsError={commentsError}
+        currentUserId={currentUserId}
         daoName={daoName}
         isDeletingPost={isDeletingPost}
         isLoadingComments={isCommentsLoading}

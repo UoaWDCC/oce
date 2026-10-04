@@ -814,7 +814,15 @@ export default function PostThread({
         <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
           <MessageCircle aria-hidden="true" className="h-5 w-5" />
           {replyCountLabel}
-          {commentsState.isRefreshing && (
+          {commentsState.isInitialLoading ? (
+            /* Decorative only: the skeleton below already carries
+               aria-label="Loading replies", so announcing it here too would
+               just say the same thing twice. */
+            <Loader2
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin text-purple-500"
+            />
+          ) : commentsState.isRefreshing ? (
             <span role="status">
               <Loader2
                 aria-hidden="true"
@@ -822,7 +830,7 @@ export default function PostThread({
               />
               <span className="sr-only">Refreshing replies</span>
             </span>
-          )}
+          ) : null}
         </h2>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
           <span>Sort by:</span>

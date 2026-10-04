@@ -19,7 +19,7 @@ import { Bot, Maximize2, Minimize2, PanelLeft, X } from "lucide-react";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
-import TextArea from "@/features/textArea";
+import TextArea, { UnsavedDraftError } from "@/features/textArea";
 import { useChatModal } from "@/features/chatbot/providers/ChatBoxModalProvider";
 import { useConversation } from "../../providers/ConversationProvider";
 import {
@@ -44,6 +44,12 @@ const NO_DISCARDED_CONVERSATIONS: string[] = [];
 type RequestPhase = "idle" | "waiting" | "streaming";
 interface RetainedAssistantTurn extends LocalAssistantTurn {
   visibleGeneration: number;
+}
+interface SubmissionOwner {
+  clientId: string;
+  conversationId: string | null;
+  visibleGeneration: number;
+  canRestore: boolean;
 }
 
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
@@ -208,6 +214,11 @@ export default function ChatFullscreen({
   const loadedPersistedIdsRef = useRef(new Set<string>());
   const nextClientIdRef = useRef(0);
   const discardedIdsRef = useRef(new Set<string>());
+  const activeSubmissionRef = useRef<SubmissionOwner | null>(null);
+  const previousHistoryConversationIdRef = useRef(selectedConversationId);
+  const unsavedQuestionErrorsRef = useRef(
+    new Map<string, { message: string; quota: boolean }>(),
+  );
   // Snapshot local turns before a state updater, then retire entries confirmed
   // by database identity. The updater itself stays pure under StrictMode.
   const localTurnsForMerge = useCallback(
@@ -248,9 +259,12 @@ export default function ChatFullscreen({
   useEffect(() => {
     isMountedRef.current = true;
     const localTurns = localTurnsRef.current;
+    const unsavedErrors = unsavedQuestionErrorsRef.current;
     return () => {
       isMountedRef.current = false;
       localTurns.clear();
+      unsavedErrors.clear();
+      activeSubmissionRef.current = null;
     };
   }, []);
 
@@ -258,6 +272,10 @@ export default function ChatFullscreen({
     for (const id of discardedConversationIds) {
       if (!discardedIdsRef.current.has(id)) {
         localTurnsRef.current.delete(id);
+        unsavedQuestionErrorsRef.current.delete(id);
+        if (activeSubmissionRef.current?.conversationId === id) {
+          activeSubmissionRef.current.canRestore = false;
+        }
         if (selectedConversationIdRef.current === id) setMessages([]);
       }
     }
@@ -292,8 +310,17 @@ export default function ChatFullscreen({
     setError(undefined);
     let userMessageSaved = false;
     let streamConversationId: string | null = null;
-    let streamHistoryGeneration = historyGenerationRef.current;
     const clientId = `response-${++nextClientIdRef.current}`;
+    const owner: SubmissionOwner = {
+      clientId,
+      conversationId: selectedConversationId,
+      visibleGeneration: historyGenerationRef.current,
+      canRestore: true,
+    };
+    activeSubmissionRef.current = owner;
+    if (selectedConversationId) {
+      unsavedQuestionErrorsRef.current.delete(selectedConversationId);
+    }
     const discardedAtSubmission = new Set(discardedIdsRef.current);
     const persistedInsertions = new Set<string>();
     const isCurrentStreamView = () =>
@@ -302,7 +329,7 @@ export default function ChatFullscreen({
       discardedIdsRef.current.has(streamConversationId) ===
         discardedAtSubmission.has(streamConversationId) &&
       selectedConversationIdRef.current === streamConversationId &&
-      historyGenerationRef.current === streamHistoryGeneration;
+      historyGenerationRef.current === owner.visibleGeneration;
     const getLocalTurn = () =>
       streamConversationId
         ? localTurnsRef.current.get(streamConversationId)?.get(clientId)
@@ -329,7 +356,7 @@ export default function ChatFullscreen({
         );
       }
     };
-    const notePersistedInsertion = (id: string) => {
+    const notePersistedInsertion = (id: string, advanceOffset = true) => {
       if (persistedInsertions.has(id)) return;
       persistedInsertions.add(id);
       if (!isCurrentResponseView()) return;
@@ -338,10 +365,10 @@ export default function ChatFullscreen({
       // New rows shift newest-first offsets. Invalidate older requests made
       // against the previous boundary, keeping already loaded history intact.
       historyGenerationRef.current += 1;
-      streamHistoryGeneration = historyGenerationRef.current;
+      owner.visibleGeneration = historyGenerationRef.current;
       const turn = getLocalTurn();
       if (turn) turn.visibleGeneration = historyGenerationRef.current;
-      nextMessagesOffsetRef.current += 1;
+      if (advanceOffset) nextMessagesOffsetRef.current += 1;
       lastRequestedOffsetRef.current = null;
       lastAutoFillOffsetRef.current = null;
       isLoadingOlderRef.current = false;
@@ -367,8 +394,10 @@ export default function ChatFullscreen({
       // optimistic/streamed messages; a switch to a *different* id still loads.
       streamingConversationIdRef.current = conversationId;
       streamConversationId = conversationId;
-      streamHistoryGeneration = historyGenerationRef.current;
+      owner.conversationId = conversationId;
+      owner.visibleGeneration = historyGenerationRef.current;
 
+      const questionSaveGeneration = owner.visibleGeneration;
       const savedMessage = await saveUserMessage(conversationId, content);
       userMessageSaved = true;
       const userMessage = mapTutorMessageToChatMessage(savedMessage);
@@ -393,20 +422,27 @@ export default function ChatFullscreen({
         turns.set(clientId, {
           question: userMessage,
           response: assistantMessage,
-          visibleGeneration: streamHistoryGeneration,
+          visibleGeneration: owner.visibleGeneration,
         });
         localTurnsRef.current.set(conversationId, turns);
       }
-      notePersistedInsertion(savedMessage.id);
+      // A history query accepted during saving may already count this row,
+      // even if it is outside the newest page. Keep an overlapping boundary
+      // rather than risk skipping an older row when adopting that view.
+      notePersistedInsertion(
+        savedMessage.id,
+        owner.visibleGeneration === questionSaveGeneration,
+      );
 
       if (isCurrentStreamView()) {
-        setMessages((currentMessages) => [
-          ...currentMessages,
-          userMessage,
-          assistantMessage,
-        ]);
+        const turns = [
+          ...localTurnsRef.current.get(conversationId)!.values(),
+        ].map(({ question, response }) => ({ question, response }));
+        setMessages((current) =>
+          mergeChatMessages(current, [userMessage], turns),
+        );
       }
-      if (isMountedRef.current) {
+      if (isCurrentResponseView()) {
         refreshConversationList();
       }
 
@@ -507,6 +543,35 @@ export default function ChatFullscreen({
           responseStatus: persistenceFailed ? "unsaved" : "incomplete",
         });
       }
+      const quota =
+        !userMessageSaved &&
+        error instanceof ApiError &&
+        error.status === 429 &&
+        error.message === "exceeded daily token limit";
+      const message = userMessageSaved
+        ? persistenceFailed
+          ? "Your question was saved. The response was generated, but could not be saved. It is kept in this session."
+          : getLocalTurn()?.response.message.trim()
+            ? "Your question was saved, but the response was interrupted. The partial response is kept in this session."
+            : "Your question was saved, but a response could not be generated. You can ask a new question."
+        : quota
+          ? "Your message was not sent. Daily AI Tutor limit reached."
+          : error instanceof Error
+            ? error.message
+            : "Message could not be saved. Please try again.";
+      const canRecoverDraft =
+        !userMessageSaved &&
+        isMountedRef.current &&
+        owner.canRestore &&
+        (streamConversationId === null ||
+          discardedIdsRef.current.has(streamConversationId) ===
+            discardedAtSubmission.has(streamConversationId));
+      if (canRecoverDraft && streamConversationId) {
+        unsavedQuestionErrorsRef.current.set(streamConversationId, {
+          message,
+          quota,
+        });
+      }
       // Only surface the failure if the user is still on the conversation that
       // was streaming; a stream that failed after they switched away must not
       // show its error in the now-selected conversation. (streamingConversationIdRef
@@ -515,40 +580,32 @@ export default function ChatFullscreen({
         isMountedRef.current &&
         selectedConversationIdRef.current ===
           streamingConversationIdRef.current &&
-        (streamConversationId === null || isCurrentResponseView())
+        (streamConversationId === null
+          ? owner.canRestore &&
+            owner.visibleGeneration === historyGenerationRef.current
+          : isCurrentResponseView())
       ) {
         // Only the quota response from the save request means the draft was not
         // persisted. Other 429s retain the pre-existing generic error behaviour.
-        if (
-          !userMessageSaved &&
-          error instanceof ApiError &&
-          error.status === 429 &&
-          error.message === "exceeded daily token limit"
-        ) {
+        if (quota) {
           refreshConversationList();
           setSaveError(
             "Your message was not sent. Daily AI Tutor limit reached.",
           );
           setError(undefined);
-          throw error;
+          throw new UnsavedDraftError(owner.conversationId);
         }
 
-        const message = userMessageSaved
-          ? persistenceFailed
-            ? "Your question was saved. The response was generated, but could not be saved. It is kept in this session."
-            : getLocalTurn()?.response.message.trim()
-              ? "Your question was saved, but the response was interrupted. The partial response is kept in this session."
-              : "Your question was saved, but a response could not be generated. You can ask a new question."
-          : error instanceof Error
-            ? error.message
-            : "Message could not be saved. Please try again.";
         setSaveError(message);
         setError(message);
         // Only unsaved questions restore their draft; answer failures must not
         // encourage saving the same question again.
-        if (!userMessageSaved) throw error;
+        if (!userMessageSaved)
+          throw new UnsavedDraftError(owner.conversationId);
         return;
       }
+
+      if (canRecoverDraft) throw new UnsavedDraftError(owner.conversationId);
 
       // This stream failed/cancelled after the user switched away. Swallow the
       // error so the now-selected conversation stays clean and the input clears;
@@ -575,6 +632,8 @@ export default function ChatFullscreen({
         }
       }
       isSavingMessageRef.current = false;
+      if (activeSubmissionRef.current === owner)
+        activeSubmissionRef.current = null;
       if (isMountedRef.current) {
         setRequestPhase("idle");
       }
@@ -597,7 +656,19 @@ export default function ChatFullscreen({
   useEffect(() => {
     const isRefresh =
       lastMessageResetVersionRef.current !== messageResetVersion;
+    const isSelectionChange =
+      previousHistoryConversationIdRef.current !== selectedConversationId;
+    previousHistoryConversationIdRef.current = selectedConversationId;
     lastMessageResetVersionRef.current = messageResetVersion;
+    if (isRefresh && !isSelectionChange) {
+      const owner = activeSubmissionRef.current;
+      if (owner?.conversationId === selectedConversationId) {
+        owner.canRestore = false;
+      }
+      if (selectedConversationId) {
+        unsavedQuestionErrorsRef.current.delete(selectedConversationId);
+      }
+    }
     if (
       isSavingMessageRef.current &&
       selectedConversationId === streamingConversationIdRef.current &&
@@ -640,6 +711,32 @@ export default function ChatFullscreen({
 
     setIsLoadingHistory(true);
 
+    function acceptReturnedSubmission(conversationId: string) {
+      const owner = activeSubmissionRef.current;
+      if (
+        !isSelectionChange ||
+        !owner?.canRestore ||
+        owner.conversationId !== conversationId
+      ) {
+        return;
+      }
+      // Navigation can adopt this exact request into an accepted history view.
+      // A same-conversation reset never grants a pending save a new generation.
+      owner.visibleGeneration = historyGenerationRef.current;
+      const turn = localTurnsRef.current
+        .get(conversationId)
+        ?.get(owner.clientId);
+      if (turn) turn.visibleGeneration = historyGenerationRef.current;
+      return turn;
+    }
+
+    function restoreUnsavedQuestionError(conversationId: string) {
+      const failure = unsavedQuestionErrorsRef.current.get(conversationId);
+      if (!failure) return;
+      setSaveError(failure.message);
+      setError(failure.quota ? undefined : failure.message);
+    }
+
     async function loadMessages(conversationId: string) {
       try {
         const page = await getConversationMessages(conversationId, {
@@ -647,23 +744,37 @@ export default function ChatFullscreen({
         });
         if (ignore) return;
         const incoming = page.messages.map(mapTutorMessageToChatMessage);
+        const returnedTurn = acceptReturnedSubmission(conversationId);
+        // Saving may finish before a returning history query whose snapshot
+        // predates the question. Keep that owned saved anchor without reviving
+        // a blank turn invalidated by an explicit reset.
+        const missingReturnedQuestion =
+          returnedTurn &&
+          !incoming.some(({ id }) => id === returnedTurn.question.id);
+        if (missingReturnedQuestion) incoming.push(returnedTurn.question);
         loadedPersistedIdsRef.current = new Set(
           incoming.flatMap(({ id }) => (id ? [id] : [])),
         );
         const turns = localTurnsForMerge(conversationId, incoming);
         loadedConversationIdRef.current = conversationId;
+        // Use the query's boundary even if the local question is outside its
+        // page. An overlapping older fetch is deduplicated by database ID.
         nextMessagesOffsetRef.current = page.nextOffset;
         setMessages(mergeChatMessages([], incoming, turns));
         setHasOlderMessages(page.hasMore);
+        restoreUnsavedQuestionError(conversationId);
       } catch (err) {
         if (ignore) return;
-        const turns = localTurnsForMerge(conversationId, []);
-        setMessages(mergeChatMessages([], [], turns));
+        const returnedTurn = acceptReturnedSubmission(conversationId);
+        const incoming = returnedTurn ? [returnedTurn.question] : [];
+        const turns = localTurnsForMerge(conversationId, incoming);
+        setMessages(mergeChatMessages([], incoming, turns));
         setError(
           err instanceof Error
             ? err.message
             : "Messages could not be loaded. Please try again.",
         );
+        restoreUnsavedQuestionError(conversationId);
       } finally {
         // The ignore guard means a superseded load never flips the spinner
         // off for the conversation that replaced it.
@@ -1057,6 +1168,8 @@ export default function ChatFullscreen({
           )}
           <TextArea
             submitMessage={submitMessage}
+            draftKey={selectedConversationId}
+            discardedDraftKeys={discardedConversationIds}
             isSubmitting={isSavingMessage}
             errorMessage={saveError}
             disabled={isOverLimit || isInitialHistoryPending}

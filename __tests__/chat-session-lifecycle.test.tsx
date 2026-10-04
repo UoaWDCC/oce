@@ -54,6 +54,7 @@ vi.mock("@/features/textArea", async () => {
     "@/features/textArea",
   );
   return {
+    ...actual,
     default: (props: React.ComponentProps<typeof actual.default>) => {
       capturedInput.submitMessage = props.submitMessage;
       capturedInput.renderCount += 1;

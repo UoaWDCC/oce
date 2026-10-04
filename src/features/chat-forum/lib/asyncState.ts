@@ -20,6 +20,16 @@ export interface ForumAsyncState {
   isInitialLoading: boolean;
   /** A fetch is in flight while something is already on screen to keep. */
   isRefreshing: boolean;
+  /**
+   * A fetch is in flight for a *different* key while the previous key's data
+   * stays on screen — switching comment sort, and nothing else.
+   *
+   * This is the narrower signal worth putting a spinner next to. A refresh
+   * triggered by a mutation re-fetches the same key, and those already show
+   * their own pending state in the composer or the delete dialog, so a second
+   * indicator next to the content just says the same thing twice.
+   */
+  isSwitching: boolean;
   /** The query has settled at least once, so counts and empty states are truthful. */
   hasResolved: boolean;
   /** The last fetch failed. Data may still be present and must stay rendered. */
@@ -40,6 +50,7 @@ function noop() {}
 export const PENDING_ASYNC_STATE: ForumAsyncState = {
   isInitialLoading: true,
   isRefreshing: false,
+  isSwitching: false,
   hasResolved: false,
   error: null,
   isBlockingError: false,
@@ -60,6 +71,7 @@ export const PENDING_ASYNC_STATE: ForumAsyncState = {
 export const RESOLVED_ASYNC_STATE: ForumAsyncState = {
   isInitialLoading: false,
   isRefreshing: false,
+  isSwitching: false,
   hasResolved: true,
   error: null,
   isBlockingError: false,
@@ -83,7 +95,12 @@ export const RESOLVED_ASYNC_STATE: ForumAsyncState = {
 export function toForumAsyncState<TData>(
   query: Pick<
     UseQueryResult<TData>,
-    "data" | "error" | "isError" | "isSuccess" | "isFetching"
+    | "data"
+    | "error"
+    | "isError"
+    | "isSuccess"
+    | "isFetching"
+    | "isPlaceholderData"
   >,
   enabled: boolean,
   retry: () => void,
@@ -91,10 +108,14 @@ export function toForumAsyncState<TData>(
   const hasData = query.data !== undefined;
   const isInitialLoading =
     !hasData && !query.isError && (enabled || query.isFetching);
+  const isRefreshing = query.isFetching && !isInitialLoading;
 
   return {
     isInitialLoading,
-    isRefreshing: query.isFetching && !isInitialLoading,
+    isRefreshing,
+    // Placeholder data is served only while a *different* key loads, which is
+    // what separates a sort switch from a mutation refetching the same key.
+    isSwitching: isRefreshing && Boolean(query.isPlaceholderData),
     hasResolved: query.isSuccess || query.isError,
     error: (query.error as Error | null) ?? null,
     isBlockingError: query.isError && !hasData,

@@ -116,6 +116,7 @@ export function mapPostToForumPostPreview(
             "Unknown",
           ),
       isOwnPost: post.is_own_post,
+      canDelete: post.can_delete ?? post.is_own_post,
       authorWallet: post.anonymous ? undefined : (post.author?.walletAddress ?? undefined),
       authorEns: post.anonymous ? undefined : (post.author?.ensName ?? undefined),
       createdAt: post.created_at,
@@ -189,6 +190,7 @@ export function mapForumPostPreviewToThreadPost(
     anonymous: post.anonymous,
     isPinned: post.isPinned,
     isOwnPost: post.isOwnPost,
+    canDelete: post.canDelete,
   };
 }
 

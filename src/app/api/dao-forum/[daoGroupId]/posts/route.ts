@@ -1,5 +1,6 @@
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
+import { isDaoShaman } from "@/features/chat-forum/daoShaman";
 import {
   hasMeaningfulForumContent,
   hasValidPostTitle,
@@ -79,9 +80,11 @@ function formatPostListItem(
   unreadState: Record<string, boolean>,
   userId: string,
   identities: Record<string, { walletAddress: string; ensName: string | null }>,
+  viewerIsShaman: boolean,
 ): PostListItem {
   const profile = post.anonymous ? null : firstOrNull(post.author);
   const identity = profile ? identities[post.author_id] : undefined;
+  const isAuthor = post.author_id === userId;
 
   return {
     id: post.id,
@@ -99,6 +102,7 @@ function formatPostListItem(
     view_count: viewCounts[post.id] ?? 0,
     is_unread: unreadState[post.id] ?? true,
     is_own_post: post.anonymous ? post.author_id === userId : undefined,
+    can_delete: isAuthor || viewerIsShaman,
     author: profile
       ? {
           ...profile,
@@ -171,6 +175,7 @@ export async function GET(
     supabase,
     posts.filter((post) => !post.anonymous).map((post) => post.author_id),
   );
+  const viewerIsShaman = await isDaoShaman(supabase, user.id, daoGroupId);
   const postIds = posts.map((post) => post.id);
   const commentCounts: Record<string, number> = {};
   const viewCounts: Record<string, number> = {};
@@ -255,6 +260,7 @@ export async function GET(
         unreadState,
         user.id,
         identities,
+        viewerIsShaman,
       ),
     ),
     { headers: corsHeaders },

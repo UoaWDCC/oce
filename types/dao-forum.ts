@@ -39,6 +39,7 @@ export interface PostListItem {
   view_count: number;
   is_unread: boolean;
   is_own_post?: boolean;
+  can_delete?: boolean;
   author: {
     id: string;
     username: string | null;
@@ -213,6 +214,7 @@ export interface ForumPostPreview {
   isPinned?: boolean;
   isUnread?: boolean;
   isOwnPost?: boolean;
+  canDelete?: boolean;
   imageUrl?: string | null;
 }
 

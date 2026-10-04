@@ -28,6 +28,7 @@ import { ApiError } from "../../utils/apiFetch";
 import type { Message } from "@/llm/types/Message";
 
 const MESSAGES_PAGE_SIZE = 15;
+type RequestPhase = "idle" | "waiting" | "streaming";
 
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
   return {
@@ -83,16 +84,21 @@ function EmptyConversationState() {
   );
 }
 
-// Left-aligned "thinking" indicator shown in the reply slot after a user
-// message is sent but before the first streamed assistant chunk arrives.
-function AssistantThinkingState() {
+function AssistantRequestState({
+  phase,
+}: {
+  phase: Exclude<RequestPhase, "idle">;
+}) {
+  const label =
+    phase === "waiting" ? "Waiting for response" : "Generating response";
+
   return (
-    <div className="w-fit rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-      <div
-        className="flex items-center gap-2"
-        role="status"
-        aria-label="Assistant is thinking"
-      >
+    <div
+      className="flex items-center gap-2 px-4 pb-2 text-xs text-slate-500"
+      role="status"
+      aria-label={label}
+    >
+      <span className="flex gap-1" aria-hidden="true">
         <span
           className="h-2 w-2 animate-bounce rounded-full bg-slate-400"
           style={{ animationDelay: "-0.3s" }}
@@ -102,7 +108,8 @@ function AssistantThinkingState() {
           style={{ animationDelay: "-0.15s" }}
         />
         <span className="h-2 w-2 animate-bounce rounded-full bg-slate-400" />
-      </div>
+      </span>
+      <span>{label}</span>
     </div>
   );
 }
@@ -126,7 +133,8 @@ export default function ChatFullscreen() {
   const isOverLimit = isTokenLimitReached(usage);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [isSavingMessage, setIsSavingMessage] = useState(false);
+  const [requestPhase, setRequestPhase] = useState<RequestPhase>("idle");
+  const isSavingMessage = requestPhase !== "idle";
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isLoadingOlder, setIsLoadingOlder] = useState(false);
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
@@ -153,13 +161,37 @@ export default function ChatFullscreen() {
   const selectedConversationIdRef = useRef(selectedConversationId);
   // The conversation a stream is actively writing into (null when idle).
   const streamingConversationIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(false);
+  const settledHistoryRef = useRef({
+    conversationId: null as string | null,
+    resetVersion: messageResetVersion,
+  });
+  // Include the selection/reset identity so controls are blocked even before
+  // the history effect runs. Failed loads settle too, preserving retry behaviour.
+  const isInitialHistoryPending =
+    selectedConversationId !== null &&
+    (isLoadingHistory ||
+      settledHistoryRef.current.conversationId !== selectedConversationId ||
+      settledHistoryRef.current.resetVersion !== messageResetVersion);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
 
   async function submitMessage(content: string) {
-    if (isSavingMessageRef.current) {
+    if (
+      !isMountedRef.current ||
+      isSavingMessageRef.current ||
+      isInitialHistoryPending ||
+      isOverLimit
+    ) {
       return;
     }
 
@@ -172,13 +204,14 @@ export default function ChatFullscreen() {
         : undefined;
 
     isSavingMessageRef.current = true;
-    setIsSavingMessage(true);
+    setRequestPhase("waiting");
     setSaveError(null);
     setError(undefined);
     let userMessageSaved = false;
     let streamConversationId: string | null = null;
     let streamHistoryGeneration = historyGenerationRef.current;
     const isCurrentStreamView = () =>
+      isMountedRef.current &&
       streamConversationId !== null &&
       selectedConversationIdRef.current === streamConversationId &&
       historyGenerationRef.current === streamHistoryGeneration;
@@ -189,9 +222,11 @@ export default function ChatFullscreen() {
       if (!conversationId) {
         const newConversation = await createConversation();
         conversationId = newConversation.id;
-        setSelectedConversationId(conversationId);
-        selectedConversationIdRef.current = conversationId;
-        refreshConversationList();
+        if (isMountedRef.current) {
+          setSelectedConversationId(conversationId);
+          selectedConversationIdRef.current = conversationId;
+          refreshConversationList();
+        }
       }
 
       // Record which conversation this stream targets. The history-load effect
@@ -219,13 +254,19 @@ export default function ChatFullscreen() {
           assistantMessage,
         ]);
       }
-      refreshConversationList();
+      if (isMountedRef.current) {
+        refreshConversationList();
+      }
 
       await streamAssistantMessage(
         conversationId,
         mapChatMessagesToLLMMessages(messagesForStream),
         {
           onText: (text) => {
+            if (!isMountedRef.current) return;
+            if (text.trim() !== "") {
+              setRequestPhase("streaming");
+            }
             // Ignore chunks if the user has switched to another conversation,
             // so a background stream never leaks into the current view.
             if (!isCurrentStreamView()) {
@@ -305,6 +346,7 @@ export default function ChatFullscreen() {
       // show its error in the now-selected conversation. (streamingConversationIdRef
       // still holds the target here — it is cleared in finally, which runs after.)
       if (
+        isMountedRef.current &&
         selectedConversationIdRef.current ===
           streamingConversationIdRef.current &&
         (streamConversationId === null || isCurrentStreamView())
@@ -367,14 +409,14 @@ export default function ChatFullscreen() {
         });
       }
       isSavingMessageRef.current = false;
-      setIsSavingMessage(false);
+      if (isMountedRef.current) {
+        setRequestPhase("idle");
+      }
     }
   }
 
   // Index of the last bot reply, so only it shows the tutor request action.
-  // Note: an in-flight streaming reply is an empty bot bubble rendered as the
-  // thinking indicator (not a ChatReply), so the action only appears once a
-  // completed, persisted reply exists.
+  // Empty in-flight replies are hidden while the shared request status is shown.
   const lastBotIndex = messages.reduce(
     (last, m, i) => (m.type === "bot" ? i : last),
     -1,
@@ -395,6 +437,10 @@ export default function ChatFullscreen() {
       selectedConversationId === streamingConversationIdRef.current &&
       !isRefresh
     ) {
+      settledHistoryRef.current = {
+        conversationId: selectedConversationId,
+        resetVersion: messageResetVersion,
+      };
       return;
     }
 
@@ -446,6 +492,10 @@ export default function ChatFullscreen() {
         // The ignore guard means a superseded load never flips the spinner
         // off for the conversation that replaced it.
         if (!ignore) {
+          settledHistoryRef.current = {
+            conversationId,
+            resetVersion: messageResetVersion,
+          };
           setIsLoadingHistory(false);
         }
       }
@@ -725,7 +775,9 @@ export default function ChatFullscreen() {
             )}
             {isLoadingHistory ? (
               <HistoryLoadingState />
-            ) : messages.length === 0 && error === undefined ? (
+            ) : messages.length === 0 &&
+              error === undefined &&
+              !isSavingMessage ? (
               <EmptyConversationState />
             ) : (
               messages.map((message, index) => {
@@ -740,12 +792,10 @@ export default function ChatFullscreen() {
                     </ChatMessage>
                   );
                 }
-                // An assistant bubble with no content yet is awaiting its first
-                // streamed chunk, so show the thinking indicator. Persisted
-                // assistant messages always have content, so this only applies
-                // to the in-flight streaming reply.
+                // The footer supplies one request indicator, including before
+                // this temporary assistant message has been added.
                 if (message.message.trim() === "") {
-                  return <AssistantThinkingState key={messageKey} />;
+                  return null;
                 }
                 return (
                   <ChatReply
@@ -766,11 +816,14 @@ export default function ChatFullscreen() {
         </div>
       </div>
       <div className="w-full shrink-0 border-t border-slate-200 bg-white pt-3">
+        {requestPhase !== "idle" && (
+          <AssistantRequestState phase={requestPhase} />
+        )}
         <TextArea
           submitMessage={submitMessage}
           isSubmitting={isSavingMessage}
           errorMessage={saveError}
-          disabled={isOverLimit}
+          disabled={isOverLimit || isInitialHistoryPending}
           placeholder={isOverLimit ? "Daily AI Tutor limit reached" : undefined}
         />
       </div>

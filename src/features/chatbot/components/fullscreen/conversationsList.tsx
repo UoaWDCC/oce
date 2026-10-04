@@ -65,6 +65,7 @@ export default function ConversationsList() {
     conversationListVersion,
     refreshConversationList,
     clearCurrentMessages,
+    discardConversation,
     setError,
   } = useConversation();
 
@@ -89,6 +90,7 @@ export default function ConversationsList() {
     setEndingIds((prev) => new Set(prev).add(id));
     try {
       await endConversation(id);
+      discardConversation(id);
       setEndedIds((prev) => new Set(prev).add(id));
       if (selectedConversationIdRef.current === id) {
         setSelectedConversationId(null);

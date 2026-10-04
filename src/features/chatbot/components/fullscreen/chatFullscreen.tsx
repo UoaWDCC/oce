@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import {
   normalizePageContextPath,
@@ -20,15 +20,24 @@ import {
   getConversationMessages,
   saveUserMessage,
   streamAssistantMessage,
+  AssistantStreamError,
 } from "@/features/chatbot/api/conversations";
 import ErrorMessage from "../errorMessage";
 import TokenUsageBanner from "../tokenUsageBanner";
 import { isTokenLimitReached, useTokenUsage } from "../../hooks/useTokenUsage";
 import { ApiError } from "../../utils/apiFetch";
 import type { Message } from "@/llm/types/Message";
+import {
+  mergeChatMessages,
+  type LocalAssistantTurn,
+} from "../../utils/mergeChatMessages";
 
 const MESSAGES_PAGE_SIZE = 15;
+const NO_DISCARDED_CONVERSATIONS: string[] = [];
 type RequestPhase = "idle" | "waiting" | "streaming";
+interface RetainedAssistantTurn extends LocalAssistantTurn {
+  visibleGeneration: number;
+}
 
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
   return {
@@ -36,14 +45,21 @@ function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
     message: message.content,
     id: message.id,
     favourited: message.is_favourite,
+    conversationId: message.conversation_id,
+    createdAt: message.created_at,
+    ...(message.role === "assistant" && {
+      responseStatus: "persisted" as const,
+    }),
   };
 }
 
 function mapChatMessagesToLLMMessages(messages: ChatMessageType[]): Message[] {
-  return messages.map((message) => ({
-    role: message.type === "user" ? "user" : "assistant",
-    content: message.message,
-  }));
+  return messages
+    .filter((message) => message.message.trim() !== "")
+    .map((message) => ({
+      role: message.type === "user" ? "user" : "assistant",
+      content: message.message,
+    }));
 }
 
 // Lightweight "thinking" indicator shown while persisted history is loading.
@@ -126,6 +142,7 @@ export default function ChatFullscreen() {
     refreshConversationList,
     conversationListVersion,
     messageResetVersion,
+    discardedConversationIds = NO_DISCARDED_CONVERSATIONS,
     error,
     setError,
   } = useConversation();
@@ -161,7 +178,39 @@ export default function ChatFullscreen() {
   const selectedConversationIdRef = useRef(selectedConversationId);
   // The conversation a stream is actively writing into (null when idle).
   const streamingConversationIdRef = useRef<string | null>(null);
+  const newlyCreatedConversationIdRef = useRef<string | null>(null);
   const isMountedRef = useRef(false);
+  const localTurnsRef = useRef(
+    new Map<string, Map<string, RetainedAssistantTurn>>(),
+  );
+  const loadedPersistedIdsRef = useRef(new Set<string>());
+  const nextClientIdRef = useRef(0);
+  const discardedIdsRef = useRef(new Set<string>());
+  // Snapshot local turns before a state updater, then retire entries confirmed
+  // by database identity. The updater itself stays pure under StrictMode.
+  const localTurnsForMerge = useCallback(
+    (conversationId: string, incoming: ChatMessageType[]) => {
+      const retained = localTurnsRef.current.get(conversationId);
+      const turns = [...(retained?.values() ?? [])];
+      const persistedIds = new Set(incoming.map(({ id }) => id));
+      for (const turn of turns) {
+        if (
+          turn.response.message.trim() ||
+          turn.response.responseStatus !== "streaming" ||
+          persistedIds.has(turn.question.id)
+        ) {
+          // Only an accepted history merge can restore a retained response to
+          // this view's generation; later updates still target its client ID.
+          turn.visibleGeneration = historyGenerationRef.current;
+        }
+        if (turn.response.id && persistedIds.has(turn.response.id)) {
+          retained?.delete(turn.response.clientId!);
+        }
+      }
+      return turns;
+    },
+    [],
+  );
   const settledHistoryRef = useRef({
     conversationId: null as string | null,
     resetVersion: messageResetVersion,
@@ -176,10 +225,22 @@ export default function ChatFullscreen() {
 
   useEffect(() => {
     isMountedRef.current = true;
+    const localTurns = localTurnsRef.current;
     return () => {
       isMountedRef.current = false;
+      localTurns.clear();
     };
   }, []);
+
+  useEffect(() => {
+    for (const id of discardedConversationIds) {
+      if (!discardedIdsRef.current.has(id)) {
+        localTurnsRef.current.delete(id);
+        if (selectedConversationIdRef.current === id) setMessages([]);
+      }
+    }
+    discardedIdsRef.current = new Set(discardedConversationIds);
+  }, [discardedConversationIds]);
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
@@ -210,11 +271,60 @@ export default function ChatFullscreen() {
     let userMessageSaved = false;
     let streamConversationId: string | null = null;
     let streamHistoryGeneration = historyGenerationRef.current;
+    const clientId = `response-${++nextClientIdRef.current}`;
+    const discardedAtSubmission = new Set(discardedIdsRef.current);
+    const persistedInsertions = new Set<string>();
     const isCurrentStreamView = () =>
       isMountedRef.current &&
       streamConversationId !== null &&
+      discardedIdsRef.current.has(streamConversationId) ===
+        discardedAtSubmission.has(streamConversationId) &&
       selectedConversationIdRef.current === streamConversationId &&
       historyGenerationRef.current === streamHistoryGeneration;
+    const getLocalTurn = () =>
+      streamConversationId
+        ? localTurnsRef.current.get(streamConversationId)?.get(clientId)
+        : undefined;
+    const isCurrentResponseView = () =>
+      isCurrentStreamView() ||
+      (isMountedRef.current &&
+        streamConversationId !== null &&
+        discardedIdsRef.current.has(streamConversationId) ===
+          discardedAtSubmission.has(streamConversationId) &&
+        selectedConversationIdRef.current === streamConversationId &&
+        getLocalTurn()?.visibleGeneration === historyGenerationRef.current);
+    const updateLocalResponse = (patch: Partial<ChatMessageType>) => {
+      if (!isMountedRef.current) return;
+      const turn = getLocalTurn();
+      if (!turn) return;
+      const response = { ...turn.response, ...patch };
+      turn.response = response;
+      if (isCurrentResponseView()) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.clientId === clientId ? response : message,
+          ),
+        );
+      }
+    };
+    const notePersistedInsertion = (id: string) => {
+      if (persistedInsertions.has(id)) return;
+      persistedInsertions.add(id);
+      if (!isCurrentResponseView()) return;
+      if (loadedPersistedIdsRef.current.has(id)) return;
+      loadedPersistedIdsRef.current.add(id);
+      // New rows shift newest-first offsets. Invalidate older requests made
+      // against the previous boundary, keeping already loaded history intact.
+      historyGenerationRef.current += 1;
+      streamHistoryGeneration = historyGenerationRef.current;
+      const turn = getLocalTurn();
+      if (turn) turn.visibleGeneration = historyGenerationRef.current;
+      nextMessagesOffsetRef.current += 1;
+      lastRequestedOffsetRef.current = null;
+      lastAutoFillOffsetRef.current = null;
+      isLoadingOlderRef.current = false;
+      setIsLoadingOlder(false);
+    };
 
     try {
       let conversationId = selectedConversationId;
@@ -223,6 +333,7 @@ export default function ChatFullscreen() {
         const newConversation = await createConversation();
         conversationId = newConversation.id;
         if (isMountedRef.current) {
+          newlyCreatedConversationIdRef.current = conversationId;
           setSelectedConversationId(conversationId);
           selectedConversationIdRef.current = conversationId;
           refreshConversationList();
@@ -243,9 +354,28 @@ export default function ChatFullscreen() {
         type: "bot",
         message: "",
         favourited: false,
+        clientId,
+        conversationId,
+        createdAt: savedMessage.created_at,
+        responseStatus: "streaming",
       };
 
       const messagesForStream = [...messages, userMessage];
+
+      if (
+        isMountedRef.current &&
+        discardedIdsRef.current.has(conversationId) ===
+          discardedAtSubmission.has(conversationId)
+      ) {
+        const turns = localTurnsRef.current.get(conversationId) ?? new Map();
+        turns.set(clientId, {
+          question: userMessage,
+          response: assistantMessage,
+          visibleGeneration: streamHistoryGeneration,
+        });
+        localTurnsRef.current.set(conversationId, turns);
+      }
+      notePersistedInsertion(savedMessage.id);
 
       if (isCurrentStreamView()) {
         setMessages((currentMessages) => [
@@ -267,80 +397,94 @@ export default function ChatFullscreen() {
             if (text.trim() !== "") {
               setRequestPhase("streaming");
             }
-            // Ignore chunks if the user has switched to another conversation,
-            // so a background stream never leaks into the current view.
-            if (!isCurrentStreamView()) {
-              return;
+            // Retain all text for this response's identity. Only the originating
+            // visible history generation is updated by updateLocalResponse.
+            const turn = getLocalTurn();
+            if (turn) {
+              updateLocalResponse({
+                message: `${turn.response.message}${text}`,
+              });
             }
-            setMessages((currentMessages) => {
-              const nextMessages = [...currentMessages];
-              const assistantIndex = nextMessages.length - 1;
-              const currentAssistant = nextMessages[assistantIndex];
-
-              if (!currentAssistant || currentAssistant.type !== "bot") {
-                return currentMessages;
-              }
-
-              nextMessages[assistantIndex] = {
-                ...currentAssistant,
-                message: `${currentAssistant.message}${text}`,
-              };
-
-              return nextMessages;
-            });
           },
           onMessageId: (id) => {
-            if (!isCurrentStreamView()) {
-              return;
-            }
-            setMessages((currentMessages) => {
-              const nextMessages = [...currentMessages];
-              const assistantIndex = nextMessages.length - 1;
-              const currentAssistant = nextMessages[assistantIndex];
-
-              if (!currentAssistant || currentAssistant.type !== "bot") {
-                return currentMessages;
-              }
-
-              nextMessages[assistantIndex] = {
-                ...currentAssistant,
-                id,
-                favourited: false,
-              };
-
-              return nextMessages;
-            });
-            refreshConversationList();
+            if (!isMountedRef.current || !getLocalTurn()) return;
+            // Correlate the originating response even after navigation, without
+            // changing another conversation's visible messages or errors.
+            notePersistedInsertion(id);
+            updateLocalResponse({ id, favourited: false });
+            if (isCurrentResponseView()) refreshConversationList();
           },
         },
         pageContext,
       );
 
+      const turn = getLocalTurn();
+      if (turn?.response.message.trim() && !turn.response.id) {
+        throw new AssistantStreamError(
+          "persistence_failed",
+          "The response could not be saved.",
+        );
+      }
+      if (turn && !turn.response.message.trim()) {
+        localTurnsRef.current.get(conversationId)?.delete(clientId);
+        if (isCurrentStreamView()) {
+          setMessages((current) =>
+            current.filter((message) => message.clientId !== clientId),
+          );
+        }
+      } else {
+        updateLocalResponse({ responseStatus: "persisted" });
+      }
+
       // Reconcile the streamed reply with persisted data so it carries the
       // authoritative id/is_favourite for favourites & tutor-request flows.
       // Best-effort — the streamed text + onMessageId id already work if this
       // fails. Skipped after a mid-stream switch so we don't overwrite the new view.
-      if (isCurrentStreamView()) {
+      if (isCurrentResponseView()) {
+        const reconciliationGeneration = historyGenerationRef.current;
         try {
           const page = await getConversationMessages(conversationId, {
             limit: MESSAGES_PAGE_SIZE,
           });
-          if (isCurrentStreamView()) {
+          if (
+            isCurrentResponseView() &&
+            historyGenerationRef.current === reconciliationGeneration
+          ) {
+            const hadLoadedHistory =
+              loadedConversationIdRef.current === conversationId;
+            const incoming = page.messages.map(mapTutorMessageToChatMessage);
+            for (const { id } of incoming) {
+              if (id) loadedPersistedIdsRef.current.add(id);
+            }
+            const turns = localTurnsForMerge(conversationId, incoming);
             historyGenerationRef.current += 1;
             isLoadingOlderRef.current = false;
             setIsLoadingOlder(false);
-            nextMessagesOffsetRef.current = page.nextOffset;
+            nextMessagesOffsetRef.current = Math.max(
+              nextMessagesOffsetRef.current,
+              page.nextOffset,
+            );
             lastRequestedOffsetRef.current = null;
             lastAutoFillOffsetRef.current = null;
             loadedConversationIdRef.current = conversationId;
-            setMessages(page.messages.map(mapTutorMessageToChatMessage));
-            setHasOlderMessages(page.hasMore);
+            setMessages((current) =>
+              mergeChatMessages(current, incoming, turns),
+            );
+            if (!hadLoadedHistory) setHasOlderMessages(page.hasMore);
           }
         } catch {
           // Keep the streamed reply; it already holds the persisted message id.
         }
       }
     } catch (error) {
+      const persistenceFailed =
+        error instanceof AssistantStreamError &&
+        error.code === "persistence_failed";
+      if (userMessageSaved) {
+        updateLocalResponse({
+          responseStatus: persistenceFailed ? "unsaved" : "incomplete",
+        });
+      }
       // Only surface the failure if the user is still on the conversation that
       // was streaming; a stream that failed after they switched away must not
       // show its error in the now-selected conversation. (streamingConversationIdRef
@@ -349,7 +493,7 @@ export default function ChatFullscreen() {
         isMountedRef.current &&
         selectedConversationIdRef.current ===
           streamingConversationIdRef.current &&
-        (streamConversationId === null || isCurrentStreamView())
+        (streamConversationId === null || isCurrentResponseView())
       ) {
         // Only the quota response from the save request means the draft was not
         // persisted. Other 429s retain the pre-existing generic error behaviour.
@@ -367,46 +511,46 @@ export default function ChatFullscreen() {
           throw error;
         }
 
-        const message =
-          error instanceof Error
+        const message = userMessageSaved
+          ? persistenceFailed
+            ? "Your question was saved. The response was generated, but could not be saved. It is kept in this session."
+            : getLocalTurn()?.response.message.trim()
+              ? "Your question was saved, but the response was interrupted. The partial response is kept in this session."
+              : "Your question was saved, but a response could not be generated. You can ask a new question."
+          : error instanceof Error
             ? error.message
             : "Message could not be saved. Please try again.";
         setSaveError(message);
         setError(message);
-        // Rethrow so the input keeps/restores the draft for retry (see TextArea).
-        throw error;
+        // Only unsaved questions restore their draft; answer failures must not
+        // encourage saving the same question again.
+        if (!userMessageSaved) throw error;
+        return;
       }
 
       // This stream failed/cancelled after the user switched away. Swallow the
       // error so the now-selected conversation stays clean and the input clears;
-      // the failed reply may not have persisted, which is acceptable. (A stream
-      // that completes after a switch is handled by the try above and is saved.)
+      // Its retained response is scoped to the originating conversation.
       console.error(
         "AI Tutor stream failed for a background conversation:",
         error,
       );
     } finally {
-      const streamedConversationId = streamingConversationIdRef.current;
       streamingConversationIdRef.current = null;
 
       // Drop the temporary assistant bubble if nothing useful streamed in (e.g.
       // the stream errored before the first chunk), so the UI isn't stuck showing
       // an empty "thinking" reply. Only touch the view if still on this conversation.
-      if (
-        selectedConversationIdRef.current === streamedConversationId &&
-        isCurrentStreamView()
-      ) {
-        setMessages((currentMessages) => {
-          const lastMessage = currentMessages[currentMessages.length - 1];
-          if (
-            lastMessage &&
-            lastMessage.type === "bot" &&
-            lastMessage.message.trim() === ""
-          ) {
-            return currentMessages.slice(0, -1);
-          }
-          return currentMessages;
-        });
+      const turn = getLocalTurn();
+      if (turn && !turn.response.message.trim()) {
+        if (turn.response.responseStatus === "persisted") {
+          localTurnsRef.current.get(streamConversationId!)?.delete(clientId);
+        }
+        if (isCurrentStreamView()) {
+          setMessages((current) =>
+            current.filter((message) => message.clientId !== clientId),
+          );
+        }
       }
       isSavingMessageRef.current = false;
       if (isMountedRef.current) {
@@ -426,8 +570,8 @@ export default function ChatFullscreen() {
 
   // Loads persisted history when the user selects/switches conversation. Keyed
   // on messageResetVersion (bumped on every selection) so re-selecting reloads.
-  // While a stream is in flight we skip reloading only the conversation being
-  // streamed (which would clobber its optimistic messages); others load normally.
+  // A newly created conversation has no history to load while its first message
+  // is saving. Returning to an existing conversation still reloads its history.
   useEffect(() => {
     const isRefresh =
       lastMessageResetVersionRef.current !== messageResetVersion;
@@ -435,8 +579,10 @@ export default function ChatFullscreen() {
     if (
       isSavingMessageRef.current &&
       selectedConversationId === streamingConversationIdRef.current &&
+      selectedConversationId === newlyCreatedConversationIdRef.current &&
       !isRefresh
     ) {
+      newlyCreatedConversationIdRef.current = null;
       settledHistoryRef.current = {
         conversationId: selectedConversationId,
         resetVersion: messageResetVersion,
@@ -463,6 +609,7 @@ export default function ChatFullscreen() {
     lastScrollTopRef.current = 0;
     lastAutoFillOffsetRef.current = null;
     loadedConversationIdRef.current = null;
+    loadedPersistedIdsRef.current.clear();
 
     if (!selectedConversationId) {
       setIsLoadingHistory(false);
@@ -477,12 +624,19 @@ export default function ChatFullscreen() {
           limit: MESSAGES_PAGE_SIZE,
         });
         if (ignore) return;
+        const incoming = page.messages.map(mapTutorMessageToChatMessage);
+        loadedPersistedIdsRef.current = new Set(
+          incoming.flatMap(({ id }) => (id ? [id] : [])),
+        );
+        const turns = localTurnsForMerge(conversationId, incoming);
         loadedConversationIdRef.current = conversationId;
         nextMessagesOffsetRef.current = page.nextOffset;
-        setMessages(page.messages.map(mapTutorMessageToChatMessage));
+        setMessages(mergeChatMessages([], incoming, turns));
         setHasOlderMessages(page.hasMore);
       } catch (err) {
         if (ignore) return;
+        const turns = localTurnsForMerge(conversationId, []);
+        setMessages(mergeChatMessages([], [], turns));
         setError(
           err instanceof Error
             ? err.message
@@ -506,7 +660,12 @@ export default function ChatFullscreen() {
     return () => {
       ignore = true;
     };
-  }, [messageResetVersion, selectedConversationId, setError]);
+  }, [
+    messageResetVersion,
+    selectedConversationId,
+    setError,
+    localTurnsForMerge,
+  ]);
 
   async function loadOlderMessages() {
     const conversationId = selectedConversationIdRef.current;
@@ -543,11 +702,14 @@ export default function ChatFullscreen() {
         return;
 
       const older = page.messages.map(mapTutorMessageToChatMessage);
+      for (const { id } of older) {
+        if (id) loadedPersistedIdsRef.current.add(id);
+      }
+      const turns = localTurnsForMerge(conversationId, older);
       isPrependingRef.current = true;
-      setMessages((currentMessages) => {
-        const seen = new Set(currentMessages.map(({ id }) => id));
-        return [...older.filter(({ id }) => !seen.has(id)), ...currentMessages];
-      });
+      setMessages((currentMessages) =>
+        mergeChatMessages(currentMessages, older, turns),
+      );
       nextMessagesOffsetRef.current = page.nextOffset;
       setHasOlderMessages(page.hasMore);
 
@@ -781,9 +943,8 @@ export default function ChatFullscreen() {
               <EmptyConversationState />
             ) : (
               messages.map((message, index) => {
-                // Index keys break when older messages are prepended. Only the
-                // in-flight streaming reply has no id yet.
-                const messageKey = message.id ?? `pending-${index}`;
+                const messageKey =
+                  message.clientId ?? message.id ?? `pending-${index}`;
 
                 if (message.type === "user") {
                   return (
@@ -792,22 +953,32 @@ export default function ChatFullscreen() {
                     </ChatMessage>
                   );
                 }
-                // The footer supplies one request indicator, including before
-                // this temporary assistant message has been added.
-                if (message.message.trim() === "") {
-                  return null;
-                }
+                const failureNotice =
+                  message.responseStatus === "incomplete"
+                    ? "Response incomplete"
+                    : message.responseStatus === "unsaved"
+                      ? "Response could not be saved"
+                      : null;
+                if (!message.message.trim() && !failureNotice) return null;
                 return (
-                  <ChatReply
-                    key={messageKey}
-                    messageId={message.id}
-                    initialFavourited={message.favourited}
-                    isLast={index === lastBotIndex}
-                    conversationId={selectedConversationId}
-                    isTargeted={message.id === targetedMessageId}
-                  >
-                    {message.message}
-                  </ChatReply>
+                  <div key={messageKey}>
+                    {message.message.trim() !== "" && (
+                      <ChatReply
+                        messageId={message.id}
+                        initialFavourited={message.favourited}
+                        isLast={index === lastBotIndex}
+                        conversationId={selectedConversationId}
+                        isTargeted={message.id === targetedMessageId}
+                      >
+                        {message.message}
+                      </ChatReply>
+                    )}
+                    {failureNotice && (
+                      <p className="mt-2 text-xs text-red-600">
+                        {failureNotice}
+                      </p>
+                    )}
+                  </div>
                 );
               })
             )}

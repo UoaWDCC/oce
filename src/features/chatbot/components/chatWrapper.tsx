@@ -33,7 +33,7 @@ export default function ChatWrapper() {
 
   return (
     <div className="p-5 h-full">
-      <ChatModalProvider>
+      <ChatModalProvider key={user.id}>
         <ConversationProvider>
           <ChatSection />
           <div className="fixed bottom-3 right-3 z-30">

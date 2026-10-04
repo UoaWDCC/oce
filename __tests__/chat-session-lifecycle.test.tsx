@@ -32,7 +32,12 @@ vi.mock("@/features/chatbot/hooks/useTokenUsage", () => ({
   isTokenLimitReached: () => false,
   getTokenUsageLevel: () => "none",
 }));
-vi.mock("@/features/chatbot/api/conversations", () => mocks);
+vi.mock("@/features/chatbot/api/conversations", async () => {
+  const { AssistantStreamError } = await vi.importActual<
+    typeof import("@/features/chatbot/api/conversations")
+  >("@/features/chatbot/api/conversations");
+  return { ...mocks, AssistantStreamError };
+});
 vi.mock("@/features/chatbot/components/fullscreen/conversationsList", () => ({
   default: () => <div data-testid="conversation-sidebar">Conversations</div>,
 }));
@@ -401,7 +406,7 @@ describe("AI Tutor session lifecycle", () => {
   });
 
   it.each(["creation", "save", "stream"] as const)(
-    "clears waiting feedback and restores the draft when %s fails before content",
+    "clears waiting feedback and restores only an unsaved draft when %s fails before content",
     async (stage) => {
       const failure = deferred<never>();
       if (stage === "creation") {
@@ -426,12 +431,20 @@ describe("AI Tutor session lifecycle", () => {
       expectLocked();
       await act(async () => failure.reject(new Error(`${stage} failed`)));
       expect(input().disabled).toBe(false);
-      expect(send().disabled).toBe(false);
-      expect(input().value).toBe("Retry this question");
-      expect(screen.queryByRole("status")).toBeNull();
-      expect(screen.getByRole("alert").textContent).toContain(
-        `${stage} failed`,
+      expect(send().disabled).toBe(stage === "stream");
+      expect(input().value).toBe(
+        stage === "stream" ? "" : "Retry this question",
       );
+      expect(screen.queryByRole("status")).toBeNull();
+      if (stage === "stream") {
+        expect(screen.getByRole("alert").textContent).toMatch(
+          /question.*saved.*could not be generated/i,
+        );
+      } else {
+        expect(screen.getByRole("alert").textContent).toContain(
+          `${stage} failed`,
+        );
+      }
       expect(screen.queryByTestId("assistant-reply")).toBeNull();
       if (stage === "save") {
         mocks.saveUserMessage.mockResolvedValue(
@@ -467,8 +480,11 @@ describe("AI Tutor session lifecycle", () => {
     requestStatus("Generating response");
     await act(async () => streaming.reject(new Error("Connection lost")));
     expect(screen.getByText("Retained partial reply")).toBeTruthy();
-    expect(screen.getByRole("alert").textContent).toContain("Connection lost");
-    expect(input().value).toBe("New question");
+    expect(screen.getByRole("alert").textContent).toMatch(
+      /question.*saved.*interrupted/i,
+    );
+    expect(screen.getByText("Response incomplete")).toBeTruthy();
+    expect(input().value).toBe("");
     expect(input().disabled).toBe(false);
     expect(screen.queryByRole("status")).toBeNull();
     expect(mocks.getConversationMessages).not.toHaveBeenCalled();

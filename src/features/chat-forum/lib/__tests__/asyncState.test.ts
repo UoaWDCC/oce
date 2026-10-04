@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { PENDING_ASYNC_STATE, toForumAsyncState } from "../asyncState";
+import {
+  PENDING_ASYNC_STATE,
+  RESOLVED_ASYNC_STATE,
+  toForumAsyncState,
+} from "../asyncState";
 
 type QueryShape = Parameters<typeof toForumAsyncState>[0];
 
@@ -118,5 +122,17 @@ describe("PENDING_ASYNC_STATE", () => {
     expect(PENDING_ASYNC_STATE.hasResolved).toBe(false);
     expect(PENDING_ASYNC_STATE.isBlockingError).toBe(false);
     expect(PENDING_ASYNC_STATE.error).toBeNull();
+  });
+});
+
+describe("RESOLVED_ASYNC_STATE", () => {
+  // This is the components' default, so a caller that passes data but no
+  // state renders that data instead of an unresolvable skeleton.
+  it("reads as settled with nothing in flight", () => {
+    expect(RESOLVED_ASYNC_STATE.isInitialLoading).toBe(false);
+    expect(RESOLVED_ASYNC_STATE.isRefreshing).toBe(false);
+    expect(RESOLVED_ASYNC_STATE.hasResolved).toBe(true);
+    expect(RESOLVED_ASYNC_STATE.isBlockingError).toBe(false);
+    expect(RESOLVED_ASYNC_STATE.error).toBeNull();
   });
 });

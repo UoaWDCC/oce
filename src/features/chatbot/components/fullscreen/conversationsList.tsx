@@ -6,6 +6,7 @@ import Conversation from "./conversation";
 import ConversationSearchInput from "./conversationSearchInput";
 import EndConversationDialog from "./endConversationDialog";
 import NewConversationButton from "../newConversationButton";
+import LoadMoreSentinel from "./loadMoreSentinel";
 import FavouritesList from "./favouritesList";
 import { useConversations } from "@/features/chatbot/hooks/useConversations";
 import { useConversationSearch } from "@/features/chatbot/hooks/useConversationSearch";
@@ -115,13 +116,15 @@ export default function ConversationsList() {
     if (didEnd) setPendingEnd(null);
   }
 
-  const { conversations, isLoading, error } = useConversations(
-    conversationListVersion,
-  );
+  const { conversations, isLoading, isLoadingMore, hasMore, loadMore, error } =
+    useConversations(conversationListVersion);
 
   const {
     results,
     isLoading: isSearchLoading,
+    isLoadingMore: isSearchLoadingMore,
+    hasMore: searchHasMore,
+    loadMore: loadMoreSearchResults,
     error: searchError,
   } = useConversationSearch(searchQuery);
 
@@ -253,6 +256,25 @@ export default function ConversationsList() {
                 );
               })
             )}
+            {!shownIsLoading &&
+              !shownError &&
+              (isSearching ? searchHasMore : hasMore) && (
+                <>
+                  <LoadMoreSentinel
+                    key={
+                      isSearching
+                        ? `search-${searchQuery.trim()}`
+                        : "conversations"
+                    }
+                    onVisible={isSearching ? loadMoreSearchResults : loadMore}
+                  />
+                  {(isSearching ? isSearchLoadingMore : isLoadingMore) && (
+                    <p className="py-2 text-center text-xs text-slate-500">
+                      Loading more...
+                    </p>
+                  )}
+                </>
+              )}
           </div>
         )}
       </div>

@@ -1,4 +1,3 @@
-import { CommentCardProps } from "@/components/dao-forum/CommentCard";
 import type {
   ForumCommentPreview,
   ForumPostPreview,
@@ -68,7 +67,7 @@ export const mockForumCommentPreviews: ForumCommentPreview[] = [
     body: "A delegate flow makes sense if the final submission clearly identifies both the author and delegate.",
     createdAt: "2026-06-21T07:30:00.000Z",
     createdAtLabel: "90 minutes ago",
-    likeCount: 5,
+    reactionCounts: { heart: 5, thumbs_up: 0, fire: 0, thumbs_down: 0 },
   },
 ];
 
@@ -86,7 +85,6 @@ export const mockForumThreadPost: ForumThreadPost = {
   tags: ["Governance", "Tokenomics"],
   author: {
     name: "Jordan S.",
-    avatarColor: "#7c3aed",
   },
   createdAt: "2026-07-22T04:24:00.000Z",
   createdAtLabel: "3 hours ago",
@@ -104,48 +102,44 @@ export const mockForumThreadComments: ForumThreadComment[] = [
     ].join("\n\n"),
     author: {
       name: "Dr. Rivera",
-      avatarColor: "#7c3aed",
       badges: ["Staff"],
       isEndorsed: true,
     },
     createdAt: "2026-07-22T06:39:00.000Z",
     createdAtLabel: "45 minutes ago",
-    likeCount: 7,
+    reactionCounts: { heart: 7, thumbs_up: 0, fire: 0, thumbs_down: 0 },
     replies: [
       {
         id: "thread-comment-2",
         body: "Thanks! So if we have 10 voting shares and 50 loot tokens, quorum is still calculated against 10, not 60?",
         author: {
           name: "Anonymous",
-          avatarColor: "#10b981",
         },
         createdAt: "2026-07-22T06:54:00.000Z",
         createdAtLabel: "30 minutes ago",
-        likeCount: 2,
+        reactionCounts: { heart: 2, thumbs_up: 0, fire: 0, thumbs_down: 0 },
         replies: [
           {
             id: "thread-comment-3",
             body: "Exactly right. The `totalShares` variable only counts governance shares. Loot (`totalLoot`) is tracked separately and never factors into quorum.",
             author: {
               name: "Dr. Rivera",
-              avatarColor: "#7c3aed",
               badges: ["Staff"],
             },
             createdAt: "2026-07-22T07:02:00.000Z",
             createdAtLabel: "22 minutes ago",
-            likeCount: 4,
-            isLiked: true,
+            reactionCounts: { heart: 4, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+            userReactions: { heart: true, thumbs_up: false, fire: false, thumbs_down: false },
             replies: [
               {
                 id: "thread-comment-4",
                 body: "This distinction is worth adding to the DAO glossary: `totalShares` is governance power, while `totalLoot` is economic stake only.",
                 author: {
                   name: "Kai L.",
-                  avatarColor: "#f59e0b",
                 },
                 createdAt: "2026-07-22T07:09:00.000Z",
                 createdAtLabel: "15 minutes ago",
-                likeCount: 1,
+                reactionCounts: { heart: 1, thumbs_up: 0, fire: 0, thumbs_down: 0 },
               },
             ],
           },
@@ -155,46 +149,3 @@ export const mockForumThreadComments: ForumThreadComment[] = [
   },
 ];
 
-// Mock data for CommentCard preview
-export const mockCommentCardData: CommentCardProps[] = [
-  {
-    displayName: "Alice Chen",
-    timestamp: {
-      label: "2 hours ago",
-      dateTime: "2026-05-29T10:00:00.000Z",
-    },
-    body: "This is a great proposal! I think we should move forward with this approach.",
-    likeCount: 5,
-    isLiked: false,
-  },
-  {
-    displayName: "Bob Martinez",
-    timestamp: {
-      label: "5 hours ago",
-      dateTime: "2026-05-29T07:00:00.000Z",
-    },
-    body: "I have some concerns about the timeline. Can we discuss this further in the next meeting?",
-    likeCount: 3,
-    isLiked: true,
-  },
-  {
-    displayName: "Charlie Williams",
-    timestamp: {
-      label: "1 day ago",
-      dateTime: "2026-05-28T12:00:00.000Z",
-    },
-    body: "Great work on this! I especially like the detailed breakdown of the implementation steps.",
-    likeCount: 12,
-    isLiked: false,
-  },
-  {
-    displayName: "Diana Lee",
-    timestamp: {
-      label: "2 days ago",
-      dateTime: "2026-05-27T12:00:00.000Z",
-    },
-    body: "Can someone explain how this integrates with our existing governance structure?",
-    likeCount: 0,
-    isLiked: false,
-  },
-];

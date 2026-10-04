@@ -12,7 +12,11 @@ import type {
   FormattedComment,
   InsertComment,
   RawComment,
+  ReactionCounts,
+  ReactionType,
+  UserReactions,
 } from "@app-types/dao-forum";
+import { loadDaoAuthorIdentities } from "@/features/chat-forum/authorIdentity";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,6 +56,7 @@ export async function POST(
     .eq("id", postId)
     .eq("dao_group_id", daoGroupId)
     .maybeSingle();
+
   if (postError || !parentPost || parentPost.deleted_at !== null) {
     return NextResponse.json(
       { error: "Post not found" },
@@ -167,6 +172,8 @@ export async function POST(
   }
 
   const inserted = newComment as unknown as RawComment;
+  const identities = await loadDaoAuthorIdentities(supabase, [inserted.author?.id || user.id]);
+  const identity = identities[inserted.author?.id || user.id];
 
   const formattedComment: FormattedComment = {
     id: inserted.id,
@@ -174,8 +181,20 @@ export async function POST(
     image_url: inserted.image_url,
     author_id: inserted.author?.id || user.id,
     username: inserted.author?.username || "",
-    like_count: 0,
-    is_liked: false,
+    wallet_address: identity?.walletAddress ?? null,
+    ens_name: identity?.ensName ?? null,
+    reaction_counts: {
+      heart: 0,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    },
+    user_reactions: {
+      heart: false,
+      thumbs_up: false,
+      fire: false,
+      thumbs_down: false,
+    },
     parent_comment_id: inserted.parent_comment_id,
     created_at: inserted.created_at,
     updated_at: inserted.updated_at,
@@ -257,33 +276,55 @@ export async function GET(
     );
   }
 
-  const commentIds = commentsData?.map((c) => c.id) || [];
-
-  const { data: likeCounts, error: likeCountsError } = await supabase
-    .from("comment_likes")
-    .select("comment_id, user_id")
-    .in("comment_id", commentIds);
-
-  if (likeCountsError) {
-    return NextResponse.json(
-      { error: likeCountsError.message },
-      { status: 500, headers: corsHeaders },
-    );
-  }
-
   if (!commentsData) {
     return NextResponse.json([], { headers: corsHeaders });
   }
 
+  const commentIds = commentsData.map((c) => c.id);
+
+  // 1. Add "reaction" to your select statement
+  const { data: reactionsData, error: reactionsError } = await supabase
+    .from("comment_reactions")
+    .select("comment_id, user_id, reaction") // <--- Added reaction here
+    .in("comment_id", commentIds);
+
+  if (reactionsError) {
+    return NextResponse.json(
+      { error: reactionsError.message },
+      { status: 500, headers: corsHeaders },
+    );
+  }
+
   const comments = commentsData as unknown as RawComment[];
-  const likeCountMap: Record<string, number> = {};
-  likeCounts?.forEach((lc) => {
-    likeCountMap[lc.comment_id] = (likeCountMap[lc.comment_id] || 0) + 1;
+
+  const reactionCountsMap: Record<string, ReactionCounts> = {};
+  reactionsData?.forEach((reaction) => {
+    const counts = reactionCountsMap[reaction.comment_id] ?? {
+      heart: 0,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    };
+    counts[reaction.reaction as ReactionType] += 1;
+    reactionCountsMap[reaction.comment_id] = counts;
   });
-  const likedByUser = new Set(
-    likeCounts
-      ?.filter((lc) => lc.user_id === user.id)
-      .map((lc) => lc.comment_id),
+
+  const userReactionsMap: Record<string, UserReactions> = {};
+  reactionsData?.forEach((reaction) => {
+    if (reaction.user_id !== user.id) return;
+    const reactions = userReactionsMap[reaction.comment_id] ?? {
+      heart: false,
+      thumbs_up: false,
+      fire: false,
+      thumbs_down: false,
+    };
+    reactions[reaction.reaction as ReactionType] = true;
+    userReactionsMap[reaction.comment_id] = reactions;
+  });
+
+  const identities = await loadDaoAuthorIdentities(
+    supabase,
+    comments.filter((c) => !c.deleted_at).map((c) => c.author?.id),
   );
 
   const activeChildCounts: Record<string, number> = {};
@@ -299,19 +340,34 @@ export async function GET(
       if (!comment.deleted_at) return true;
       return (activeChildCounts[comment.id] || 0) > 0;
     })
-    .map((comment) => ({
-      id: comment.id,
-      body: comment.deleted_at ? null : comment.body,
-      image_url: comment.deleted_at ? null : comment.image_url,
-      author_id: comment.author?.id || "",
-      username: comment.author?.username || "",
-      like_count: likeCountMap[comment.id] || 0,
-      is_liked: likedByUser.has(comment.id),
-      parent_comment_id: comment.parent_comment_id,
-      created_at: comment.created_at,
-      updated_at: comment.updated_at,
-      deleted_at: comment.deleted_at,
-    }));
+    .map((comment) => {
+      const identity = comment.author?.id ? identities[comment.author.id] : undefined;
+      return {
+        id: comment.id,
+        body: comment.deleted_at ? null : comment.body,
+        image_url: comment.deleted_at ? null : comment.image_url,
+        author_id: comment.author?.id || "",
+        username: comment.author?.username || "",
+        wallet_address: comment.deleted_at ? null : (identity?.walletAddress ?? null),
+        ens_name: comment.deleted_at ? null : (identity?.ensName ?? null),
+        reaction_counts: reactionCountsMap[comment.id] ?? {
+          heart: 0,
+          thumbs_up: 0,
+          fire: 0,
+          thumbs_down: 0,
+        },
+        user_reactions: userReactionsMap[comment.id] ?? {
+          heart: false,
+          thumbs_up: false,
+          fire: false,
+          thumbs_down: false,
+        },
+        parent_comment_id: comment.parent_comment_id,
+        created_at: comment.created_at,
+        updated_at: comment.updated_at,
+        deleted_at: comment.deleted_at,
+      };
+    });
 
   const sortedComments = filteredComments.sort((a, b) => {
     if (sort === "latest") {
@@ -321,7 +377,12 @@ export async function GET(
     }
 
     if (sort === "most_likes") {
-      return b.like_count - a.like_count;
+      const totalReactions = (comment: FormattedComment) =>
+        Object.values(comment.reaction_counts ?? {}).reduce(
+          (total, count) => total + count,
+          0,
+        );
+      return totalReactions(b) - totalReactions(a);
     }
 
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();

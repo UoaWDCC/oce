@@ -47,6 +47,26 @@ export const PENDING_ASYNC_STATE: ForumAsyncState = {
 };
 
 /**
+ * The state to assume for a component rendered with data but no state of its
+ * own — the dev preview harness and tests, which pass static posts and
+ * comments and never fetch anything.
+ *
+ * This is the right *default* precisely because `PENDING_ASYNC_STATE` is not:
+ * defaulting to a first load leaves such a caller staring at a skeleton that
+ * can never resolve, since nothing will ever hand it a settled state. Callers
+ * that do fetch always pass their own state, so this default never masks a
+ * real load.
+ */
+export const RESOLVED_ASYNC_STATE: ForumAsyncState = {
+  isInitialLoading: false,
+  isRefreshing: false,
+  hasResolved: true,
+  error: null,
+  isBlockingError: false,
+  retry: noop,
+};
+
+/**
  * Projects a React Query result onto {@link ForumAsyncState}.
  *
  * `enabled` has to be passed in because a disabled query is indistinguishable

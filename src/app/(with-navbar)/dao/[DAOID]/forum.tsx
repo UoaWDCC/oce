@@ -9,7 +9,7 @@ import { useCreateDaoForumPost } from "@/features/chat-forum/hooks/useCreateDaoF
 import { useCreateDaoForumComment } from "@/features/chat-forum/hooks/useCreateDaoForumComment";
 import { useUpdateDaoForumPost } from "@/features/chat-forum/hooks/useUpdateDaoForumPost";
 import { useDeleteDaoForumPost } from "@/features/chat-forum/hooks/useDeleteDaoForumPost";
-import { useDaoForumCommentLike } from "@/features/chat-forum/hooks/useDaoForumCommentLike";
+import { useDaoForumCommentReactions } from "@/features/chat-forum/hooks/useDaoForumCommentReactions";
 import { useRecordPostView } from "@/features/chat-forum/hooks/useRecordPostView";
 import {
   submitForumComment,
@@ -22,6 +22,7 @@ import { PENDING_ASYNC_STATE } from "@/features/chat-forum/lib/asyncState";
 import type {
   CommentSubmitPayload,
   PostSubmitPayload,
+  ReactionType,
 } from "@app-types/dao-forum";
 import type { ForumThreadSort } from "@/features/chat-forum";
 
@@ -86,10 +87,10 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     token,
   );
   const {
-    toggleLike,
+    toggleReaction,
     optimisticState,
     error: commentLikeError,
-  } = useDaoForumCommentLike(daoGroupId, selectedPostId, currentUserId);
+  } = useDaoForumCommentReactions(daoGroupId, selectedPostId, currentUserId);
 
   const { recordView } = useRecordPostView(token);
 
@@ -134,12 +135,10 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     await submitForumComment({ createComment, refetchComments }, payload);
   };
 
-  const handleLikeComment = (commentId: string): void => {
+  const handleReaction = (commentId: string, reaction: ReactionType): void => {
     const comment = comments.find((item) => item.id === commentId);
     if (!comment || comment.isDeleted || !token) return;
-    if (comment.isLiked === undefined || comment.likeCount === undefined)
-      return;
-    toggleLike(commentId, comment.isLiked, comment.likeCount, token);
+    toggleReaction(commentId, reaction, token);
   };
 
   const handleSelectPost = async (postId: string | null): Promise<void> => {
@@ -199,7 +198,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       mutationError={mutationError}
       onCommentSortChange={setCommentSort}
       onDeletePost={handleDeletePost}
-      onLikeComment={handleLikeComment}
+      onReaction={handleReaction}
       onSelectPost={handleSelectPost}
       onSubmitPost={handleSubmitPost}
       onSubmitComment={handleSubmitComment}

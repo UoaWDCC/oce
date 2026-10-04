@@ -11,7 +11,6 @@ export type PostCardProps = {
   types?: PostType[];
   displayName: string;
   walletAddress?: string | null;
-  profileImageUrl?: string | null;
   createdAt: Timestamp;
   commentCount: number;
   viewCount: number;
@@ -29,7 +28,6 @@ function PostCardContent({
   types,
   displayName,
   walletAddress,
-  profileImageUrl,
   createdAt,
   commentCount,
   viewCount,
@@ -60,7 +58,6 @@ function PostCardContent({
         <StudentAvatar
           displayName={displayName}
           walletAddress={walletAddress}
-          profileImageUrl={profileImageUrl}
           size="xs"
           className="shrink-0"
         />
@@ -87,12 +84,12 @@ function PostCardContent({
 
       {/* Footer: views/comments (left) + timestamp (right) */}
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-        <span className="flex items-center gap-3 text-xs font-semibold text-slate-500">
-          <span className="flex items-center gap-1.5">
+        <span className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-500">
+          <span className="flex shrink-0 items-center gap-1.5">
             <Eye aria-hidden="true" className="h-4 w-4" />
             {viewLabel}
           </span>
-          <span className="flex items-center gap-1.5">
+          <span className="flex shrink-0 items-center gap-1.5">
             <MessageCircle aria-hidden="true" className="h-4 w-4" />
             {commentLabel}
           </span>

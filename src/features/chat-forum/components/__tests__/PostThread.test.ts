@@ -41,7 +41,6 @@ const comments: ForumThreadComment[] = [
     author: { name: "Grace" },
     createdAt: "2026-09-02T00:00:00.000Z",
     createdAtLabel: "2 Sep",
-    likeCount: 0,
   },
 ];
 

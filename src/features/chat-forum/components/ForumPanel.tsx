@@ -1,7 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { List, Loader2, Plus, Search } from "lucide-react";
+import {
+  CircleHelp,
+  List,
+  Loader2,
+  Megaphone,
+  MessageCircle,
+  Package,
+  Plus,
+  Search,
+  Tag as TagIcon,
+} from "lucide-react";
 import PostCard from "@/components/dao-forum/Post";
 import NewPostDialog from "@/components/dao-forum/NewPostDialog";
 import PostThread from "./PostThread";
@@ -11,17 +21,14 @@ import {
   withOwnPostCapability,
 } from "../mappers";
 import type { ForumThreadSort } from "../types";
-import { PENDING_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
-import {
-  POST_TYPES_IN_ORDER,
-  POST_TYPE_PRESENTATION,
-} from "../postTypePresentation";
+import { RESOLVED_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
 import type {
   CommentSubmitPayload,
   ForumCommentPreview,
   ForumPostPreview,
   PostSubmitPayload,
   PostType,
+  ReactionType,
 } from "@app-types/dao-forum";
 
 type ForumPanelProps = {
@@ -53,34 +60,47 @@ type ForumPanelProps = {
     payload: CommentSubmitPayload,
   ) => Promise<void> | void;
   onCommentRefetch?: () => Promise<void>;
-  onLikeComment?: (commentId: string) => void | Promise<void>;
+  onReaction?: (
+    commentId: string,
+    reaction: ReactionType,
+  ) => void | Promise<void>;
   onCommentSortChange?: (sort: ForumThreadSort) => void;
   token?: string;
 };
 
 type PostTypeFilter = "All" | PostType;
 
-/**
- * The filter list is the post types plus an "All" entry, which is a filter-only
- * pseudo-type and so deliberately lives here rather than in the shared
- * post type presentation config.
- */
-const POST_TYPE_FILTERS: Array<{
-  value: PostTypeFilter;
-  label: string;
+const POST_TYPES: Array<{
+  label: PostTypeFilter;
   icon: typeof List;
   iconClassName: string;
 }> = [
+  { label: "All", icon: List, iconClassName: "bg-purple-100 text-purple-700" },
   {
-    value: "All",
-    label: "All",
-    icon: List,
-    iconClassName: "bg-purple-100 text-purple-700",
+    label: "Announcement",
+    icon: Megaphone,
+    iconClassName: "bg-amber-100 text-amber-700",
   },
-  ...POST_TYPES_IN_ORDER.map((type) => {
-    const { label, icon, filter } = POST_TYPE_PRESENTATION[type];
-    return { value: type, label, icon, iconClassName: filter };
-  }),
+  {
+    label: "Proposal",
+    icon: Package,
+    iconClassName: "bg-indigo-100 text-indigo-700",
+  },
+  {
+    label: "Question",
+    icon: CircleHelp,
+    iconClassName: "bg-rose-100 text-rose-700",
+  },
+  {
+    label: "Discussion",
+    icon: MessageCircle,
+    iconClassName: "bg-slate-100 text-slate-600",
+  },
+  {
+    label: "Resource",
+    icon: TagIcon,
+    iconClassName: "bg-emerald-100 text-emerald-700",
+  },
 ];
 
 function PostPreview({
@@ -101,7 +121,6 @@ function PostPreview({
       tags={post.tags}
       title={post.title}
       types={post.types}
-      walletAddress={post.authorWallet}
     />
   );
 }
@@ -112,8 +131,8 @@ export default function ForumPanel({
   posts,
   comments = [],
   currentUserId = null,
-  postsState = PENDING_ASYNC_STATE,
-  commentsState = PENDING_ASYNC_STATE,
+  postsState = RESOLVED_ASYNC_STATE,
+  commentsState = RESOLVED_ASYNC_STATE,
   error = null,
   commentsError = null,
   mutationError = null,
@@ -127,7 +146,7 @@ export default function ForumPanel({
   onSelectPost,
   onSubmitComment,
   onCommentRefetch,
-  onLikeComment,
+  onReaction,
   onCommentSortChange,
   token,
 }: ForumPanelProps) {
@@ -227,9 +246,9 @@ export default function ForumPanel({
     return (
       <PostThread
         daoGroupId={daoGroupId}
-        currentUserId={currentUserId}
         comments={threadComments}
         commentsError={commentsError}
+        currentUserId={currentUserId}
         daoName={daoName}
         isDeletingPost={isDeletingPost}
         commentsState={commentsState}
@@ -238,7 +257,7 @@ export default function ForumPanel({
         onBack={closeThread}
         onCancelReply={() => setReplyingToCommentId(null)}
         onDeletePost={onDeletePost ? deleteSelectedPost : undefined}
-        onLikeComment={onLikeComment}
+        onReaction={onReaction}
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
         onSubmitComment={submitComment}
@@ -306,40 +325,38 @@ export default function ForumPanel({
             Post type
           </h2>
           <div className="space-y-1">
-            {POST_TYPE_FILTERS.map(
-              ({ value, label, icon: Icon, iconClassName }) => {
-                const count =
-                  value === "All"
-                    ? posts.length
-                    : posts.filter((post) => post.types.includes(value)).length;
-                const active = postType === value;
-                return (
-                  <button
-                    key={value}
-                    aria-pressed={active}
-                    className={`flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm font-bold transition ${active ? "bg-purple-100 text-purple-700" : "text-slate-600 hover:bg-slate-50"}`}
-                    onClick={() => setPostType(value)}
-                    type="button"
-                  >
-                    <span className="flex items-center gap-2.5">
-                      <span
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </span>
-                      {label}
+            {POST_TYPES.map(({ label, icon: Icon, iconClassName }) => {
+              const count =
+                label === "All"
+                  ? posts.length
+                  : posts.filter((post) => post.types.includes(label)).length;
+              const active = postType === label;
+              return (
+                <button
+                  key={label}
+                  aria-pressed={active}
+                  className={`flex w-full items-center justify-between rounded-xl px-2 py-2 text-left text-sm font-bold transition ${active ? "bg-purple-100 text-purple-700" : "text-slate-600 hover:bg-slate-50"}`}
+                  onClick={() => setPostType(label)}
+                  type="button"
+                >
+                  <span className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg ${iconClassName}`}
+                    >
+                      <Icon className="h-4 w-4" />
                     </span>
-                    {postsState.hasResolved && (
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
-                      >
-                        {count}
-                      </span>
-                    )}
-                  </button>
-                );
-              },
-            )}
+                    {label}
+                  </span>
+                  {postsState.hasResolved && (
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-xs ${active ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"}`}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </section>
 
@@ -365,7 +382,10 @@ export default function ForumPanel({
       <main className="min-w-0">
         <header className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-950 md:text-3xl">
+            <p className="text-sm font-bold uppercase tracking-wider text-purple-600">
+              Community forum
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950 md:text-3xl">
               {daoName} Forum
             </h1>
             {/* Counts stay hidden until the query settles, so the page never
@@ -490,6 +510,9 @@ export default function ForumPanel({
             </section>
           </>
         )}
+        <p className="mt-6 text-xs text-slate-400">
+          DAO group reference: {daoGroupId}
+        </p>
       </main>
     </div>
   );

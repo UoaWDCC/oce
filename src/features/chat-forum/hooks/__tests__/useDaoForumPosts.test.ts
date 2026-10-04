@@ -117,7 +117,9 @@ describe("useDaoForumPosts", () => {
       () => useDaoForumPosts("dao-1", "token-a", true, "user-a"),
       { wrapper },
     );
-    await waitFor(() => expect(firstUser.result.current.isInitialLoading).toBe(false));
+    await waitFor(() =>
+      expect(firstUser.result.current.isInitialLoading).toBe(false),
+    );
     firstUser.unmount();
 
     const secondUser = renderHook(

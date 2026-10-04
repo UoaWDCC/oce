@@ -27,6 +27,8 @@ import { isTokenLimitReached, useTokenUsage } from "../../hooks/useTokenUsage";
 import { ApiError } from "../../utils/apiFetch";
 import type { Message } from "@/llm/types/Message";
 
+const MESSAGES_PAGE_SIZE = 15;
+
 function mapTutorMessageToChatMessage(message: TutorMessage): ChatMessageType {
   return {
     type: message.role === "user" ? "user" : "bot",
@@ -126,6 +128,8 @@ export default function ChatFullscreen() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSavingMessage, setIsSavingMessage] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [isLoadingOlder, setIsLoadingOlder] = useState(false);
+  const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [targetedMessageId, setTargetedMessageId] = useState<string | null>(
     null,
   );
@@ -133,6 +137,17 @@ export default function ChatFullscreen() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const skipNextLatestScrollRef = useRef(false);
   const isSavingMessageRef = useRef(false);
+  const isLoadingOlderRef = useRef(false);
+  // Set while older messages are being prepended, so the scroll-to-latest
+  // effect doesn't pull the user away from what they were reading.
+  const isPrependingRef = useRef(false);
+  const lastScrollTopRef = useRef(0);
+  const lastAutoFillOffsetRef = useRef<number | null>(null);
+  const loadedConversationIdRef = useRef<string | null>(null);
+  const historyGenerationRef = useRef(0);
+  const lastMessageResetVersionRef = useRef(messageResetVersion);
+  const nextMessagesOffsetRef = useRef(0);
+  const lastRequestedOffsetRef = useRef<number | null>(null);
   // Mirrors the currently selected conversation so async stream callbacks can
   // tell whether the user has switched away since the send started.
   const selectedConversationIdRef = useRef(selectedConversationId);
@@ -161,6 +176,12 @@ export default function ChatFullscreen() {
     setSaveError(null);
     setError(undefined);
     let userMessageSaved = false;
+    let streamConversationId: string | null = null;
+    let streamHistoryGeneration = historyGenerationRef.current;
+    const isCurrentStreamView = () =>
+      streamConversationId !== null &&
+      selectedConversationIdRef.current === streamConversationId &&
+      historyGenerationRef.current === streamHistoryGeneration;
 
     try {
       let conversationId = selectedConversationId;
@@ -169,6 +190,7 @@ export default function ChatFullscreen() {
         const newConversation = await createConversation();
         conversationId = newConversation.id;
         setSelectedConversationId(conversationId);
+        selectedConversationIdRef.current = conversationId;
         refreshConversationList();
       }
 
@@ -176,6 +198,8 @@ export default function ChatFullscreen() {
       // skips reloading this id while saving so it doesn't clobber the
       // optimistic/streamed messages; a switch to a *different* id still loads.
       streamingConversationIdRef.current = conversationId;
+      streamConversationId = conversationId;
+      streamHistoryGeneration = historyGenerationRef.current;
 
       const savedMessage = await saveUserMessage(conversationId, content);
       userMessageSaved = true;
@@ -188,11 +212,13 @@ export default function ChatFullscreen() {
 
       const messagesForStream = [...messages, userMessage];
 
-      setMessages((currentMessages) => [
-        ...currentMessages,
-        userMessage,
-        assistantMessage,
-      ]);
+      if (isCurrentStreamView()) {
+        setMessages((currentMessages) => [
+          ...currentMessages,
+          userMessage,
+          assistantMessage,
+        ]);
+      }
       refreshConversationList();
 
       await streamAssistantMessage(
@@ -202,7 +228,7 @@ export default function ChatFullscreen() {
           onText: (text) => {
             // Ignore chunks if the user has switched to another conversation,
             // so a background stream never leaks into the current view.
-            if (selectedConversationIdRef.current !== conversationId) {
+            if (!isCurrentStreamView()) {
               return;
             }
             setMessages((currentMessages) => {
@@ -223,7 +249,7 @@ export default function ChatFullscreen() {
             });
           },
           onMessageId: (id) => {
-            if (selectedConversationIdRef.current !== conversationId) {
+            if (!isCurrentStreamView()) {
               return;
             }
             setMessages((currentMessages) => {
@@ -253,11 +279,21 @@ export default function ChatFullscreen() {
       // authoritative id/is_favourite for favourites & tutor-request flows.
       // Best-effort — the streamed text + onMessageId id already work if this
       // fails. Skipped after a mid-stream switch so we don't overwrite the new view.
-      if (selectedConversationIdRef.current === conversationId) {
+      if (isCurrentStreamView()) {
         try {
-          const persisted = await getConversationMessages(conversationId);
-          if (selectedConversationIdRef.current === conversationId) {
-            setMessages(persisted.map(mapTutorMessageToChatMessage));
+          const page = await getConversationMessages(conversationId, {
+            limit: MESSAGES_PAGE_SIZE,
+          });
+          if (isCurrentStreamView()) {
+            historyGenerationRef.current += 1;
+            isLoadingOlderRef.current = false;
+            setIsLoadingOlder(false);
+            nextMessagesOffsetRef.current = page.nextOffset;
+            lastRequestedOffsetRef.current = null;
+            lastAutoFillOffsetRef.current = null;
+            loadedConversationIdRef.current = conversationId;
+            setMessages(page.messages.map(mapTutorMessageToChatMessage));
+            setHasOlderMessages(page.hasMore);
           }
         } catch {
           // Keep the streamed reply; it already holds the persisted message id.
@@ -269,7 +305,9 @@ export default function ChatFullscreen() {
       // show its error in the now-selected conversation. (streamingConversationIdRef
       // still holds the target here — it is cleared in finally, which runs after.)
       if (
-        selectedConversationIdRef.current === streamingConversationIdRef.current
+        selectedConversationIdRef.current ===
+          streamingConversationIdRef.current &&
+        (streamConversationId === null || isCurrentStreamView())
       ) {
         // Only the quota response from the save request means the draft was not
         // persisted. Other 429s retain the pre-existing generic error behaviour.
@@ -312,7 +350,10 @@ export default function ChatFullscreen() {
       // Drop the temporary assistant bubble if nothing useful streamed in (e.g.
       // the stream errored before the first chunk), so the UI isn't stuck showing
       // an empty "thinking" reply. Only touch the view if still on this conversation.
-      if (selectedConversationIdRef.current === streamedConversationId) {
+      if (
+        selectedConversationIdRef.current === streamedConversationId &&
+        isCurrentStreamView()
+      ) {
         setMessages((currentMessages) => {
           const lastMessage = currentMessages[currentMessages.length - 1];
           if (
@@ -346,20 +387,36 @@ export default function ChatFullscreen() {
   // While a stream is in flight we skip reloading only the conversation being
   // streamed (which would clobber its optimistic messages); others load normally.
   useEffect(() => {
+    const isRefresh =
+      lastMessageResetVersionRef.current !== messageResetVersion;
+    lastMessageResetVersionRef.current = messageResetVersion;
     if (
       isSavingMessageRef.current &&
-      selectedConversationId === streamingConversationIdRef.current
+      selectedConversationId === streamingConversationIdRef.current &&
+      !isRefresh
     ) {
       return;
     }
 
     let ignore = false;
+    historyGenerationRef.current += 1;
+    isLoadingOlderRef.current = false;
+    setIsLoadingOlder(false);
+    nextMessagesOffsetRef.current = 0;
+    lastRequestedOffsetRef.current = null;
+    isPrependingRef.current = false;
+    skipNextLatestScrollRef.current = false;
 
     // Clear immediately so a stale conversation's messages/errors are never
     // shown while the next one loads (or if its load fails).
     setMessages([]);
     setSaveError(null);
     setError(undefined);
+    setHasOlderMessages(false);
+    setTargetedMessageId(null);
+    lastScrollTopRef.current = 0;
+    lastAutoFillOffsetRef.current = null;
+    loadedConversationIdRef.current = null;
 
     if (!selectedConversationId) {
       setIsLoadingHistory(false);
@@ -370,9 +427,14 @@ export default function ChatFullscreen() {
 
     async function loadMessages(conversationId: string) {
       try {
-        const history = await getConversationMessages(conversationId);
+        const page = await getConversationMessages(conversationId, {
+          limit: MESSAGES_PAGE_SIZE,
+        });
         if (ignore) return;
-        setMessages(history.map(mapTutorMessageToChatMessage));
+        loadedConversationIdRef.current = conversationId;
+        nextMessagesOffsetRef.current = page.nextOffset;
+        setMessages(page.messages.map(mapTutorMessageToChatMessage));
+        setHasOlderMessages(page.hasMore);
       } catch (err) {
         if (ignore) return;
         setError(
@@ -396,8 +458,126 @@ export default function ChatFullscreen() {
     };
   }, [messageResetVersion, selectedConversationId, setError]);
 
+  async function loadOlderMessages() {
+    const conversationId = selectedConversationIdRef.current;
+    const generation = historyGenerationRef.current;
+    const offset = nextMessagesOffsetRef.current;
+    if (
+      !conversationId ||
+      loadedConversationIdRef.current !== conversationId ||
+      isLoadingOlderRef.current ||
+      !hasOlderMessages ||
+      lastRequestedOffsetRef.current === offset
+    ) {
+      return;
+    }
+
+    lastRequestedOffsetRef.current = offset;
+    isLoadingOlderRef.current = true;
+    setIsLoadingOlder(true);
+
+    const container = messagesContainerRef.current;
+    const previousScrollHeight = container?.scrollHeight ?? 0;
+    const previousScrollTop = container?.scrollTop ?? 0;
+
+    try {
+      const page = await getConversationMessages(conversationId, {
+        limit: MESSAGES_PAGE_SIZE,
+        offset,
+      });
+
+      if (
+        selectedConversationIdRef.current !== conversationId ||
+        historyGenerationRef.current !== generation
+      )
+        return;
+
+      const older = page.messages.map(mapTutorMessageToChatMessage);
+      isPrependingRef.current = true;
+      setMessages((currentMessages) => {
+        const seen = new Set(currentMessages.map(({ id }) => id));
+        return [...older.filter(({ id }) => !seen.has(id)), ...currentMessages];
+      });
+      nextMessagesOffsetRef.current = page.nextOffset;
+      setHasOlderMessages(page.hasMore);
+
+      // Prepending grows the scroll height, so shift scrollTop by the same
+      // amount to leave the reading position where it was.
+      requestAnimationFrame(() => {
+        if (historyGenerationRef.current !== generation) return;
+        if (targetMessageId) return;
+        const element = messagesContainerRef.current;
+        if (!element) return;
+        element.scrollTop =
+          previousScrollTop + (element.scrollHeight - previousScrollHeight);
+      });
+    } catch {
+      // Stop paging so a failing request isn't retried on every scroll.
+      if (historyGenerationRef.current === generation) {
+        setHasOlderMessages(false);
+      }
+    } finally {
+      if (historyGenerationRef.current === generation) {
+        isLoadingOlderRef.current = false;
+        setIsLoadingOlder(false);
+      }
+    }
+  }
+
+  // A short page may not create a scrollbar, leaving no upward scroll event
+  // that could request the rest of the history. Measure only after the loading
+  // indicator has gone away, since its height is not message content.
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    const offset = nextMessagesOffsetRef.current;
+    if (
+      !container ||
+      isLoadingHistory ||
+      isLoadingOlder ||
+      !hasOlderMessages ||
+      loadedConversationIdRef.current !== selectedConversationId ||
+      offset === 0 ||
+      container.scrollHeight > container.clientHeight ||
+      lastAutoFillOffsetRef.current === offset
+    ) {
+      return;
+    }
+
+    lastAutoFillOffsetRef.current = offset;
+    void loadOlderMessages();
+  });
+
+  // Only an upward scroll loads older messages. The chat opens by scrolling
+  // down to the newest message, which would otherwise pass the top of the
+  // container and trigger a load before the user has done anything.
+  function handleMessagesScroll(event: React.UIEvent<HTMLDivElement>) {
+    const { scrollTop } = event.currentTarget;
+    const movedUp = scrollTop < lastScrollTopRef.current;
+    lastScrollTopRef.current = scrollTop;
+
+    if (movedUp && scrollTop < 120) {
+      loadOlderMessages();
+    }
+  }
+
+  // A saved message may be outside the first page of its conversation.
+  useEffect(() => {
+    if (
+      targetMessageId &&
+      !document.getElementById(`message-${targetMessageId}`) &&
+      hasOlderMessages &&
+      loadedConversationIdRef.current === selectedConversationId
+    ) {
+      void loadOlderMessages();
+    }
+  });
+
   useEffect(() => {
     if (!targetMessageId) {
+      if (isPrependingRef.current) {
+        isPrependingRef.current = false;
+        return;
+      }
       if (skipNextLatestScrollRef.current) {
         skipNextLatestScrollRef.current = false;
         return;
@@ -533,19 +713,31 @@ export default function ChatFullscreen() {
 
       <div
         ref={messagesContainerRef}
+        onScroll={handleMessagesScroll}
         className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60"
       >
         <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">
           <div className="flex min-h-full w-full flex-1 flex-col gap-4">
+            {isLoadingOlder && (
+              <p className="py-1 text-center text-xs text-slate-500">
+                Loading earlier messages...
+              </p>
+            )}
             {isLoadingHistory ? (
               <HistoryLoadingState />
             ) : messages.length === 0 && error === undefined ? (
               <EmptyConversationState />
             ) : (
               messages.map((message, index) => {
+                // Index keys break when older messages are prepended. Only the
+                // in-flight streaming reply has no id yet.
+                const messageKey = message.id ?? `pending-${index}`;
+
                 if (message.type === "user") {
                   return (
-                    <ChatMessage key={index}>{message.message}</ChatMessage>
+                    <ChatMessage key={messageKey}>
+                      {message.message}
+                    </ChatMessage>
                   );
                 }
                 // An assistant bubble with no content yet is awaiting its first
@@ -553,11 +745,11 @@ export default function ChatFullscreen() {
                 // assistant messages always have content, so this only applies
                 // to the in-flight streaming reply.
                 if (message.message.trim() === "") {
-                  return <AssistantThinkingState key={index} />;
+                  return <AssistantThinkingState key={messageKey} />;
                 }
                 return (
                   <ChatReply
-                    key={index}
+                    key={messageKey}
                     messageId={message.id}
                     initialFavourited={message.favourited}
                     isLast={index === lastBotIndex}

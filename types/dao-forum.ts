@@ -26,7 +26,7 @@ export interface Post {
 export interface PostListItem {
   id: string;
   dao_group_id: string;
-  author_id: string;
+  author_id: string | null;
   post_type: PostType | null;
   title: string | null;
   body: string | null;
@@ -38,12 +38,15 @@ export interface PostListItem {
   comment_count: number;
   view_count: number;
   is_unread: boolean;
+  is_own_post?: boolean;
   author: {
     id: string;
     username: string | null;
     FirstName: string | null;
     LastName: string | null;
     Name: string | null;
+    walletAddress: string | null;
+    ensName: string | null;
   } | null;
   tags: string[];
 }
@@ -154,14 +157,29 @@ export interface RawComment {
   author: CommentAuthor | null;
 }
 
+// Reaction types matching database ENUM
+export type ReactionType = "heart" | "thumbs_up" | "fire" | "thumbs_down";
+
+export type ReactionCounts = Record<ReactionType, number>;
+export type UserReactions = Record<ReactionType, boolean>;
+
+export interface CommentReaction {
+  comment_id: string;
+  user_id: string;
+  reaction: ReactionType;
+  created_at: string;
+}
+
 export interface FormattedComment {
   id: string;
   body: string | null;
   image_url: string | null;
   author_id: string;
   username: string;
-  like_count: number;
-  is_liked: boolean;
+  wallet_address: string | null;
+  ens_name: string | null;
+  reaction_counts?: ReactionCounts;
+  user_reactions?: UserReactions;
   parent_comment_id: string | null;
   created_at: string;
   updated_at: string | null;
@@ -184,6 +202,7 @@ export interface ForumPostPreview {
   authorId?: string;
   authorName: string;
   authorWallet?: string;
+  authorEns?: string;
   createdAt: string;
   createdAtLabel: string;
   commentCount: number;
@@ -204,12 +223,13 @@ export interface ForumCommentPreview {
   authorId?: string;
   authorName: string;
   authorWallet?: string;
+  authorEns?: string;
   body: string;
   createdAt: string;
   createdAtLabel: string;
-  likeCount: number;
+  reactionCounts?: ReactionCounts;
+  userReactions?: UserReactions;
   isOwnComment?: boolean;
-  isLiked?: boolean;
   isDeleted?: boolean;
   imageUrl?: string | null;
 }

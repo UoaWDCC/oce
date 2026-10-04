@@ -81,8 +81,15 @@ describe("useDaoForumComments", () => {
       image_url: null,
       author_id: "user-a",
       username: "User A",
-      like_count: 0,
-      is_liked: false,
+      reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+      user_reactions: {
+        heart: false,
+        thumbs_up: false,
+        fire: false,
+        thumbs_down: false,
+      },
+      wallet_address: null,
+      ens_name: null,
       parent_comment_id: null,
       created_at: "2026-01-01T00:00:00.000Z",
       updated_at: null,
@@ -106,14 +113,7 @@ describe("useDaoForumComments", () => {
 
     const { result, rerender } = renderHook(
       ({ token, userId }: { token: string; userId: string }) =>
-        useDaoForumComments(
-          "dao-1",
-          "post-1",
-          token,
-          "oldest",
-          true,
-          userId,
-        ),
+        useDaoForumComments("dao-1", "post-1", token, "oldest", true, userId),
       {
         wrapper,
         initialProps: { token: "token-a", userId: "user-a" },
@@ -150,13 +150,17 @@ describe("useDaoForumComments", () => {
       () => useDaoForumComments("dao-1", "post-1", "token-123", "oldest", true),
       { wrapper },
     );
-    await waitFor(() => expect(oldest.result.current.isInitialLoading).toBe(false));
+    await waitFor(() =>
+      expect(oldest.result.current.isInitialLoading).toBe(false),
+    );
 
     const latest = renderHook(
       () => useDaoForumComments("dao-1", "post-1", "token-123", "latest", true),
       { wrapper },
     );
-    await waitFor(() => expect(latest.result.current.isInitialLoading).toBe(false));
+    await waitFor(() =>
+      expect(latest.result.current.isInitialLoading).toBe(false),
+    );
 
     // "latest" is no longer observed by any mounted hook, but should still
     // be refreshed by refetch() below — not left stale until someone

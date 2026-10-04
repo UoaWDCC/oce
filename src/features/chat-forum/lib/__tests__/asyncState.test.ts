@@ -7,7 +7,7 @@ import {
 
 type QueryShape = Parameters<typeof toForumAsyncState>[0];
 
-/** The six query facts the projection reads, with idle defaults. */
+/** The five query facts the projection reads, with idle defaults. */
 function query(overrides: Partial<QueryShape> = {}): QueryShape {
   return {
     data: undefined,
@@ -15,7 +15,6 @@ function query(overrides: Partial<QueryShape> = {}): QueryShape {
     isError: false,
     isSuccess: false,
     isFetching: false,
-    isPlaceholderData: false,
     ...overrides,
   };
 }
@@ -107,37 +106,6 @@ describe("toForumAsyncState", () => {
 
     expect(state.isRefreshing).toBe(true);
     expect(state.isInitialLoading).toBe(false);
-  });
-
-  it("reports a sort switch as switching, not just refreshing", () => {
-    // Placeholder data means a different key is loading behind the data on
-    // screen — the only refresh that gets a spinner of its own.
-    const state = toForumAsyncState(
-      query({
-        data: [],
-        isSuccess: true,
-        isFetching: true,
-        isPlaceholderData: true,
-      }),
-      true,
-      noop,
-    );
-
-    expect(state.isRefreshing).toBe(true);
-    expect(state.isSwitching).toBe(true);
-  });
-
-  it("does not report a mutation refetch as switching", () => {
-    // Same key, so the composer or delete dialog is already showing pending
-    // state and the heading must not duplicate it.
-    const state = toForumAsyncState(
-      query({ data: [], isSuccess: true, isFetching: true }),
-      true,
-      noop,
-    );
-
-    expect(state.isRefreshing).toBe(true);
-    expect(state.isSwitching).toBe(false);
   });
 
   it("passes the retry callback through", () => {

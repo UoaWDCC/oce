@@ -902,18 +902,23 @@ export default function PostThread({
         <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
           <MessageCircle aria-hidden="true" className="h-5 w-5" />
           {replyCountLabel}
-          {/* Only a sort switch spins here. A first load already has the
-              skeleton below, and add/edit/delete already show their pending
-              state in the composer or the delete dialog. */}
-          {commentsState.isSwitching && (
+          {commentsState.isInitialLoading ? (
+            /* Decorative only: the skeleton below already carries
+               aria-label="Loading replies", so announcing it here too would
+               just say the same thing twice. */
+            <Loader2
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin text-purple-500"
+            />
+          ) : commentsState.isRefreshing ? (
             <span role="status">
               <Loader2
                 aria-hidden="true"
                 className="h-4 w-4 animate-spin text-purple-500"
               />
-              <span className="sr-only">Reordering replies</span>
+              <span className="sr-only">Refreshing replies</span>
             </span>
-          )}
+          ) : null}
         </h2>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
           <span>Sort by:</span>

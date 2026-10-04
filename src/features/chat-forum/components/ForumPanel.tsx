@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   CircleHelp,
   List,
+  Loader2,
   Megaphone,
   MessageCircle,
   Package,
@@ -397,6 +398,15 @@ export default function ForumPanel({
                 </span>
               ) : (
                 <span>Loading posts…</span>
+              )}
+              {postsState.isRefreshing && (
+                <span role="status">
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 animate-spin text-purple-500"
+                  />
+                  <span className="sr-only">Refreshing posts</span>
+                </span>
               )}
             </p>
           </div>

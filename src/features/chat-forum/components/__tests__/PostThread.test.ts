@@ -83,21 +83,6 @@ describe("PostThread comment states", () => {
 
     expect(screen.getByText(comments[0].body)).toBeDefined();
     expect(screen.queryByLabelText("Loading replies")).toBeNull();
-    // A mutation refetch: the composer or delete dialog already shows pending
-    // state, so the heading stays quiet.
-    expect(screen.queryByRole("status")).toBeNull();
-  });
-
-  it("shows a spinner while switching sort", () => {
-    renderThread({
-      comments,
-      commentsState: resolved({ isRefreshing: true, isSwitching: true }),
-    });
-
-    expect(screen.getByText(comments[0].body)).toBeDefined();
-    expect(screen.getByRole("status").textContent).toContain(
-      "Reordering replies",
-    );
   });
 
   it("keeps replies on screen when a background refresh fails, and offers a retry", () => {

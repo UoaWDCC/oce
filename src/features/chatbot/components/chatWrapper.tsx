@@ -6,8 +6,11 @@ import ChatButton from "./chatButton";
 import { createClient } from "@/utils/supabase/client";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
+import { createPortal } from "react-dom";
+import { useFloatingPanelLayout } from "@/context/FloatingPanelLayoutProvider";
 
 export default function ChatWrapper() {
+  const { launcherTarget } = useFloatingPanelLayout();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -32,15 +35,17 @@ export default function ChatWrapper() {
   }
 
   return (
-    <div className="p-5 h-full">
-      <ChatModalProvider key={user.id}>
-        <ConversationProvider>
-          <ChatSection />
+    <ChatModalProvider key={user.id}>
+      <ConversationProvider>
+        <ChatSection />
+        {launcherTarget ? (
+          createPortal(<ChatButton compact expandOnOpen />, launcherTarget)
+        ) : (
           <div className="fixed bottom-3 right-3 z-30">
             <ChatButton />
           </div>
-        </ConversationProvider>
-      </ChatModalProvider>
-    </div>
+        )}
+      </ConversationProvider>
+    </ChatModalProvider>
   );
 }

@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  type CSSProperties,
+  type RefObject,
+} from "react";
 import { usePathname } from "next/navigation";
 import {
   normalizePageContextPath,
@@ -8,7 +15,7 @@ import {
 } from "@/features/chatbot/pageContext";
 import { ChatMessageType, TutorMessage } from "@/features/chatbot/types";
 import useOnScreen from "@/hooks/useOnScreen";
-import { Bot, Maximize2, Minimize2, X } from "lucide-react";
+import { Bot, Maximize2, Minimize2, PanelLeft, X } from "lucide-react";
 import ChatMessage from "../chatMessage";
 import ChatReply from "../chatReply";
 import ChatDownButton from "../chatDownButton";
@@ -130,7 +137,21 @@ function AssistantRequestState({
   );
 }
 
-export default function ChatFullscreen() {
+interface ChatFullscreenProps {
+  sidebarId?: string;
+  sidebarOpen?: boolean;
+  sidebarToggleRef?: RefObject<HTMLButtonElement | null>;
+  onToggleSidebar?: () => void;
+  compactStyle?: CSSProperties;
+}
+
+export default function ChatFullscreen({
+  sidebarId,
+  sidebarOpen = false,
+  sidebarToggleRef,
+  onToggleSidebar,
+  compactStyle,
+}: ChatFullscreenProps = {}) {
   const pathname = usePathname();
   const { open, toggleOpen, toggleOpenZoomChatBox, openZoomChatBox } =
     useChatModal();
@@ -160,6 +181,7 @@ export default function ChatFullscreen() {
   );
   const lastMessageRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [, requestTranscriptMeasurement] = useState(0);
   const skipNextLatestScrollRef = useRef(false);
   const isSavingMessageRef = useRef(false);
   const isLoadingOlderRef = useRef(false);
@@ -736,6 +758,25 @@ export default function ChatFullscreen() {
     }
   }
 
+  // A resize can expose empty space without changing messages or request state.
+  // Observe the same scroll element, and only remeasure when its size changes.
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container || typeof ResizeObserver === "undefined") return;
+    let width = container.clientWidth;
+    let height = container.clientHeight;
+    const observer = new ResizeObserver(() => {
+      const nextWidth = container.clientWidth;
+      const nextHeight = container.clientHeight;
+      if (width === nextWidth && height === nextHeight) return;
+      width = nextWidth;
+      height = nextHeight;
+      requestTranscriptMeasurement((version) => version + 1);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   // A short page may not create a scrollbar, leaving no upward scroll event
   // that could request the rest of the history. Measure only after the loading
   // indicator has gone away, since its height is not message content.
@@ -744,6 +785,8 @@ export default function ChatFullscreen() {
     const offset = nextMessagesOffsetRef.current;
     if (
       !container ||
+      !open ||
+      container.clientHeight === 0 ||
       isLoadingHistory ||
       isLoadingOlder ||
       !hasOlderMessages ||
@@ -851,10 +894,11 @@ export default function ChatFullscreen() {
 
   return (
     <div
+      style={openZoomChatBox ? undefined : compactStyle}
       className={`${open ? `` : `hidden`} flex min-h-0 min-w-0 flex-col overflow-hidden rounded-2xl border border-purple-100 bg-white ${
         openZoomChatBox
           ? `relative h-full w-full shadow-sm`
-          : `fixed bottom-5 right-5 z-70 max-h-1/2 min-h-1/3 w-3/5 shadow-lg md:w-2/5 lg:w-1/4`
+          : `fixed bottom-5 right-5 z-70 h-[clamp(20rem,50dvh,calc(100dvh-2.5rem))] max-h-[calc(100dvh-2.5rem)] w-[calc(100vw-2.5rem)] shadow-lg sm:w-3/5 md:w-2/5 lg:w-1/4`
       }`}
     >
       <div className="absolute bottom-20 right-1/2 z-40">
@@ -869,6 +913,21 @@ export default function ChatFullscreen() {
 
       <div className="flex h-16 w-full shrink-0 items-center justify-between border-b border-purple-100 bg-white px-4">
         <div className="flex min-w-0 items-center gap-3">
+          {openZoomChatBox && onToggleSidebar && (
+            <button
+              ref={sidebarToggleRef}
+              type="button"
+              aria-label={
+                sidebarOpen ? "Close conversations" : "Open conversations"
+              }
+              aria-expanded={sidebarOpen}
+              aria-controls={sidebarId}
+              onClick={onToggleSidebar}
+              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-500 hover:bg-purple-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 lg:hidden"
+            >
+              <PanelLeft aria-hidden="true" className="h-5 w-5" />
+            </button>
+          )}
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-purple-100 text-[#5e00b2]">
             <Bot aria-hidden="true" className="h-5 w-5" />
           </div>
@@ -915,20 +974,23 @@ export default function ChatFullscreen() {
         </div>
       </div>
 
-      {error !== undefined && (
-        <div className="z-10 w-full shrink-0 px-4 pt-4">
-          <ErrorMessage message={error} />
-        </div>
-      )}
-
-      <TokenUsageBanner usage={usage} />
+      <div className="max-h-[30%] shrink-0 overflow-y-auto">
+        {error !== undefined && (
+          <div className="z-10 w-full px-4 pt-4">
+            <ErrorMessage message={error} />
+          </div>
+        )}
+        <TokenUsageBanner usage={usage} />
+      </div>
 
       <div
         ref={messagesContainerRef}
         onScroll={handleMessagesScroll}
         className="min-h-0 h-full w-full flex-1 overflow-y-auto bg-slate-50/60"
       >
-        <div className="relative mx-auto flex min-h-full w-full max-w-4xl flex-col px-4 py-6">
+        <div
+          className={`relative mx-auto flex min-h-full w-full flex-col px-4 py-6 ${openZoomChatBox ? "max-w-5xl" : "max-w-4xl"}`}
+        >
           <div className="flex min-h-full w-full flex-1 flex-col gap-4">
             {isLoadingOlder && (
               <p className="py-1 text-center text-xs text-slate-500">
@@ -986,17 +1048,23 @@ export default function ChatFullscreen() {
           <div className="h-1" ref={lastMessageRef}></div>
         </div>
       </div>
-      <div className="w-full shrink-0 border-t border-slate-200 bg-white pt-3">
-        {requestPhase !== "idle" && (
-          <AssistantRequestState phase={requestPhase} />
-        )}
-        <TextArea
-          submitMessage={submitMessage}
-          isSubmitting={isSavingMessage}
-          errorMessage={saveError}
-          disabled={isOverLimit || isInitialHistoryPending}
-          placeholder={isOverLimit ? "Daily AI Tutor limit reached" : undefined}
-        />
+      <div className="max-h-[40%] w-full shrink-0 overflow-y-auto border-t border-slate-200 bg-white pt-3">
+        <div
+          className={`mx-auto w-full ${openZoomChatBox ? "max-w-5xl" : "max-w-4xl"}`}
+        >
+          {requestPhase !== "idle" && (
+            <AssistantRequestState phase={requestPhase} />
+          )}
+          <TextArea
+            submitMessage={submitMessage}
+            isSubmitting={isSavingMessage}
+            errorMessage={saveError}
+            disabled={isOverLimit || isInitialHistoryPending}
+            placeholder={
+              isOverLimit ? "Daily AI Tutor limit reached" : undefined
+            }
+          />
+        </div>
       </div>
     </div>
   );

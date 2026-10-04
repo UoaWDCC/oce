@@ -4,7 +4,11 @@ import { createConversation } from "@/features/chatbot/api/conversations";
 import { Plus } from "lucide-react";
 import { useState } from "react";
 
-export default function NewConversationButton() {
+export default function NewConversationButton({
+  onCreated,
+}: {
+  onCreated?: () => void;
+}) {
   const {
     setSelectedConversationId,
     refreshConversationList,
@@ -15,6 +19,8 @@ export default function NewConversationButton() {
 
   return (
     <button
+      type="button"
+      aria-label="New Conversation"
       disabled={isCreating}
       onClick={async () => {
         if (isCreating) {
@@ -27,6 +33,7 @@ export default function NewConversationButton() {
           setSelectedConversationId(newConversation.id);
           clearCurrentMessages();
           refreshConversationList();
+          onCreated?.();
         } catch (error) {
           setError(
             error instanceof Error

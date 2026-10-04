@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLearningPanelLayout } from "@/context/FloatingPanelLayoutProvider";
 import {
   X,
   ChevronRight,
@@ -150,6 +151,7 @@ export default function AllModulesSidebar({
   isOpen,
   onClose,
 }: AllModulesSidebarProps) {
+  const { panelRef, launcherRef } = useLearningPanelLayout(isOpen);
   const supabase = createClient();
   const [allModules, setAllModules] = useState<Module[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -579,7 +581,10 @@ export default function AllModulesSidebar({
       />
 
       {/* Sidebar */}
-      <div className="fixed right-0 top-0 h-full w-full md:w-[500px] lg:w-[600px] bg-white/95 backdrop-blur-md shadow-2xl z-50 overflow-y-auto border-l-2 border-purple-200">
+      <div
+        ref={panelRef}
+        className="fixed right-0 top-0 h-full w-full md:w-[500px] lg:w-[600px] bg-white/95 backdrop-blur-md shadow-2xl z-50 overflow-y-auto border-l-2 border-purple-200"
+      >
         {/* Decorative SVGs */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <svg
@@ -608,19 +613,26 @@ export default function AllModulesSidebar({
 
         {/* Header */}
         <div className="sticky top-0 z-20 bg-gradient-to-r from-[#5e00b2] to-[#7b2fd6] text-white p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex min-w-[12rem] flex-1 items-center gap-3">
+              <div className="shrink-0 p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
                 <BookOpen className="w-6 h-6" />
               </div>
-              <h2 className="text-2xl font-bold">All Learning Modules</h2>
+              <h2 className="min-w-0 break-words text-2xl font-bold">
+                All Learning Modules
+              </h2>
             </div>
-            <button
-              onClick={onClose}
-              className="p-2.5 hover:bg-white/20 rounded-xl transition-all duration-300 hover:shadow-lg"
-            >
-              <X className="w-6 h-6" />
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              <div ref={launcherRef} />
+              <button
+                type="button"
+                aria-label="Close learning modules"
+                onClick={onClose}
+                className="p-2.5 hover:bg-white/20 rounded-xl transition-all duration-300 hover:shadow-lg"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
           </div>
 
           {/* Overall progress */}

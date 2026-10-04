@@ -315,18 +315,18 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
         Promise.resolve({ data: fakeComments, error: null }),
       );
 
-    const likesQuery = {
+    const reactionsQuery = {
       select: vi.fn().mockReturnThis(),
       in: vi.fn().mockResolvedValue({
         data: [
-          { comment_id: "c1", user_id: "test-user" },
-          { comment_id: "c1", user_id: "another-user" },
+          { comment_id: "c1", user_id: "test-user", reaction: "heart" },
+          { comment_id: "c1", user_id: "another-user", reaction: "heart" },
         ],
         error: null,
       }),
     };
     mockSupabase.from.mockImplementation((table: string) =>
-      table === "comment_likes" ? likesQuery : mockSupabase,
+      table === "comment_reactions" ? reactionsQuery : mockSupabase,
     );
 
     // Default sort is "oldest" — c1 should come first
@@ -338,12 +338,21 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json).toHaveLength(2);
     expect(json[0].id).toBe("c1");
     expect(json[1].id).toBe("c2");
-    expect(mockSupabase.from).toHaveBeenCalledWith("comment_likes");
-    expect(likesQuery.in).toHaveBeenCalledWith("comment_id", ["c1", "c2"]);
-    expect(json[0].like_count).toBe(2);
-    expect(json[0].is_liked).toBe(true);
-    expect(json[1].like_count).toBe(0);
-    expect(json[1].is_liked).toBe(false);
+    expect(mockSupabase.from).toHaveBeenCalledWith("comment_reactions");
+    expect(reactionsQuery.in).toHaveBeenCalledWith("comment_id", ["c1", "c2"]);
+    expect(json[0].reaction_counts).toEqual({
+      heart: 2,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    });
+    expect(json[0].user_reactions?.heart).toBe(true);
+    expect(json[1].reaction_counts).toEqual({
+      heart: 0,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    });
   });
 
   it("returns 200 with comments sorted by latest", async () => {
@@ -451,10 +460,10 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     // c1 gets 1 like, c2 gets 3 likes — c2 should sort first
     mockSupabase.in.mockResolvedValueOnce({
       data: [
-        { comment_id: "c1", user_id: "user-1" },
-        { comment_id: "c2", user_id: "user-1" },
-        { comment_id: "c2", user_id: "user-2" },
-        { comment_id: "c2", user_id: "user-3" },
+        { comment_id: "c1", user_id: "user-1", reaction: "heart" },
+        { comment_id: "c2", user_id: "user-1", reaction: "heart" },
+        { comment_id: "c2", user_id: "user-2", reaction: "heart" },
+        { comment_id: "c2", user_id: "user-3", reaction: "heart" },
       ],
       error: null,
     });

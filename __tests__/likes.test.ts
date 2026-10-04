@@ -1,7 +1,10 @@
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { NextResponse } from "next/server";
 import { mockSupabase, resetAll, createMockRequest, readJson } from "./helpers";
-import { POST, DELETE } from "@/app/api/comments/[commentId]/like/route";
+import {
+  POST,
+  DELETE,
+} from "@/app/api/comments/[commentId]/reaction/[reactionType]/route";
 import { authenticateUser } from "@/utils/authHelper";
 
 vi.mock("@/utils/authHelper", () => ({
@@ -12,9 +15,11 @@ vi.mock("@/utils/daoMembership", () => ({
   checkDAOMembership: vi.fn(),
 }));
 
-const mockParams = { params: Promise.resolve({ commentId: "comment-1" }) };
+const mockParams = {
+  params: Promise.resolve({ commentId: "comment-1", reactionType: "heart" }),
+};
 
-describe("POST /api/comments/[commentId]/like", () => {
+describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
   beforeEach(() => {
     resetAll();
   });
@@ -24,19 +29,23 @@ describe("POST /api/comments/[commentId]/like", () => {
       .mockResolvedValueOnce({ data: { deleted_at: null }, error: null })
       .mockResolvedValueOnce({ data: null, error: null })
       .mockResolvedValueOnce({
-        data: { comment_id: "comment-1", user_id: "test-user" },
+        data: {
+          comment_id: "comment-1",
+          user_id: "test-user",
+          reaction: "heart",
+        },
         error: null,
       });
 
     const req = createMockRequest("POST");
     const res = await POST(req, mockParams);
     const json = await readJson<{
-      like: { comment_id: string; user_id: string };
+      reaction: { comment_id: string; user_id: string };
     }>(res);
 
     expect(res.status).toBe(201);
-    expect(json.like.comment_id).toBe("comment-1");
-    expect(json.like.user_id).toBe("test-user");
+    expect(json.reaction.comment_id).toBe("comment-1");
+    expect(json.reaction.user_id).toBe("test-user");
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -105,7 +114,9 @@ describe("POST /api/comments/[commentId]/like", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(409);
-    expect(json.error).toBe("You have already liked this comment");
+    expect(json.error).toBe(
+      "You have already added a heart reaction to this comment",
+    );
   });
 
   it("returns 500 when checking existing like fails", async () => {
@@ -142,7 +153,7 @@ describe("POST /api/comments/[commentId]/like", () => {
   });
 });
 
-describe("DELETE /api/comments/[commentId]/like", () => {
+describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
   beforeEach(() => {
     resetAll();
   });
@@ -160,22 +171,26 @@ describe("DELETE /api/comments/[commentId]/like", () => {
     // eq call count:
     // 1. comment-check .eq("id") -> chain
     // 2. like-check .eq("comment_id") -> chain
-    // 3. like-check .eq("user_id") -> chain to .maybeSingle()
-    // 4. delete .eq("comment_id") -> chain
-    // 5. delete .eq("user_id") -> terminal
+    // 3. like-check .eq("user_id") -> chain
+    // 4. like-check .eq("reaction") -> chain to .maybeSingle()
+    // 5. delete .eq("comment_id") -> chain
+    // 6. delete .eq("user_id") -> chain
+    // 7. delete .eq("reaction") -> terminal
     mockSupabase.eq
       .mockReturnValueOnce(mockSupabase) // #1
       .mockReturnValueOnce(mockSupabase) // #2
       .mockReturnValueOnce(mockSupabase) // #3
       .mockReturnValueOnce(mockSupabase) // #4
-      .mockReturnValueOnce(Promise.resolve({ error: null })); // #5
+      .mockReturnValueOnce(mockSupabase) // #5
+      .mockReturnValueOnce(mockSupabase) // #6
+      .mockReturnValueOnce(Promise.resolve({ error: null })); // #7
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);
     const json = await readJson<{ message: string }>(res);
 
     expect(res.status).toBe(200);
-    expect(json.message).toBe("Like removed");
+    expect(json.message).toBe("heart reaction removed");
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -230,7 +245,9 @@ describe("DELETE /api/comments/[commentId]/like", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(404);
-    expect(json.error).toBe("You have not liked this comment");
+    expect(json.error).toBe(
+      "You have not added a heart reaction to this comment",
+    );
   });
 
   it("returns 404 when comment query errors", async () => {
@@ -273,7 +290,11 @@ describe("DELETE /api/comments/[commentId]/like", () => {
         error: null,
       })
       .mockResolvedValueOnce({
-        data: { comment_id: "comment-1", user_id: "test-user" },
+        data: {
+          comment_id: "comment-1",
+          user_id: "test-user",
+          reaction: "heart",
+        },
         error: null,
       });
     // eq call count: same as success test
@@ -282,9 +303,11 @@ describe("DELETE /api/comments/[commentId]/like", () => {
       .mockReturnValueOnce(mockSupabase) // #2 like-check
       .mockReturnValueOnce(mockSupabase) // #3 like-check
       .mockReturnValueOnce(mockSupabase) // #4 delete
+      .mockReturnValueOnce(mockSupabase) // #5 delete
+      .mockReturnValueOnce(mockSupabase) // #6 delete
       .mockReturnValueOnce(
         Promise.resolve({ error: { message: "Like delete failed" } }),
-      ); // #5 delete terminal
+      ); // #7 delete terminal
 
     const req = createMockRequest("DELETE");
     const res = await DELETE(req, mockParams);

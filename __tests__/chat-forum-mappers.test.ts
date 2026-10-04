@@ -128,8 +128,8 @@ describe("mapCommentToForumCommentPreview", () => {
           username: "Jordan",
           wallet_address: null,
           ens_name: null,
-          like_count: 3,
-          is_liked: true,
+          reaction_counts: { heart: 3, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+          user_reactions: { heart: true, thumbs_up: false, fire: false, thumbs_down: false },
           parent_comment_id: "comment-1",
           created_at: "2026-07-22T00:00:00.000Z",
           updated_at: null,
@@ -143,7 +143,7 @@ describe("mapCommentToForumCommentPreview", () => {
       postId: "post-1",
       parentCommentId: "comment-1",
       isDeleted: true,
-      isLiked: true,
+      reactionCounts: { heart: 3, thumbs_up: 0, fire: 0, thumbs_down: 0 },
     });
   });
 
@@ -157,8 +157,8 @@ describe("mapCommentToForumCommentPreview", () => {
         username: "Jordan",
         wallet_address: null,
         ens_name: null,
-        like_count: 0,
-        is_liked: false,
+  reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+  user_reactions: { heart: false, thumbs_up: false, fire: false, thumbs_down: false },
         parent_comment_id: null,
         created_at: "2026-07-22T00:00:00.000Z",
         updated_at: null,
@@ -183,8 +183,8 @@ describe("mapCommentToForumCommentPreview", () => {
         username: "Jordan",
         wallet_address: null,
         ens_name: null,
-        like_count: 0,
-        is_liked: false,
+  reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+  user_reactions: { heart: false, thumbs_up: false, fire: false, thumbs_down: false },
         parent_comment_id: null,
         created_at: "2026-07-22T00:00:00.000Z",
         updated_at: null,
@@ -210,7 +210,7 @@ describe("buildForumThreadComments", () => {
         body: "Parent",
         createdAt: "2026-07-22T00:00:00.000Z",
         createdAtLabel: "Jul 22, 2026",
-        likeCount: 1,
+        reactionCounts: { heart: 1, thumbs_up: 0, fire: 0, thumbs_down: 0 },
       },
       {
         id: "child",
@@ -220,7 +220,7 @@ describe("buildForumThreadComments", () => {
         body: "Child",
         createdAt: "2026-07-22T01:00:00.000Z",
         createdAtLabel: "Jul 22, 2026",
-        likeCount: 0,
+        reactionCounts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
       },
     ];
 
@@ -242,7 +242,7 @@ describe("buildForumThreadComments", () => {
         imageUrl: "https://example.supabase.co/forum-images/user/image.png",
         createdAt: "2026-07-22T00:00:00.000Z",
         createdAtLabel: "Jul 22, 2026",
-        likeCount: 0,
+        reactionCounts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
         isDeleted: true,
       },
     ];

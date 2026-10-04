@@ -125,49 +125,57 @@ export function useDaoForumCommentReactions(
 
       const previousRequest =
         requestQueuesRef.current[commentId] ?? Promise.resolve();
-      const request = previousRequest.catch(() => undefined).then(async () => {
-        if (contextVersion !== contextVersionRef.current) return;
-
-        try {
-          if (isActive) {
-            await removeCommentReaction(commentId, reaction, token);
-          } else {
-            await addCommentReaction(commentId, reaction, token);
-          }
-          if (contextVersion === contextVersionRef.current) {
-            setError(null);
-          }
-        } catch (reason: unknown) {
+      const request = previousRequest
+        .catch(() => undefined)
+        .then(async () => {
           if (contextVersion !== contextVersionRef.current) return;
+          let stateToClear = next;
 
-          if (optimisticRef.current[commentId] === next) {
-            optimisticRef.current = {
-              ...optimisticRef.current,
-              [commentId]: current,
-            };
-            setOptimisticState((previous) => ({
-              ...previous,
-              [commentId]: current,
-            }));
-            patchCommentInAllSorts(commentId, current);
+          try {
+            if (isActive) {
+              await removeCommentReaction(commentId, reaction, token);
+            } else {
+              await addCommentReaction(commentId, reaction, token);
+            }
+            if (contextVersion === contextVersionRef.current) {
+              setError(null);
+            }
+          } catch (reason: unknown) {
+            if (contextVersion !== contextVersionRef.current) return;
+
+            if (optimisticRef.current[commentId] === next) {
+              optimisticRef.current = {
+                ...optimisticRef.current,
+                [commentId]: current,
+              };
+              setOptimisticState((previous) => ({
+                ...previous,
+                [commentId]: current,
+              }));
+              patchCommentInAllSorts(commentId, current);
+              stateToClear = current;
+            }
+            setError(
+              reason instanceof Error
+                ? reason
+                : new Error("Failed to update comment reaction"),
+            );
+          } finally {
+            if (contextVersion !== contextVersionRef.current) return;
+
+            await queryClient
+              .invalidateQueries({
+                queryKey: forumKeys.commentsAll(
+                  daoGroupId,
+                  postId,
+                  currentUserId,
+                ),
+                refetchType: "all",
+              })
+              .catch(() => undefined);
+            clearOptimisticState(commentId, stateToClear);
           }
-          setError(
-            reason instanceof Error
-              ? reason
-              : new Error("Failed to update comment reaction"),
-          );
-        } finally {
-          if (contextVersion !== contextVersionRef.current) return;
-
-          await queryClient
-            .invalidateQueries({
-              queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId),
-              refetchType: "all",
-            })
-            .catch(() => undefined);
-          clearOptimisticState(commentId, next);
-        }
-      });
+        });
 
       requestQueuesRef.current[commentId] = request;
       const clearQueue = () => {

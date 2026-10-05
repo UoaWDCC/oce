@@ -2,12 +2,23 @@
 import { Send } from "lucide-react";
 import { ChangeEvent, ReactNode, useEffect, useRef, useState } from "react";
 
+const NO_DISCARDED_DRAFTS: string[] = [];
+
+// The conversation may be created during submission, after the input cleared.
+export class UnsavedDraftError extends Error {
+  constructor(readonly draftKey: string | null) {
+    super("Message was not saved.");
+  }
+}
+
 interface TextAreaPropsType {
   submitMessage(message: string): Promise<void> | void;
   isSubmitting?: boolean;
   errorMessage?: string | null;
   disabled?: boolean;
   placeholder?: string;
+  draftKey?: string | null;
+  discardedDraftKeys?: string[];
 }
 
 export default function TextArea({
@@ -16,11 +27,48 @@ export default function TextArea({
   errorMessage = null,
   disabled = false,
   placeholder,
+  draftKey,
+  discardedDraftKeys = NO_DISCARDED_DRAFTS,
 }: TextAreaPropsType): ReactNode {
   const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [inputValue, setInputValue] = useState<string>("");
+  const [drafts, setDrafts] = useState(
+    new Map<string | null | undefined, string>(),
+  );
+  const inputValue = drafts.get(draftKey) ?? "";
+  const draftRevisionsRef = useRef(
+    new Map<string | null | undefined, number>(),
+  );
+  const submissionSequenceRef = useRef(0);
+  const isSubmittingRef = useRef(false);
+  const isMountedRef = useRef(false);
+  const discardedDraftKeysRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const newlyDiscarded = discardedDraftKeys.filter(
+      (key) => !discardedDraftKeysRef.current.has(key),
+    );
+    discardedDraftKeysRef.current = new Set(discardedDraftKeys);
+    setDrafts((current) => {
+      if (!newlyDiscarded.some((key) => current.has(key))) return current;
+      const remaining = new Map(current);
+      for (const key of newlyDiscarded) remaining.delete(key);
+      return remaining;
+    });
+  }, [discardedDraftKeys]);
   function updateInputValue(e: ChangeEvent<HTMLTextAreaElement>) {
-    setInputValue(e.target.value);
+    const value = e.target.value;
+    draftRevisionsRef.current.set(
+      draftKey,
+      (draftRevisionsRef.current.get(draftKey) ?? 0) + 1,
+    );
+    setDrafts((current) => new Map(current).set(draftKey, value));
   }
 
   useEffect(() => {
@@ -34,19 +82,34 @@ export default function TextArea({
   async function handleSubmit() {
     const message = inputValue.trim();
 
-    if (!message || isSubmitting || disabled) {
+    if (!message || isSubmittingRef.current || isSubmitting || disabled) {
       return;
     }
 
-    // Clear on send so the question never stays stuck (e.g. if the user switches
-    // conversations mid-stream). Restore the draft only if submit throws — which
-    // the parent does only while the failing conversation is still selected.
-    setInputValue("");
+    const sequence = ++submissionSequenceRef.current;
+    isSubmittingRef.current = true;
+    const revisions = new Map(draftRevisionsRef.current);
+    setDrafts((current) => new Map(current).set(draftKey, ""));
 
     try {
       await submitMessage(message);
-    } catch {
-      setInputValue(message);
+    } catch (error) {
+      const owner =
+        error instanceof UnsavedDraftError ? error.draftKey : draftKey;
+      // Recover only the originating draft. A background failure cannot fill
+      // another conversation's input or replace edits made since submission.
+      if (
+        isMountedRef.current &&
+        submissionSequenceRef.current === sequence &&
+        (draftRevisionsRef.current.get(owner) ?? 0) ===
+          (revisions.get(owner) ?? 0)
+      ) {
+        setDrafts((current) =>
+          current.get(owner) ? current : new Map(current).set(owner, message),
+        );
+      }
+    } finally {
+      isSubmittingRef.current = false;
     }
   }
 

@@ -11,6 +11,21 @@ interface UsePendingTutorRequest {
   refresh(): Promise<void>;
 }
 
+// Every assistant reply renders this hook and asks for the same list, so one
+// fetch is shared between them. Cleared once settled, so a refresh after
+// submitting a request still sees fresh data.
+let inFlight: Promise<Awaited<ReturnType<typeof getTutorRequests>>> | null =
+  null;
+
+function fetchTutorRequestsShared() {
+  if (!inFlight) {
+    inFlight = getTutorRequests().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
 export function usePendingTutorRequest(
   conversationId: string | null,
 ): UsePendingTutorRequest {
@@ -21,7 +36,7 @@ export function usePendingTutorRequest(
     if (!conversationId) return;
     setLoading(true);
     try {
-      const tutorRequests = await getTutorRequests();
+      const tutorRequests = await fetchTutorRequestsShared();
       const pending = tutorRequests.some(
         (r) =>
           r.conversation_id === conversationId && r.status === PENDING_STATUS,

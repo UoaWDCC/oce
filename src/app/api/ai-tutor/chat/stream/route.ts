@@ -137,7 +137,8 @@ export async function POST(req: NextRequest) {
 
   try {
     firstChunk = await iterator.next();
-  } catch {
+  } catch (error) {
+    console.error("AI tutor stream first chunk failed:", error);
     return NextResponse.json({ error: "LLM provider error" }, { status: 502 });
   }
 

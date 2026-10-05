@@ -102,7 +102,7 @@ export async function POST(req: Request) {
 
     const { data: conversation, error: conversationError } = await supabase
       .from("conversations")
-      .select("id")
+      .select("id, title")
       .eq("id", conversation_id)
       .eq("user_id", user.id)
       .single();
@@ -132,43 +132,12 @@ export async function POST(req: Request) {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation_id);
 
-    // Check if conversation already has a title
-    const { data: titledConversation } = await supabase
-      .from("conversations")
-      .select("title")
-      .eq("id", conversation_id)
-      .single();
-
-    if (!titledConversation?.title) {
-      try {
-        const provider = createLLMProvider();
-        const title = await provider.complete(
-          [
-            {
-              role: "user",
-              content: `Generate one concise, natural conversation title in sentence case.
-Keep it under 10 words.
-Return only the title, with no quotes, bullet points, or explanation.
-
-User message: ${content.trim()}`,
-            },
-          ],
-          {},
-        );
-        const cleanedTitle = title
-          .trim()
-          .replace(/^["']|["']$/g, "")
-          .slice(0, 80);
-
-        if (cleanedTitle) {
-          await supabase
-            .from("conversations")
-            .update({ title: cleanedTitle })
-            .eq("id", conversation_id);
-        }
-      } catch (error) {
-        console.warn("AI tutor title generation failed:", error);
-      }
+    // Generate a title for the conversation's first message. Not awaited: the
+    // reply can't start streaming until this response is sent, and an LLM call
+    // here added several seconds before the user saw anything. A failed title
+    // is already non-fatal.
+    if (!conversation.title) {
+      void generateConversationTitle(supabase, conversation_id, content);
     }
 
     return Response.json({ message }, { status: 201, headers: corsHeaders });
@@ -178,6 +147,42 @@ User message: ${content.trim()}`,
       { error: "Internal server error" },
       { status: 500, headers: corsHeaders },
     );
+  }
+}
+
+async function generateConversationTitle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  content: string,
+) {
+  try {
+    const provider = createLLMProvider();
+    const title = await provider.complete(
+      [
+        {
+          role: "user",
+          content: `Generate one concise, natural conversation title in sentence case.
+Keep it under 10 words.
+Return only the title, with no quotes, bullet points, or explanation.
+
+User message: ${content.trim()}`,
+        },
+      ],
+      {},
+    );
+    const cleanedTitle = title
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .slice(0, 80);
+
+    if (cleanedTitle) {
+      await supabase
+        .from("conversations")
+        .update({ title: cleanedTitle })
+        .eq("id", conversationId);
+    }
+  } catch (error) {
+    console.warn("AI tutor title generation failed:", error);
   }
 }
 

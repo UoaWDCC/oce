@@ -117,12 +117,14 @@ export default function ChatFullscreen() {
     targetMessageId,
     setTargetMessageId,
     refreshConversationList,
+    tokenUsageVersion,
+    refreshTokenUsage,
     conversationListVersion,
     messageResetVersion,
     error,
     setError,
   } = useConversation();
-  const usage = useTokenUsage(conversationListVersion);
+  const usage = useTokenUsage(tokenUsageVersion);
   const isOverLimit = isTokenLimitReached(usage);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -269,7 +271,6 @@ export default function ChatFullscreen() {
 
               return nextMessages;
             });
-            refreshConversationList();
           },
         },
         pageContext,
@@ -318,6 +319,7 @@ export default function ChatFullscreen() {
           error.message === "exceeded daily token limit"
         ) {
           refreshConversationList();
+          refreshTokenUsage();
           setSaveError(
             "Your message was not sent. Daily AI Tutor limit reached.",
           );
@@ -366,6 +368,12 @@ export default function ChatFullscreen() {
           return currentMessages;
         });
       }
+      // Usage only changes once an exchange has run, so refresh it here rather
+      // than on every conversation list refresh. The list is refreshed again
+      // too: a new conversation's title is generated without being awaited, so
+      // it lands after the refresh made when the message was saved.
+      refreshTokenUsage();
+      refreshConversationList();
       isSavingMessageRef.current = false;
       setIsSavingMessage(false);
     }

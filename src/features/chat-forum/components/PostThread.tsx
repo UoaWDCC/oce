@@ -322,6 +322,8 @@ type ThreadCommentProps = {
   depth?: number;
   parentAuthorName?: string;
   onCommentRefetch?: () => Promise<void>;
+  /** Refetch after a delete, which the thread keeps quiet about. */
+  onDeleteRefetch?: () => Promise<void>;
   token?: string;
 };
 
@@ -336,6 +338,7 @@ function ThreadComment({
   depth = 0,
   parentAuthorName,
   onCommentRefetch,
+  onDeleteRefetch,
   token,
 }: ThreadCommentProps) {
   const { updateComment } = useUpdateDaoForumComment(comment.id);
@@ -372,7 +375,7 @@ function ThreadComment({
   const handleDelete = async () => {
     const deleted = await deleteComment(token);
     if (deleted) {
-      await onCommentRefetch?.();
+      await (onDeleteRefetch ?? onCommentRefetch)?.();
       setIsDeleteConfirmOpen(false);
     }
   };
@@ -624,6 +627,7 @@ function ThreadComment({
                     onCancelReply={onCancelReply}
                     onSubmitComment={onSubmitComment}
                     onCommentRefetch={onCommentRefetch}
+                    onDeleteRefetch={onDeleteRefetch}
                     token={token}
                   />
                 </div>
@@ -669,6 +673,7 @@ function ThreadComment({
                   onCancelReply={onCancelReply}
                   onSubmitComment={onSubmitComment}
                   onCommentRefetch={onCommentRefetch}
+                  onDeleteRefetch={onDeleteRefetch}
                   token={token}
                 />
               </div>
@@ -726,7 +731,19 @@ export default function PostThread({
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isRefetchingAfterDelete, setIsRefetchingAfterDelete] = useState(false);
   const showOwnerActions = Boolean(post.isOwnPost);
+
+  // The delete dialog stays open until this refetch finishes, so the user
+  // already has something on screen for it; the heading spinner stays quiet.
+  const refetchAfterDelete = async () => {
+    setIsRefetchingAfterDelete(true);
+    try {
+      await onCommentRefetch?.();
+    } finally {
+      setIsRefetchingAfterDelete(false);
+    }
+  };
   /** Untyped posts keep the generic book glyph. */
   const PostTypeIcon = post.postType
     ? getPostTypePresentation(post.postType).icon
@@ -910,7 +927,7 @@ export default function PostThread({
               aria-hidden="true"
               className="h-4 w-4 animate-spin text-purple-500"
             />
-          ) : commentsState.isRefreshing ? (
+          ) : commentsState.isRefreshing && !isRefetchingAfterDelete ? (
             <span role="status">
               <Loader2
                 aria-hidden="true"
@@ -990,6 +1007,7 @@ export default function PostThread({
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
               onCommentRefetch={onCommentRefetch}
+              onDeleteRefetch={refetchAfterDelete}
               token={token}
             />
           ))

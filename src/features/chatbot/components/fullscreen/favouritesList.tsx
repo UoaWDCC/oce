@@ -54,8 +54,11 @@ export default function FavouritesList({
   onFavouriteRemoved,
   selectedFavouriteMessageId,
 }: FavouritesListProps) {
-  const { favouriteVersion, selectedConversationId, clearCurrentMessages } =
-    useConversation();
+  const {
+    favouriteVersion,
+    selectedConversationId,
+    clearCurrentMessages,
+  } = useConversation();
   const { favourites, isLoading, error, setFavourites } =
     useFavourites(favouriteVersion);
 

@@ -4,6 +4,7 @@ import { SITE_GUIDE } from "@/features/chatbot/server/knowledge/siteGuide";
 import { AI_TUTOR_SYSTEM_PROMPT } from "@/features/chatbot/server/prompts/aiTutorSystemPrompt";
 import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import type { Message } from "@/llm/types/Message";
+import { estimateTokenUsage } from "@/utils/aiTutorTokenUsage";
 
 const { mockCreateLLMProvider, mockGetAdminClient, mockStream } = vi.hoisted(
   () => {
@@ -31,11 +32,7 @@ import { POST } from "@/app/api/ai-tutor/chat/stream/route";
 const GUIDE_DELIMITER =
   "\n\nUse this platform navigation information to answer user questions:\n\n";
 const CURRENT_PAGE_DELIMITER = "\n\nCurrent page context for this request:\n\n";
-const BASE_INSTRUCTION = `${AI_TUTOR_SYSTEM_PROMPT}${GUIDE_DELIMITER}${JSON.stringify(
-  SITE_GUIDE,
-  null,
-  2,
-)}`;
+const BASE_INSTRUCTION = AI_TUTOR_SYSTEM_PROMPT;
 const messages: Message[] = [
   { role: "user", content: "What is a smart contract?" },
   { role: "assistant", content: "It is a program on a blockchain." },
@@ -66,15 +63,32 @@ describe("AI Tutor system instruction", () => {
     vi.unstubAllEnvs();
   });
 
-  it("builds the reusable system prompt with the site guide", () => {
-    const instruction = buildAiTutorInstruction();
+  it("includes only selected navigation entries", () => {
+    const selectedEntries = SITE_GUIDE.filter((entry) =>
+      ["dao-details", "your-daos"].includes(entry.id),
+    );
+    const instruction = buildAiTutorInstruction(undefined, selectedEntries);
     const sections = instruction.split(GUIDE_DELIMITER);
 
-    expect(instruction).toBe(BASE_INSTRUCTION);
+    expect(instruction).toContain(AI_TUTOR_SYSTEM_PROMPT);
     expect(sections).toHaveLength(2);
     expect(sections[0]).toBe(AI_TUTOR_SYSTEM_PROMPT);
-    expect(sections[1]).toBe(JSON.stringify(SITE_GUIDE, null, 2));
-    expect(JSON.parse(sections[1])).toEqual(SITE_GUIDE);
+    expect(JSON.parse(sections[1])).toEqual(selectedEntries);
+    expect(sections[1]).not.toContain('"id": "login"');
+  });
+
+  it("keeps core tutor instructions without navigation for a learning question", () => {
+    expect(buildAiTutorInstruction()).toBe(BASE_INSTRUCTION);
+  });
+
+  it("reduces estimated prompt input for a learning question", () => {
+    const fullGuideInstruction = buildAiTutorInstruction(undefined, SITE_GUIDE);
+    const reducedInstruction = buildAiTutorInstruction();
+
+    expect(estimateTokenUsage([reducedInstruction])).toBeLessThan(
+      estimateTokenUsage([fullGuideInstruction]),
+    );
+    expect(reducedInstruction).toContain(AI_TUTOR_SYSTEM_PROMPT);
   });
 
   it("appends exactly one resolved current-page section", () => {

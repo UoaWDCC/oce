@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   setError: vi.fn(),
   setSelectedConversationId: vi.fn(),
   refreshConversationList: vi.fn(),
+  refreshTokenUsage: vi.fn(),
   viewportHeight: 400,
   viewportWidth: 300,
 }));
@@ -72,6 +73,8 @@ vi.mock("@/features/chatbot/providers/ConversationProvider", () => ({
     setTargetMessageId: mocks.setTargetMessageId,
     setSelectedConversationId: mocks.setSelectedConversationId,
     refreshConversationList: mocks.refreshConversationList,
+    tokenUsageVersion: 0,
+    refreshTokenUsage: mocks.refreshTokenUsage,
     messageResetVersion: mocks.messageResetVersion,
     error: undefined,
     setError: mocks.setError,

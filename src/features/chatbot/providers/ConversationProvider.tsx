@@ -9,6 +9,8 @@ interface ConversationContextType {
   setTargetMessageId: (id: string | null) => void;
   conversationListVersion: number;
   refreshConversationList: () => void;
+  tokenUsageVersion: number;
+  refreshTokenUsage: () => void;
   messageResetVersion: number;
   clearCurrentMessages: () => void;
   discardedConversationIds: string[];
@@ -29,6 +31,7 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   >(null);
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
   const [conversationListVersion, setConversationListVersion] = useState(0);
+  const [tokenUsageVersion, setTokenUsageVersion] = useState(0);
   const [messageResetVersion, setMessageResetVersion] = useState(0);
   const [discardedConversationIds, setDiscardedConversationIds] = useState<
     string[]
@@ -46,6 +49,8 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
         conversationListVersion,
         refreshConversationList: () =>
           setConversationListVersion((version) => version + 1),
+        tokenUsageVersion,
+        refreshTokenUsage: () => setTokenUsageVersion((version) => version + 1),
         messageResetVersion,
         clearCurrentMessages: () =>
           setMessageResetVersion((version) => version + 1),

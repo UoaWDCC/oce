@@ -137,11 +137,7 @@ export async function POST(req: NextRequest) {
     latestQuestion,
     pageContext,
   );
-  const selectedMessages = selectConversationMessages(
-    body.messages,
-    latestQuestion,
-    navigationEntries,
-  );
+  const selectedMessages = selectConversationMessages(body.messages);
   const systemInstruction = buildAiTutorInstruction(
     pageContext,
     navigationEntries,

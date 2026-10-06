@@ -81,6 +81,60 @@ describe("AI Tutor system instruction", () => {
     expect(buildAiTutorInstruction()).toBe(BASE_INSTRUCTION);
   });
 
+  it.each([
+    ["How can I ask a human tutor for more help?", "ask-a-tutor"],
+    ["Can I copy an AI Tutor response?", "ai-tutor-response-actions"],
+  ])(
+    "passes actual support instructions to the provider: %s",
+    async (question, id) => {
+      const requestMessages: Message[] = [{ role: "user", content: question }];
+      const response = await POST(
+        createDevRequest({ messages: requestMessages }),
+      );
+      await response.text();
+
+      const [passedMessages, config] = mockStream.mock.calls[0] as [
+        Message[],
+        { systemInstruction: string },
+      ];
+      expect(passedMessages).toEqual(requestMessages);
+      expect(config.systemInstruction).toContain(AI_TUTOR_SYSTEM_PROMPT);
+      const suppliedGuide = JSON.parse(
+        config.systemInstruction.split(GUIDE_DELIMITER)[1],
+      );
+      expect(suppliedGuide).toContainEqual(
+        SITE_GUIDE.find((entry) => entry.id === id),
+      );
+    },
+  );
+
+  it("passes assessed task context through the stream route for a short follow-up", async () => {
+    const requestMessages: Message[] = [
+      {
+        role: "user",
+        content:
+          "My assessed checkpoint asks for three advantages of decentralisation.",
+      },
+      {
+        role: "assistant",
+        content: "Start by thinking about resistance to outages.",
+      },
+      { role: "user", content: "What is an outage?" },
+      {
+        role: "assistant",
+        content: "An outage is a period when a service is unavailable.",
+      },
+      { role: "user", content: "Okay, explain the next point." },
+    ];
+    const response = await POST(
+      createDevRequest({ messages: requestMessages }),
+    );
+    await response.text();
+    expect(mockStream).toHaveBeenCalledWith(requestMessages, {
+      systemInstruction: BASE_INSTRUCTION,
+    });
+  });
+
   it("reduces estimated prompt input for a learning question", () => {
     const fullGuideInstruction = buildAiTutorInstruction(undefined, SITE_GUIDE);
     const reducedInstruction = buildAiTutorInstruction();

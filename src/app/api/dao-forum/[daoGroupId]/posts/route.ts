@@ -23,7 +23,13 @@ const corsHeaders = {
 
 type RawPostListItem = Omit<
   PostListItem,
-  "comment_count" | "view_count" | "is_unread" | "tags" | "author" | "author_id" | "is_own_post"
+  | "comment_count"
+  | "view_count"
+  | "is_unread"
+  | "tags"
+  | "author"
+  | "author_id"
+  | "is_own_post"
 > & {
   // The database keeps the author ID; only the anonymous API response hides it.
   author_id: string;

@@ -336,14 +336,14 @@ function ThreadComment({
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
-  
 
-  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> = [
-    { type: "heart", label: "Heart", emoji: "❤️" },
-    { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
-    { type: "fire", label: "Fire", emoji: "🔥" },
-    { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
-  ];
+  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> =
+    [
+      { type: "heart", label: "Heart", emoji: "❤️" },
+      { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
+      { type: "fire", label: "Fire", emoji: "🔥" },
+      { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
+    ];
 
   const handleEdit = async (data: {
     body?: string | null;
@@ -648,7 +648,7 @@ function ThreadComment({
                   comment={reply}
                   depth={depth + 1}
                   parentAuthorName={comment.author.name}
-                    onReaction={onReaction}
+                  onReaction={onReaction}
                   onReplyToComment={onReplyToComment}
                   replyingTo={replyingTo}
                   onCancelReply={onCancelReply}

@@ -22,8 +22,7 @@ export async function isDaoShaman(
     .eq("DAOID", daoGroup.dao_id)
     .maybeSingle();
 
-  const shamans =
-    (dao?.Members as DaoMembersPayload | null)?.shamans ?? [];
+  const shamans = (dao?.Members as DaoMembersPayload | null)?.shamans ?? [];
   const shamanAddresses = new Set(
     shamans
       .map((s) => s.address?.trim().toLowerCase())

@@ -117,8 +117,12 @@ export function mapPostToForumPostPreview(
           ),
       isOwnPost: post.is_own_post,
       canDelete: post.can_delete ?? post.is_own_post,
-      authorWallet: post.anonymous ? undefined : (post.author?.walletAddress ?? undefined),
-      authorEns: post.anonymous ? undefined : (post.author?.ensName ?? undefined),
+      authorWallet: post.anonymous
+        ? undefined
+        : (post.author?.walletAddress ?? undefined),
+      authorEns: post.anonymous
+        ? undefined
+        : (post.author?.ensName ?? undefined),
       createdAt: post.created_at,
       createdAtLabel: new Date(post.created_at).toLocaleDateString("en", {
         month: "short",
@@ -154,7 +158,9 @@ export function mapCommentToForumCommentPreview(
           { ensName: comment.ens_name, walletAddress: comment.wallet_address },
           "Unknown",
         ),
-    authorWallet: comment.deleted_at ? undefined : (comment.wallet_address ?? undefined),
+    authorWallet: comment.deleted_at
+      ? undefined
+      : (comment.wallet_address ?? undefined),
     authorEns: comment.deleted_at ? undefined : (comment.ens_name ?? undefined),
     body: comment.body ?? "",
     createdAt: comment.created_at,

@@ -108,6 +108,51 @@ describe("AI Tutor system instruction", () => {
     },
   );
 
+  it.each([
+    "How do I save an AI Tutor response as a favourite?",
+    "Where can I find a saved message?",
+    "How do I return to the original conversation from a saved message?",
+    "How do I remove a saved message?",
+  ])(
+    "passes saved-message guidance and canonical page context to the provider: %s",
+    async (question) => {
+      const rawDaoId = "0x1234567890123456789012345678901234567890";
+      const requestMessages: Message[] = [{ role: "user", content: question }];
+      const response = await POST(
+        createDevRequest({
+          messages: requestMessages,
+          page_context: {
+            path: `/dao/${rawDaoId}`,
+            title: "Client-controlled title",
+          },
+        }),
+      );
+      await response.text();
+
+      expect(mockStream).toHaveBeenCalledOnce();
+      const [passedMessages, config] = mockStream.mock.calls[0] as [
+        Message[],
+        { systemInstruction: string },
+      ];
+      const [navigationInstruction, pageInstruction] =
+        config.systemInstruction.split(CURRENT_PAGE_DELIMITER);
+      const [coreInstruction, guideJson] =
+        navigationInstruction.split(GUIDE_DELIMITER);
+      const suppliedGuide = JSON.parse(guideJson);
+
+      expect(passedMessages).toEqual(requestMessages);
+      expect(coreInstruction).toBe(AI_TUTOR_SYSTEM_PROMPT);
+      expect(suppliedGuide).toContainEqual(
+        SITE_GUIDE.find((entry) => entry.id === "ai-tutor-response-actions"),
+      );
+      expect(pageInstruction).toContain(
+        JSON.stringify({ path: "/dao/{DAOID}", title: "DAO Details" }, null, 2),
+      );
+      expect(config.systemInstruction).not.toContain(rawDaoId);
+      expect(config.systemInstruction).not.toContain("Client-controlled title");
+    },
+  );
+
   it("passes assessed task context through the stream route for a short follow-up", async () => {
     const requestMessages: Message[] = [
       {

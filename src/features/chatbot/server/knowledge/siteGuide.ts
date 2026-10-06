@@ -3,6 +3,8 @@ export type SiteGuideEntry = {
   keywords: string[];
   title: string;
   path?: string;
+  // IDs of verified pages that contain this feature or lead to it.
+  relatedPageIds?: string[];
   access?: string;
   steps: string[];
   notes?: string[];
@@ -83,6 +85,7 @@ export const SITE_GUIDE: SiteGuideEntry[] = [
       "course content",
     ],
     title: "Learning Modules",
+    relatedPageIds: ["course-portal", "your-daos", "class-daos", "dao-details"],
     access:
       "Signed-in users; assigned and optional modules depend on availability",
     steps: [
@@ -260,6 +263,7 @@ export const SITE_GUIDE: SiteGuideEntry[] = [
     ],
     title: "DAO Details",
     path: "/dao/{DAOID}",
+    relatedPageIds: ["your-daos", "class-daos"],
     access: "Signed-in users who can access the selected DAO",
     steps: [
       "Open Your DAOs or Class DAOs.",
@@ -289,6 +293,7 @@ export const SITE_GUIDE: SiteGuideEntry[] = [
       "resource",
     ],
     title: "DAO Forum",
+    relatedPageIds: ["dao-details", "your-daos", "class-daos"],
     access: "Signed-in members of a DAO with an available forum",
     steps: [
       "Open the Course Portal.",

@@ -40,6 +40,59 @@ describe("selectNavigationEntries", () => {
     );
   });
 
+  it.each([
+    "How do I save a message?",
+    "How do I save messages?",
+    "Can I save a message?",
+    "How can I save messages?",
+    "How do I save an AI Tutor response?",
+    "How do I save AI Tutor responses?",
+    "How can I save an AI Tutor response?",
+    "Where can I find a saved message?",
+    "Where can I find my saved messages?",
+    "How do I revisit a saved message?",
+    "How do I revisit saved messages?",
+    "How do I remove a saved message?",
+    "How do I remove saved messages?",
+    "Open Saved Messages.",
+  ])(
+    "selects saved-message guidance for a supported workflow: %s",
+    (question) => {
+      expect(selectNavigationEntries(question)).toContainEqual(
+        SITE_GUIDE.find((entry) => entry.id === "ai-tutor-response-actions"),
+      );
+    },
+  );
+
+  it.each([
+    "How do I save money?",
+    "Where do validators save blockchain state?",
+    "What is a signed message?",
+    "How do I verify a message signature?",
+    "Can blockchain transactions carry messages?",
+    "Explain how applications save data and send messages.",
+    "Applications save messages.",
+    "How can applications save messages on a blockchain?",
+  ])(
+    "does not select saved-message guidance from generic words: %s",
+    (question) => {
+      expect(selectNavigationEntries(question)).not.toContainEqual(
+        SITE_GUIDE.find((entry) => entry.id === "ai-tutor-response-actions"),
+      );
+    },
+  );
+
+  it("keeps the configured entry limit for saved-message navigation", () => {
+    const question = "Where do I sign in and open saved messages?";
+    const selected = selectNavigationEntries(question);
+
+    expect(selectNavigationEntries(question, undefined, 1)).toEqual(
+      selected.slice(0, 1),
+    );
+    expect(selectNavigationEntries(question, undefined, 0)).toEqual([]);
+    expect(selected).toHaveLength(2);
+  });
+
   it("selects navigation entries matching the question", () => {
     expect(
       selectNavigationEntries("Where do I vote on a proposal?").map(

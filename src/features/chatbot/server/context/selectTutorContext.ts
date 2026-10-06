@@ -74,9 +74,14 @@ function scoreNavigationEntry(
 ): number {
   let score = 0;
   for (const keyword of entry.keywords) {
+    // The saved-message feature is labelled "Saved Messages" in the UI.
+    const matchesKeyword =
+      containsPhrase(question, keyword) ||
+      (keyword === "saved message" &&
+        containsPhrase(question, "saved messages"));
     if (
       (hasNavigationIntent || PLATFORM_FEATURE_KEYWORDS.has(keyword)) &&
-      containsPhrase(question, keyword)
+      matchesKeyword
     ) {
       score += keyword.includes(" ") ? 8 : 5;
     }
@@ -91,6 +96,21 @@ function scoreNavigationEntry(
     ) &&
     !containsPhrase(question, "copy response") &&
     !containsPhrase(question, "copy answer")
+  ) {
+    score += 8;
+  }
+
+  // Match the save action with a chat object, without treating "save" or
+  // "message" alone as platform navigation.
+  if (
+    entry.id === "ai-tutor-response-actions" &&
+    (hasNavigationIntent ||
+      /\b(?:can|could|may|should|would) i save\b/.test(
+        normalizeText(question),
+      )) &&
+    /\bsave (?:an? |the |my |your |this |these |those )?(?:ai tutor )?(?:messages?|responses?|answers?|repl(?:y|ies))\b/.test(
+      normalizeText(question),
+    )
   ) {
     score += 8;
   }

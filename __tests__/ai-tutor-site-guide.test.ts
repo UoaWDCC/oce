@@ -21,6 +21,19 @@ const implementedPageRoutes = readdirSync(appDirectory, {
   });
 
 describe("AI Tutor platform navigation guide", () => {
+  it.each(SITE_GUIDE.filter((entry) => entry.relatedPageIds))(
+    "references verified parent or entry pages for $id",
+    (entry) => {
+      for (const id of entry.relatedPageIds!) {
+        const page = SITE_GUIDE.find((candidate) => candidate.id === id);
+
+        expect(page?.path).toBeDefined();
+        const nextRoute = page!.path!.replace(/\{([^}]+)\}/g, "[$1]");
+        expect(implementedPageRoutes).toContain(nextRoute);
+      }
+    },
+  );
+
   it.each(SITE_GUIDE.filter((entry) => entry.path))(
     "references an implemented page route for $id: $path",
     (entry) => {

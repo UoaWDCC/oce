@@ -1,15 +1,20 @@
-import { SITE_GUIDE } from "@/features/chatbot/server/knowledge/siteGuide";
+import type { SiteGuideEntry } from "@/features/chatbot/server/knowledge/siteGuide";
 import type { ResolvedPageContext } from "@/features/chatbot/server/knowledge/resolvePageContext";
 import { AI_TUTOR_SYSTEM_PROMPT } from "@/features/chatbot/server/prompts/aiTutorSystemPrompt";
 
 export function buildAiTutorInstruction(
   pageContext?: ResolvedPageContext,
+  navigationEntries: SiteGuideEntry[] = [],
 ): string {
-  const instruction = `${AI_TUTOR_SYSTEM_PROMPT}
+  let instruction = AI_TUTOR_SYSTEM_PROMPT;
+
+  if (navigationEntries.length > 0) {
+    instruction += `
 
 Use this platform navigation information to answer user questions:
 
-${JSON.stringify(SITE_GUIDE, null, 2)}`;
+${JSON.stringify(navigationEntries, null, 2)}`;
+  }
 
   if (!pageContext) {
     return instruction;

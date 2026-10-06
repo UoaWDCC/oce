@@ -4,6 +4,7 @@ import { SITE_GUIDE } from "@/features/chatbot/server/knowledge/siteGuide";
 import { AI_TUTOR_SYSTEM_PROMPT } from "@/features/chatbot/server/prompts/aiTutorSystemPrompt";
 import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import type { Message } from "@/llm/types/Message";
+import { estimateTokenUsage } from "@/utils/aiTutorTokenUsage";
 
 const { mockCreateLLMProvider, mockGetAdminClient, mockStream } = vi.hoisted(
   () => {
@@ -31,11 +32,7 @@ import { POST } from "@/app/api/ai-tutor/chat/stream/route";
 const GUIDE_DELIMITER =
   "\n\nUse this platform navigation information to answer user questions:\n\n";
 const CURRENT_PAGE_DELIMITER = "\n\nCurrent page context for this request:\n\n";
-const BASE_INSTRUCTION = `${AI_TUTOR_SYSTEM_PROMPT}${GUIDE_DELIMITER}${JSON.stringify(
-  SITE_GUIDE,
-  null,
-  2,
-)}`;
+const BASE_INSTRUCTION = AI_TUTOR_SYSTEM_PROMPT;
 const messages: Message[] = [
   { role: "user", content: "What is a smart contract?" },
   { role: "assistant", content: "It is a program on a blockchain." },
@@ -66,15 +63,86 @@ describe("AI Tutor system instruction", () => {
     vi.unstubAllEnvs();
   });
 
-  it("builds the reusable system prompt with the site guide", () => {
-    const instruction = buildAiTutorInstruction();
+  it("includes only selected navigation entries", () => {
+    const selectedEntries = SITE_GUIDE.filter((entry) =>
+      ["dao-details", "your-daos"].includes(entry.id),
+    );
+    const instruction = buildAiTutorInstruction(undefined, selectedEntries);
     const sections = instruction.split(GUIDE_DELIMITER);
 
-    expect(instruction).toBe(BASE_INSTRUCTION);
+    expect(instruction).toContain(AI_TUTOR_SYSTEM_PROMPT);
     expect(sections).toHaveLength(2);
     expect(sections[0]).toBe(AI_TUTOR_SYSTEM_PROMPT);
-    expect(sections[1]).toBe(JSON.stringify(SITE_GUIDE, null, 2));
-    expect(JSON.parse(sections[1])).toEqual(SITE_GUIDE);
+    expect(JSON.parse(sections[1])).toEqual(selectedEntries);
+    expect(sections[1]).not.toContain('"id": "login"');
+  });
+
+  it("keeps core tutor instructions without navigation for a learning question", () => {
+    expect(buildAiTutorInstruction()).toBe(BASE_INSTRUCTION);
+  });
+
+  it.each([
+    ["How can I ask a human tutor for more help?", "ask-a-tutor"],
+    ["Can I copy an AI Tutor response?", "ai-tutor-response-actions"],
+  ])(
+    "passes actual support instructions to the provider: %s",
+    async (question, id) => {
+      const requestMessages: Message[] = [{ role: "user", content: question }];
+      const response = await POST(
+        createDevRequest({ messages: requestMessages }),
+      );
+      await response.text();
+
+      const [passedMessages, config] = mockStream.mock.calls[0] as [
+        Message[],
+        { systemInstruction: string },
+      ];
+      expect(passedMessages).toEqual(requestMessages);
+      expect(config.systemInstruction).toContain(AI_TUTOR_SYSTEM_PROMPT);
+      const suppliedGuide = JSON.parse(
+        config.systemInstruction.split(GUIDE_DELIMITER)[1],
+      );
+      expect(suppliedGuide).toContainEqual(
+        SITE_GUIDE.find((entry) => entry.id === id),
+      );
+    },
+  );
+
+  it("passes assessed task context through the stream route for a short follow-up", async () => {
+    const requestMessages: Message[] = [
+      {
+        role: "user",
+        content:
+          "My assessed checkpoint asks for three advantages of decentralisation.",
+      },
+      {
+        role: "assistant",
+        content: "Start by thinking about resistance to outages.",
+      },
+      { role: "user", content: "What is an outage?" },
+      {
+        role: "assistant",
+        content: "An outage is a period when a service is unavailable.",
+      },
+      { role: "user", content: "Okay, explain the next point." },
+    ];
+    const response = await POST(
+      createDevRequest({ messages: requestMessages }),
+    );
+    await response.text();
+    expect(mockStream).toHaveBeenCalledWith(requestMessages, {
+      systemInstruction: BASE_INSTRUCTION,
+    });
+  });
+
+  it("reduces estimated prompt input for a learning question", () => {
+    const fullGuideInstruction = buildAiTutorInstruction(undefined, SITE_GUIDE);
+    const reducedInstruction = buildAiTutorInstruction();
+
+    expect(estimateTokenUsage([reducedInstruction])).toBeLessThan(
+      estimateTokenUsage([fullGuideInstruction]),
+    );
+    expect(reducedInstruction).toContain(AI_TUTOR_SYSTEM_PROMPT);
   });
 
   it("appends exactly one resolved current-page section", () => {

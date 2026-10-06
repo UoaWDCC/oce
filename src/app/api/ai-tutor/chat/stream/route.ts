@@ -3,6 +3,10 @@ import {
   resolvePageContext,
   type ResolvedPageContext,
 } from "@/features/chatbot/server/knowledge/resolvePageContext";
+import {
+  selectConversationMessages,
+  selectNavigationEntries,
+} from "@/features/chatbot/server/context/selectTutorContext";
 import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import type { LLMConfig } from "@/llm/types/LLMConfig";
@@ -126,8 +130,19 @@ export async function POST(req: NextRequest) {
   }
 
   const provider = createLLMProvider();
-  const systemInstruction = buildAiTutorInstruction(pageContext);
-  const stream = provider.stream(body.messages, {
+  const latestQuestion =
+    [...body.messages].reverse().find((message) => message.role === "user")
+      ?.content ?? "";
+  const navigationEntries = selectNavigationEntries(
+    latestQuestion,
+    pageContext,
+  );
+  const selectedMessages = selectConversationMessages(body.messages);
+  const systemInstruction = buildAiTutorInstruction(
+    pageContext,
+    navigationEntries,
+  );
+  const stream = provider.stream(selectedMessages, {
     ...body.config,
     systemInstruction,
   });

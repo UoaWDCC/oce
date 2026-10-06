@@ -79,7 +79,12 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
     ];
     setMockQueryResult({ data: fakePosts, error: null });
     studentQuery.in.mockResolvedValueOnce({
-      data: [{ UID: "author-1", Wallet: [{ walletAddress: "0x123", ENS: "alice.eth" }] }],
+      data: [
+        {
+          UID: "author-1",
+          Wallet: [{ walletAddress: "0x123", ENS: "alice.eth" }],
+        },
+      ],
       error: null,
     });
     mockSupabase.in.mockResolvedValueOnce({
@@ -108,6 +113,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         comment_count: 2,
         view_count: 0,
         is_unread: true,
+        can_delete: false,
         author: {
           id: "author-1",
           username: "alice",
@@ -209,13 +215,57 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
   it.each([
     { authorId: "test-user", isOwnPost: true },
     { authorId: "author-1", isOwnPost: false },
-  ])("hides anonymous author data and reports ownership as $isOwnPost", async ({ authorId, isOwnPost }) => {
+  ])(
+    "hides anonymous author data and reports ownership as $isOwnPost",
+    async ({ authorId, isOwnPost }) => {
+      setMockQueryResult({
+        data: [
+          {
+            id: "post-1",
+            dao_group_id: "dao-1",
+            author_id: authorId,
+            post_type: "Announcement",
+            title: "Anonymous post",
+            body: "Post body",
+            anonymous: true,
+            is_pinned: false,
+            image_url: null,
+            created_at: "2026-06-01T00:00:00Z",
+            updated_at: null,
+            author: {
+              id: "author-1",
+              username: "alice",
+              FirstName: "Alice",
+              LastName: "A",
+              Name: "Alice A",
+            },
+            post_tags: [],
+          },
+        ],
+        error: null,
+      });
+
+      const req = createMockRequest("GET");
+      const res = await listGET(req, mockParams);
+      const json = await readJson<PostListItem[]>(res);
+
+      expect(res.status).toBe(200);
+      expect(json[0].author).toBeNull();
+      expect(json[0].author_id).toBeNull();
+      expect(json[0].is_own_post).toBe(isOwnPost);
+      expect(json[0].can_delete).toBe(isOwnPost);
+      expect(mockSupabase.from).not.toHaveBeenCalledWith("Student");
+    },
+  );
+
+  it("allows a shaman to delete an anonymous post without exposing its author", async () => {
+    mockSupabase.from.mockReturnThis();
     setMockQueryResult({
       data: [
         {
           id: "post-1",
           dao_group_id: "dao-1",
-          author_id: authorId,
+          author_id: "different-user",
           post_type: "Announcement",
           title: "Anonymous post",
           body: "Post body",
@@ -224,28 +274,31 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           image_url: null,
           created_at: "2026-06-01T00:00:00Z",
           updated_at: null,
-          author: {
-            id: "author-1",
-            username: "alice",
-            FirstName: "Alice",
-            LastName: "A",
-            Name: "Alice A",
-          },
+          author: null,
           post_tags: [],
         },
       ],
       error: null,
     });
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: { dao_id: "0xDAO" }, error: null })
+      .mockResolvedValueOnce({
+        data: { Members: { shamans: [{ address: " 0xShaman " }] } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { Wallet: [{ walletAddress: "0xshaman" }] },
+        error: null,
+      });
 
-    const req = createMockRequest("GET");
-    const res = await listGET(req, mockParams);
-    const json = await readJson<PostListItem[]>(res);
+    const res = await listGET(createMockRequest("GET"), mockParams);
+    const [post] = await readJson<PostListItem[]>(res);
 
     expect(res.status).toBe(200);
-    expect(json[0].author).toBeNull();
-    expect(json[0].author_id).toBeNull();
-    expect(json[0].is_own_post).toBe(isOwnPost);
-    expect(mockSupabase.from).not.toHaveBeenCalledWith("Student");
+    expect(post.can_delete).toBe(true);
+    expect(post.is_own_post).toBe(false);
+    expect(post.author_id).toBeNull();
+    expect(post.author).toBeNull();
   });
 
   it("returns 401 when not authenticated", async () => {
@@ -781,7 +834,7 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns 403 when user is not the author", async () => {
+  it("returns 403 when user is neither author nor shaman", async () => {
     mockSupabase.single.mockResolvedValueOnce({
       data: { id: "post-1", author_id: "different-user" },
       error: null,
@@ -793,8 +846,40 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
 
     expect(res.status).toBe(403);
     expect(json.error).toBe(
-      "Unauthorized, you are not the author of this post",
+      "Unauthorized, you are not the author of this post or a shaman of this DAO",
     );
+  });
+
+  it("soft-deletes another author's post when the viewer has a shaman wallet", async () => {
+    mockSupabase.single
+      .mockResolvedValueOnce({
+        data: { id: "post-1", author_id: "different-user" },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { id: "post-1", deleted_at: "2026-06-10" },
+        error: null,
+      });
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: { dao_id: "0xDAO" }, error: null })
+      .mockResolvedValueOnce({
+        data: { Members: { shamans: [{ address: "0xShaman" }] } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { Wallet: [{ walletAddress: "0xshaman" }] },
+        error: null,
+      });
+
+    const res = await DELETE(createMockRequest("DELETE"), mockParamsWithPostId);
+    const json = await readJson<{ deleted_at: string | null }>(res);
+
+    expect(res.status).toBe(200);
+    expect(json.deleted_at).toBeTruthy();
+    expect(mockSupabase.update).toHaveBeenCalledWith({
+      deleted_at: expect.any(String),
+    });
+    expect(mockSupabase.eq).not.toHaveBeenCalledWith("author_id", "test-user");
   });
 
   it("returns 404 when post not found", async () => {

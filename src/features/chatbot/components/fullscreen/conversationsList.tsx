@@ -57,7 +57,11 @@ function StatusMessage({ title, description, variant }: StatusMessageProps) {
   );
 }
 
-export default function ConversationsList() {
+export default function ConversationsList({
+  onNavigate,
+}: {
+  onNavigate?: () => void;
+}) {
   const {
     selectedConversationId,
     setSelectedConversationId,
@@ -65,6 +69,7 @@ export default function ConversationsList() {
     conversationListVersion,
     refreshConversationList,
     clearCurrentMessages,
+    discardConversation,
     setError,
   } = useConversation();
 
@@ -89,6 +94,7 @@ export default function ConversationsList() {
     setEndingIds((prev) => new Set(prev).add(id));
     try {
       await endConversation(id);
+      discardConversation(id);
       setEndedIds((prev) => new Set(prev).add(id));
       if (selectedConversationIdRef.current === id) {
         setSelectedConversationId(null);
@@ -136,6 +142,7 @@ export default function ConversationsList() {
     setSelectedConversationId(conversationId);
     setTargetMessageId(messageId);
     clearCurrentMessages();
+    onNavigate?.();
   };
 
   // Clearing the input flips isSearching back to false, which restores the
@@ -166,7 +173,7 @@ export default function ConversationsList() {
             </div>
           ) : (
             <>
-              <NewConversationButton />
+              <NewConversationButton onCreated={onNavigate} />
               <ConversationSearchInput
                 value={searchQuery}
                 onChange={setSearchQuery}
@@ -247,6 +254,7 @@ export default function ConversationsList() {
                     onSelect={() => {
                       setSelectedConversationId(id);
                       clearCurrentMessages();
+                      onNavigate?.();
                     }}
                     onRequestEnd={(trigger) => {
                       setPendingEnd({ id, name, trigger });

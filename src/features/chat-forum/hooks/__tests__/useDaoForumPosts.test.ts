@@ -34,7 +34,7 @@ describe("useDaoForumPosts", () => {
       { wrapper: createWrapper(client) },
     );
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
 
     expect(getForumPostsMock).toHaveBeenCalledTimes(1);
     expect(getForumPostsMock).toHaveBeenCalledWith(
@@ -91,7 +91,7 @@ describe("useDaoForumPosts", () => {
       () => useDaoForumPosts("dao-1", "token-123", true),
       { wrapper },
     );
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
     unmount();
 
     const { result: secondResult } = renderHook(
@@ -100,7 +100,7 @@ describe("useDaoForumPosts", () => {
     );
 
     // Cached data is available immediately; no loading state on remount.
-    expect(secondResult.current.isLoading).toBe(false);
+    expect(secondResult.current.isInitialLoading).toBe(false);
     expect(getForumPostsMock).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +117,9 @@ describe("useDaoForumPosts", () => {
       () => useDaoForumPosts("dao-1", "token-a", true, "user-a"),
       { wrapper },
     );
-    await waitFor(() => expect(firstUser.result.current.isLoading).toBe(false));
+    await waitFor(() =>
+      expect(firstUser.result.current.isInitialLoading).toBe(false),
+    );
     firstUser.unmount();
 
     const secondUser = renderHook(
@@ -125,7 +127,7 @@ describe("useDaoForumPosts", () => {
       { wrapper },
     );
 
-    expect(secondUser.result.current.isLoading).toBe(true);
+    expect(secondUser.result.current.isInitialLoading).toBe(true);
     await waitFor(() => expect(getForumPostsMock).toHaveBeenCalledTimes(2));
     expect(getForumPostsMock).toHaveBeenLastCalledWith(
       "dao-1",

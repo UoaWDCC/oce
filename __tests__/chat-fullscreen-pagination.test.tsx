@@ -23,8 +23,39 @@ const mocks = vi.hoisted(() => ({
   setError: vi.fn(),
   setSelectedConversationId: vi.fn(),
   refreshConversationList: vi.fn(),
+  refreshTokenUsage: vi.fn(),
   viewportHeight: 400,
+  viewportWidth: 300,
 }));
+
+class TestResizeObserver {
+  static instances: TestResizeObserver[] = [];
+  target: Element | null = null;
+  observe = vi.fn((target: Element) => {
+    this.target = target;
+  });
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+
+  constructor(readonly callback: ResizeObserverCallback) {
+    TestResizeObserver.instances.push(this);
+  }
+
+  resize() {
+    this.callback(
+      [
+        {
+          target: this.target,
+          contentRect: {
+            width: mocks.viewportWidth,
+            height: mocks.viewportHeight,
+          },
+        } as ResizeObserverEntry,
+      ],
+      this as unknown as ResizeObserver,
+    );
+  }
+}
 
 vi.mock("@/hooks/useOnScreen", () => ({ default: () => true }));
 vi.mock("@/features/chatbot/providers/ChatBoxModalProvider", () => ({
@@ -42,6 +73,8 @@ vi.mock("@/features/chatbot/providers/ConversationProvider", () => ({
     setTargetMessageId: mocks.setTargetMessageId,
     setSelectedConversationId: mocks.setSelectedConversationId,
     refreshConversationList: mocks.refreshConversationList,
+    tokenUsageVersion: 0,
+    refreshTokenUsage: mocks.refreshTokenUsage,
     messageResetVersion: mocks.messageResetVersion,
     error: undefined,
     setError: mocks.setError,
@@ -119,6 +152,9 @@ beforeEach(() => {
   mocks.messageResetVersion = 0;
   mocks.targetMessageId = null;
   mocks.viewportHeight = 400;
+  mocks.viewportWidth = 300;
+  TestResizeObserver.instances = [];
+  vi.stubGlobal("ResizeObserver", TestResizeObserver);
   mocks.saveUserMessage.mockResolvedValue({
     ...page("conversation-a", 2, 2, false).messages[0],
     content: "new question",
@@ -132,6 +168,13 @@ beforeEach(() => {
     function (this: HTMLElement) {
       return this.classList.contains("overflow-y-auto")
         ? mocks.viewportHeight
+        : 0;
+    },
+  );
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(
+    function (this: HTMLElement) {
+      return this.classList.contains("overflow-y-auto")
+        ? mocks.viewportWidth
         : 0;
     },
   );
@@ -151,6 +194,48 @@ afterEach(() => {
 });
 
 describe("ChatFullscreen message pagination", () => {
+  it("loads older history on container resize without a React rerender and disconnects its observer", async () => {
+    mocks.viewportHeight = 100;
+    mocks.getConversationMessages.mockImplementation(
+      async (_conversationId: string, { offset = 0 }: { offset?: number }) => {
+        if (offset === 0) return page("conversation-a", 31, 45, true);
+        if (offset === 15) return page("conversation-a", 16, 30, true, 15);
+        if (offset === 30) return page("conversation-a", 1, 15, false, 30);
+        throw new Error(`Unexpected offset ${offset}`);
+      },
+    );
+    const view = render(<ChatFullscreen />);
+    await screen.findByText("message-45");
+    expect(mocks.getConversationMessages).toHaveBeenCalledTimes(1);
+    const container = screen
+      .getByText("message-45")
+      .closest(".overflow-y-auto");
+    const observer = TestResizeObserver.instances.find(
+      ({ target }) => target === container,
+    )!;
+    expect(observer).toBeTruthy();
+    act(() => {
+      mocks.viewportHeight = 200;
+      observer.resize();
+    });
+    await screen.findByText("message-16");
+    expect(mocks.getConversationMessages).toHaveBeenCalledTimes(2);
+    act(() => observer.resize());
+    expect(mocks.getConversationMessages).toHaveBeenCalledTimes(2);
+    act(() => {
+      mocks.viewportHeight = 400;
+      observer.resize();
+    });
+    await screen.findByText("message-1");
+    expect(mocks.getConversationMessages.mock.calls).toEqual([
+      ["conversation-a", { limit: 15 }],
+      ["conversation-a", { limit: 15, offset: 15 }],
+      ["conversation-a", { limit: 15, offset: 30 }],
+    ]);
+    view.unmount();
+    expect(observer.disconnect).toHaveBeenCalled();
+  });
+
   it("keeps loading short pages until all older messages are accessible", async () => {
     mocks.getConversationMessages.mockImplementation(
       async (_conversationId: string, { offset = 0 }: { offset?: number }) => {

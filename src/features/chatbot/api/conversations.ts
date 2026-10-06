@@ -117,11 +117,25 @@ interface StreamAssistantMessageHandlers {
   onMessageId: (id: string) => void;
 }
 
+export class AssistantStreamError extends Error {
+  constructor(
+    readonly code:
+      "generation_failed" | "persistence_failed" | "incomplete_response",
+    message: string,
+  ) {
+    super(message);
+    this.name = "AssistantStreamError";
+  }
+}
+
+const INCOMPLETE_RESPONSE_MESSAGE =
+  "The response was interrupted before completion. Any text received is kept.";
+
 function parseStreamPayload(
   payload: string,
   handlers: StreamAssistantMessageHandlers,
-) {
-  for (const line of payload.split("\n")) {
+): boolean {
+  for (const line of payload.split(/\r?\n/)) {
     if (!line.startsWith("data:")) {
       continue;
     }
@@ -129,7 +143,33 @@ function parseStreamPayload(
     const data = line.slice("data:".length).trimStart();
 
     if (data === "[DONE]") {
-      continue;
+      return true;
+    }
+
+    if (data.startsWith("[ERROR]")) {
+      let failure: unknown;
+      try {
+        failure = JSON.parse(data.slice("[ERROR]".length));
+      } catch {
+        // A malformed terminal event cannot establish a successful response.
+      }
+
+      if (
+        typeof failure === "object" &&
+        failure !== null &&
+        "code" in failure &&
+        (failure.code === "generation_failed" ||
+          failure.code === "persistence_failed") &&
+        "message" in failure &&
+        typeof failure.message === "string"
+      ) {
+        throw new AssistantStreamError(failure.code, failure.message);
+      }
+
+      throw new AssistantStreamError(
+        "incomplete_response",
+        INCOMPLETE_RESPONSE_MESSAGE,
+      );
     }
 
     if (data.startsWith("[MESSAGE_ID]")) {
@@ -157,6 +197,8 @@ function parseStreamPayload(
 
     handlers.onText(text);
   }
+
+  return false;
 }
 
 export async function streamAssistantMessage(
@@ -181,33 +223,67 @@ export async function streamAssistantMessage(
   );
 
   if (!response.body) {
-    throw new Error("AI Tutor stream did not return a response body.");
+    throw new AssistantStreamError(
+      "incomplete_response",
+      "AI Tutor stream did not return a response body.",
+    );
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let reachedEOF = false;
 
-  for (;;) {
-    const { value, done } = await reader.read();
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
 
-    if (done) {
-      break;
+      if (done) {
+        reachedEOF = true;
+        break;
+      }
+
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split(/\r?\n\r?\n/);
+      buffer = events.pop() ?? "";
+
+      for (const event of events) {
+        if (parseStreamPayload(event, handlers)) {
+          return;
+        }
+      }
     }
 
-    buffer += decoder.decode(value, { stream: true });
-    const events = buffer.split("\n\n");
-    buffer = events.pop() ?? "";
+    buffer += decoder.decode();
 
-    for (const event of events) {
-      parseStreamPayload(event, handlers);
+    if (buffer && parseStreamPayload(buffer, handlers)) {
+      return;
     }
-  }
 
-  buffer += decoder.decode();
-
-  if (buffer) {
-    parseStreamPayload(buffer, handlers);
+    throw new AssistantStreamError(
+      "incomplete_response",
+      INCOMPLETE_RESPONSE_MESSAGE,
+    );
+  } catch (error) {
+    if (error instanceof AssistantStreamError) {
+      throw error;
+    }
+    throw new AssistantStreamError(
+      "incomplete_response",
+      INCOMPLETE_RESPONSE_MESSAGE,
+    );
+  } finally {
+    // Terminal events can arrive before transport EOF. Stop reading only after
+    // that outcome is known, and never let cleanup hide the original failure.
+    try {
+      if (!reachedEOF) {
+        await reader.cancel();
+      }
+    } catch {
+      // The body may already be errored or disconnected.
+    } finally {
+      reader.releaseLock();
+    }
   }
 }
 

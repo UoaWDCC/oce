@@ -83,6 +83,7 @@ describe("toForumAsyncState", () => {
     expect(state.error?.message).toBe("network down");
     expect(state.isBlockingError).toBe(false);
     expect(state.isInitialLoading).toBe(false);
+    expect(state.hasResolved).toBe(true);
   });
 
   it("blocks only when a failure leaves nothing to show", () => {
@@ -94,7 +95,7 @@ describe("toForumAsyncState", () => {
 
     expect(state.isBlockingError).toBe(true);
     expect(state.isInitialLoading).toBe(false);
-    expect(state.hasResolved).toBe(true);
+    expect(state.hasResolved).toBe(false);
   });
 
   it("reports a retry after a blocking failure as refreshing", () => {

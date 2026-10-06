@@ -396,6 +396,8 @@ export default function ForumPanel({
                   {posts.length} posts <span className="mx-2">/</span>{" "}
                   {unreadCount} unread
                 </span>
+              ) : postsState.isBlockingError ? (
+                <span>Posts unavailable</span>
               ) : (
                 <span>Loading posts…</span>
               )}

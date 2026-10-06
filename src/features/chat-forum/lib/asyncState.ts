@@ -20,7 +20,7 @@ export interface ForumAsyncState {
   isInitialLoading: boolean;
   /** A fetch is in flight while something is already on screen to keep. */
   isRefreshing: boolean;
-  /** The query has settled at least once, so counts and empty states are truthful. */
+  /** Data is available, so counts and empty states are truthful. */
   hasResolved: boolean;
   /** The last fetch failed. Data may still be present and must stay rendered. */
   error: Error | null;
@@ -95,7 +95,7 @@ export function toForumAsyncState<TData>(
   return {
     isInitialLoading,
     isRefreshing: query.isFetching && !isInitialLoading,
-    hasResolved: query.isSuccess || query.isError,
+    hasResolved: hasData,
     error: (query.error as Error | null) ?? null,
     isBlockingError: query.isError && !hasData,
     retry,

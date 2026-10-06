@@ -108,13 +108,16 @@ describe("PostThread comment states", () => {
     renderThread({
       comments: [],
       commentsError: "Could not load replies.",
-      commentsState: resolved({
+      commentsState: state({
+        isInitialLoading: false,
         error: new Error("boom"),
         isBlockingError: true,
       }),
     });
 
     expect(screen.queryByText(/No replies yet/)).toBeNull();
+    expect(screen.queryByText(/0 Replies/)).toBeNull();
+    expect(screen.queryByText(/0 comments/)).toBeNull();
     expect(screen.getByRole("alert").textContent).toContain(
       "Could not load replies.",
     );

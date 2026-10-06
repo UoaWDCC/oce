@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useDaoForumComments } from "../useDaoForumComments";
 import { getPostComments } from "../../services";
-import { QueryClient } from "@tanstack/react-query";
+import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { createTestQueryClient, createWrapper } from "./queryTestUtils";
 import type { FormattedComment } from "@app-types/dao-forum";
 
@@ -11,6 +11,27 @@ vi.mock("../../services", () => ({
 }));
 
 const getPostCommentsMock = vi.mocked(getPostComments);
+
+const loadedComment: FormattedComment = {
+  id: "comment-1",
+  body: "Already visible reply",
+  image_url: null,
+  author_id: "author-1",
+  username: "Author",
+  reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+  user_reactions: {
+    heart: false,
+    thumbs_up: false,
+    fire: false,
+    thumbs_down: false,
+  },
+  wallet_address: null,
+  ens_name: null,
+  parent_comment_id: null,
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: null,
+  deleted_at: null,
+};
 
 beforeEach(() => {
   getPostCommentsMock.mockReset();
@@ -72,6 +93,71 @@ describe("useDaoForumComments", () => {
     // Switching back to a previously-fetched sort should not trigger a
     // third request — it's already cached under its own key.
     expect(getPostCommentsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps replies visible after a new sort fails and recovers on retry", async () => {
+    let latestFails = true;
+    getPostCommentsMock.mockImplementation(async (_dao, _post, sort) => {
+      if (sort === "latest" && latestFails) throw new Error("Network failed");
+      return [loadedComment];
+    });
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const { result, rerender } = renderHook(
+      ({ sort }: { sort: "oldest" | "latest" }) =>
+        useDaoForumComments("dao-1", "post-1", "token-123", sort, true),
+      {
+        wrapper: createWrapper(client),
+        initialProps: { sort: "oldest" },
+      },
+    );
+    await waitFor(() => expect(result.current.comments).toHaveLength(1));
+
+    rerender({ sort: "latest" });
+    await waitFor(() =>
+      expect(result.current.error?.message).toBe("Network failed"),
+    );
+    expect(result.current.comments[0].body).toBe("Already visible reply");
+    expect(result.current.isBlockingError).toBe(false);
+    expect(result.current.hasResolved).toBe(true);
+
+    latestFails = false;
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.error).toBeNull());
+    expect(result.current.comments[0].body).toBe("Already visible reply");
+  });
+
+  it("keeps replies and offers retry when a new sort is paused offline", async () => {
+    getPostCommentsMock.mockResolvedValue([loadedComment]);
+    const client = createTestQueryClient();
+    const { result, rerender, unmount } = renderHook(
+      ({ sort }: { sort: "oldest" | "latest" }) =>
+        useDaoForumComments("dao-1", "post-1", "token-123", sort, true),
+      {
+        wrapper: createWrapper(client),
+        initialProps: { sort: "oldest" },
+      },
+    );
+    await waitFor(() => expect(result.current.comments).toHaveLength(1));
+
+    try {
+      act(() => {
+        onlineManager.setOnline(false);
+        rerender({ sort: "latest" });
+      });
+      await waitFor(() =>
+        expect(result.current.error?.message).toMatch(/offline/i),
+      );
+      expect(result.current.comments[0].body).toBe("Already visible reply");
+      expect(result.current.isBlockingError).toBe(false);
+      expect(result.current.isRefreshing).toBe(false);
+    } finally {
+      unmount();
+      onlineManager.setOnline(true);
+    }
   });
 
   it("does not reuse another user's cached comments", async () => {

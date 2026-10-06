@@ -1,0 +1,24 @@
+.viewport {
+  /* Leave room for link outlines without shifting the message content. */
+  margin: -4px;
+  padding: 4px;
+}
+
+.content a[href] {
+  color: #5e00b2;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.15em;
+  overflow-wrap: anywhere;
+}
+
+.content a[href]:hover {
+  color: #4a0090;
+  text-decoration-thickness: 2px;
+}
+
+.content a[href]:focus-visible {
+  outline: 2px solid #5e00b2;
+  outline-offset: 2px;
+  border-radius: 2px;
+}

@@ -7,6 +7,11 @@ export default defineConfig({
   oxc: {
     jsx: { runtime: "automatic" },
   },
+  // Component CSS modules need no PostCSS plugins in jsdom. Bypass the
+  // Next.js-specific plugin format in the application's PostCSS config.
+  css: {
+    postcss: { plugins: [] },
+  },
   test: {
     environment: "jsdom",
   },

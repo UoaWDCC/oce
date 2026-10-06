@@ -18,6 +18,7 @@ import {
   submitForumPostUpdate,
 } from "@/features/chat-forum/submitHandlers";
 import { applyUpdatedPostToPreview } from "@/features/chat-forum/mappers";
+import { PENDING_ASYNC_STATE } from "@/features/chat-forum/lib/asyncState";
 import type {
   CommentSubmitPayload,
   PostSubmitPayload,
@@ -38,20 +39,20 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [commentSort, setCommentSort] = useState<ForumThreadSort>("latest");
 
+  const postsQuery = useDaoForumPosts(
+    daoGroupId,
+    token,
+    isAuthenticated,
+    currentUserId,
+  );
   const {
     posts,
-    isLoading,
     error,
     refetch: refetchPosts,
     replacePost,
     removePost,
-  } = useDaoForumPosts(daoGroupId, token, isAuthenticated, currentUserId);
-  const {
-    comments,
-    isLoading: isCommentsLoading,
-    error: commentsError,
-    refetch: refetchComments,
-  } = useDaoForumComments(
+  } = postsQuery;
+  const commentsQuery = useDaoForumComments(
     daoGroupId,
     selectedPostId,
     token,
@@ -59,6 +60,11 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     isAuthenticated,
     currentUserId,
   );
+  const {
+    comments,
+    error: commentsError,
+    refetch: refetchComments,
+  } = commentsQuery;
 
   const { createPost, error: createPostError } = useCreateDaoForumPost(
     daoGroupId,
@@ -151,6 +157,17 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const isUnauthenticated = authSession.status === "unauthenticated";
   const signInMessage = "Sign in to view the DAO forum.";
 
+  /**
+   * The forum queries stay disabled until the auth session resolves, and a
+   * disabled query reports nothing at all. From the user's point of view that
+   * window is still a first load, so it is reported as one — which is what
+   * keeps the empty state and the zero counts off the screen until there is
+   * something true to say.
+   */
+  const isAuthPending = authSession.status === "loading";
+  const postsState = isAuthPending ? PENDING_ASYNC_STATE : postsQuery;
+  const commentsState = isAuthPending ? PENDING_ASYNC_STATE : commentsQuery;
+
   const postsError = isUnauthenticated
     ? signInMessage
     : (error?.message ?? createPostError?.message);
@@ -160,7 +177,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       createCommentError?.message ??
       commentLikeError?.message);
   const mutationError = updatePostError?.message ?? deletePostError?.message;
-  const optimisticComments = comments.map(comment => {
+  const optimisticComments = comments.map((comment) => {
     const override = optimisticState[comment.id];
     return override ? { ...comment, ...override } : comment;
   });
@@ -174,9 +191,9 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       commentSort={commentSort}
       commentsError={threadError}
       error={postsError}
-      isCommentsLoading={isCommentsLoading}
+      commentsState={commentsState}
       isDeletingPost={isDeletingPost}
-      isLoading={authSession.status === "loading" || isLoading}
+      postsState={postsState}
       isUpdatingPost={isUpdatingPost}
       mutationError={mutationError}
       onCommentSortChange={setCommentSort}

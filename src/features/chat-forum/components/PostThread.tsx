@@ -8,6 +8,7 @@ import {
   ArrowLeft,
   BookOpen,
   Eye,
+  Loader2,
   MessageCircle,
   MoreHorizontal,
   Pencil,
@@ -35,6 +36,7 @@ import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
 import { getPostTypePresentation } from "../postTypePresentation";
+import { RESOLVED_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
 
 type PostThreadProps = {
   daoGroupId: string;
@@ -57,7 +59,8 @@ type PostThreadProps = {
   mutationError?: string | null;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
-  isLoadingComments?: boolean;
+  /** Loading/refresh/failure state for this thread's comments. */
+  commentsState?: ForumAsyncState;
   commentsError?: string | null;
   className?: string;
   daoName?: string;
@@ -146,12 +149,8 @@ function ForumPollCard({
   token?: string;
   currentUserId?: string | null;
 }) {
-  const { poll, isLoading, isVoting, error, vote } = useDaoForumPoll(
-    daoGroupId,
-    postId,
-    token,
-    currentUserId,
-  );
+  const { poll, isInitialLoading, isRefreshing, isVoting, error, retry, vote } =
+    useDaoForumPoll(daoGroupId, postId, token, currentUserId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -162,17 +161,33 @@ function ForumPollCard({
     );
   }, [poll]);
 
-  if (isLoading) {
-    return (
-      <div
-        className="mt-6 h-36 animate-pulse rounded-2xl bg-violet-100"
-        aria-label="Loading poll"
-      />
-    );
-  }
+  /**
+   * Polls are optional and most posts do not have one, but nothing in the post
+   * list says which do — the poll is only discoverable by fetching it. A
+   * skeleton here therefore reserved a block of space on *every* thread and
+   * then collapsed it again for the majority that turned out to have no poll,
+   * shunting the footer, the replies heading and the whole comment thread
+   * upwards as it went.
+   *
+   * Reserving no space is the honest option while we don't know: a post with a
+   * poll grows once when it arrives, and a post without one never moves at all.
+   * Reserving space correctly needs the post list to tell us whether a poll
+   * exists, which is a backend change.
+   */
+  if (isInitialLoading) return null;
   if (!poll) {
     return error ? (
-      <p className="mt-4 text-sm text-red-600">{error.message}</p>
+      <p className="mt-4 flex flex-wrap items-center gap-3 text-sm text-red-600">
+        <span>{error.message}</span>
+        <button
+          className="rounded-full border border-red-300 px-3 py-1 font-bold transition hover:bg-red-50 disabled:opacity-60"
+          disabled={isRefreshing}
+          onClick={retry}
+          type="button"
+        >
+          {isRefreshing ? "Retrying…" : "Retry"}
+        </button>
+      </p>
     ) : null;
   }
 
@@ -307,6 +322,8 @@ type ThreadCommentProps = {
   depth?: number;
   parentAuthorName?: string;
   onCommentRefetch?: () => Promise<void>;
+  /** Refetch after a delete, which the thread keeps quiet about. */
+  onDeleteRefetch?: () => Promise<void>;
   token?: string;
 };
 
@@ -321,6 +338,7 @@ function ThreadComment({
   depth = 0,
   parentAuthorName,
   onCommentRefetch,
+  onDeleteRefetch,
   token,
 }: ThreadCommentProps) {
   const { updateComment } = useUpdateDaoForumComment(comment.id);
@@ -337,12 +355,13 @@ function ThreadComment({
   const menuRef = useRef<HTMLDivElement>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
 
-  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> = [
-    { type: "heart", label: "Heart", emoji: "❤️" },
-    { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
-    { type: "fire", label: "Fire", emoji: "🔥" },
-    { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
-  ];
+  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> =
+    [
+      { type: "heart", label: "Heart", emoji: "❤️" },
+      { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
+      { type: "fire", label: "Fire", emoji: "🔥" },
+      { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
+    ];
 
   const handleEdit = async (data: {
     body?: string | null;
@@ -356,7 +375,7 @@ function ThreadComment({
   const handleDelete = async () => {
     const deleted = await deleteComment(token);
     if (deleted) {
-      await onCommentRefetch?.();
+      await (onDeleteRefetch ?? onCommentRefetch)?.();
       setIsDeleteConfirmOpen(false);
     }
   };
@@ -608,6 +627,7 @@ function ThreadComment({
                     onCancelReply={onCancelReply}
                     onSubmitComment={onSubmitComment}
                     onCommentRefetch={onCommentRefetch}
+                    onDeleteRefetch={onDeleteRefetch}
                     token={token}
                   />
                 </div>
@@ -647,12 +667,13 @@ function ThreadComment({
                   comment={reply}
                   depth={depth + 1}
                   parentAuthorName={comment.author.name}
-                    onReaction={onReaction}
+                  onReaction={onReaction}
                   onReplyToComment={onReplyToComment}
                   replyingTo={replyingTo}
                   onCancelReply={onCancelReply}
                   onSubmitComment={onSubmitComment}
                   onCommentRefetch={onCommentRefetch}
+                  onDeleteRefetch={onDeleteRefetch}
                   token={token}
                 />
               </div>
@@ -688,7 +709,7 @@ export default function PostThread({
   mutationError = null,
   replyingTo = null,
   onCancelReply,
-  isLoadingComments = false,
+  commentsState = RESOLVED_ASYNC_STATE,
   commentsError = null,
   className,
   daoName = "the DAO",
@@ -696,10 +717,33 @@ export default function PostThread({
   currentUserId,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
+  /**
+   * Comment counts are derived from the loaded thread, so they are only
+   * meaningful once it has settled. Until then the labels say what is actually
+   * happening rather than asserting a zero the user is about to see replaced.
+   */
+  const commentCountLabel = commentsState.hasResolved
+    ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}`
+    : "comments";
+  const replyCountLabel = commentsState.hasResolved
+    ? `${commentCount} ${commentCount === 1 ? "Reply" : "Replies"}`
+    : "Replies";
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isRefetchingAfterDelete, setIsRefetchingAfterDelete] = useState(false);
   const showOwnerActions = Boolean(post.isOwnPost);
+
+  // The delete dialog stays open until this refetch finishes, so the user
+  // already has something on screen for it; the heading spinner stays quiet.
+  const refetchAfterDelete = async () => {
+    setIsRefetchingAfterDelete(true);
+    try {
+      await onCommentRefetch?.();
+    } finally {
+      setIsRefetchingAfterDelete(false);
+    }
+  };
   /** Untyped posts keep the generic book glyph. */
   const PostTypeIcon = post.postType
     ? getPostTypePresentation(post.postType).icon
@@ -815,7 +859,7 @@ export default function PostThread({
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
                 <MessageCircle aria-hidden="true" className="h-4 w-4" />
-                {commentCount} {commentCount === 1 ? "comment" : "comments"}
+                {commentCountLabel}
               </span>
             </span>
             <div className="flex items-center gap-2">
@@ -874,7 +918,24 @@ export default function PostThread({
       <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
           <MessageCircle aria-hidden="true" className="h-5 w-5" />
-          {commentCount} {commentCount === 1 ? "Reply" : "Replies"}
+          {replyCountLabel}
+          {commentsState.isInitialLoading ? (
+            /* Decorative only: the skeleton below already carries
+               aria-label="Loading replies", so announcing it here too would
+               just say the same thing twice. */
+            <Loader2
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin text-purple-500"
+            />
+          ) : commentsState.isRefreshing && !isRefetchingAfterDelete ? (
+            <span role="status">
+              <Loader2
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin text-purple-500"
+              />
+              <span className="sr-only">Refreshing replies</span>
+            </span>
+          ) : null}
         </h2>
         <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
           <span>Sort by:</span>
@@ -905,14 +966,28 @@ export default function PostThread({
       )}
 
       <div className="mt-5 space-y-4">
-        {commentsError ? (
+        {/* A failed refresh leaves the previously loaded replies in the cache,
+            so the banner stacks above them instead of taking their place. Only
+            a failure with nothing behind it replaces the list outright. */}
+        {commentsError && (
           <div
-            className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
             role="alert"
           >
-            {commentsError}
+            <span>{commentsError}</span>
+            {commentsState.error && (
+              <button
+                className="rounded-full border border-red-300 bg-white px-4 py-1.5 font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                disabled={commentsState.isRefreshing}
+                onClick={commentsState.retry}
+                type="button"
+              >
+                {commentsState.isRefreshing ? "Retrying…" : "Retry"}
+              </button>
+            )}
           </div>
-        ) : isLoadingComments ? (
+        )}
+        {commentsState.isInitialLoading ? (
           <div className="space-y-3" aria-label="Loading replies">
             {[0, 1].map((item) => (
               <div
@@ -932,13 +1007,17 @@ export default function PostThread({
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
               onCommentRefetch={onCommentRefetch}
+              onDeleteRefetch={refetchAfterDelete}
               token={token}
             />
           ))
         ) : (
-          <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
-            No replies yet. Start the discussion.
-          </div>
+          commentsState.hasResolved &&
+          !commentsState.isBlockingError && (
+            <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+              No replies yet. Start the discussion.
+            </div>
+          )
         )}
       </div>
     </section>

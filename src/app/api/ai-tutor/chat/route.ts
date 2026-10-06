@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { after } from "next/server";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import {
   estimateTokenUsage,
@@ -16,6 +17,11 @@ type ChatMessageRequestBody = {
   conversation_id?: unknown;
   content?: unknown;
 };
+
+// Best-effort coalescing within one worker, without sharing request-bound I/O.
+// Expire reservations if the runtime cancels a task before its finally runs.
+const titleTasks = new Map<string, { expiresAt: number }>();
+const TITLE_TASK_LIFETIME_MS = 30000;
 
 // POST /api/ai-tutor/chat
 // Saves a user message to the messages table for a given conversation.
@@ -132,15 +138,17 @@ export async function POST(req: Request) {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation_id);
 
-    // Generate a title for the conversation's first message. Not awaited: the
-    // reply can't start streaming until this response is sent, and an LLM call
-    // here added several seconds before the user saw anything. A failed title
-    // is already non-fatal.
-    if (!conversation.title) {
-      void generateConversationTitle(supabase, conversation_id, content);
+    // OpenNext connects after to Cloudflare's waitUntil. Keep the LLM call off
+    // the save response's critical path while retaining its request lifetime.
+    const titlePending = !conversation.title;
+    if (titlePending) {
+      scheduleConversationTitle(supabase, conversation_id, content, user.id);
     }
 
-    return Response.json({ message }, { status: 201, headers: corsHeaders });
+    return Response.json(
+      { message, titlePending },
+      { status: 201, headers: corsHeaders },
+    );
   } catch (error) {
     console.error("POST /api/ai-tutor/chat failed:", error);
     return Response.json(
@@ -150,10 +158,47 @@ export async function POST(req: Request) {
   }
 }
 
+function scheduleConversationTitle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  content: string,
+  userId: string,
+) {
+  const now = Date.now();
+  for (const [key, task] of titleTasks) {
+    if (task.expiresAt <= now) titleTasks.delete(key);
+  }
+  const key = `${userId}:${conversationId}`;
+  if (titleTasks.has(key)) return;
+  const task = { expiresAt: now + TITLE_TASK_LIFETIME_MS };
+  titleTasks.set(key, task);
+  const release = () => {
+    if (titleTasks.get(key) === task) titleTasks.delete(key);
+  };
+  try {
+    after(async () => {
+      try {
+        await generateConversationTitle(
+          supabase,
+          conversationId,
+          content,
+          userId,
+        );
+      } finally {
+        release();
+      }
+    });
+  } catch (error) {
+    release();
+    console.warn("AI tutor title generation failed:", error);
+  }
+}
+
 async function generateConversationTitle(
   supabase: Awaited<ReturnType<typeof createClient>>,
   conversationId: string,
   content: string,
+  userId: string,
 ) {
   try {
     const provider = createLLMProvider();
@@ -176,10 +221,15 @@ User message: ${content.trim()}`,
       .slice(0, 80);
 
     if (cleanedTitle) {
-      await supabase
+      const { error } = await supabase
         .from("conversations")
         .update({ title: cleanedTitle })
-        .eq("id", conversationId);
+        .eq("id", conversationId)
+        .eq("user_id", userId)
+        // Both null and an empty string are treated as untitled by the send
+        // flow. This predicate is atomic across concurrent worker instances.
+        .or('title.is.null,title.eq.""');
+      if (error) throw error;
     }
   } catch (error) {
     console.warn("AI tutor title generation failed:", error);

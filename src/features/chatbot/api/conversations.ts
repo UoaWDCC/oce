@@ -99,7 +99,7 @@ export async function getConversationMessages(
 export async function saveUserMessage(
   conversationId: string,
   content: string,
-): Promise<TutorMessage> {
+): Promise<TutorMessage & { titlePending?: boolean }> {
   const response = await apiFetch(
     "/api/ai-tutor/chat",
     {
@@ -108,8 +108,11 @@ export async function saveUserMessage(
     },
     true,
   );
-  const data = (await response.json()) as { message: TutorMessage };
-  return data.message;
+  const data = (await response.json()) as {
+    message: TutorMessage;
+    titlePending?: boolean;
+  };
+  return { ...data.message, titlePending: data.titlePending === true };
 }
 
 interface StreamAssistantMessageHandlers {

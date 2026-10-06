@@ -32,6 +32,7 @@ import {
 import ErrorMessage from "../errorMessage";
 import TokenUsageBanner from "../tokenUsageBanner";
 import { isTokenLimitReached, useTokenUsage } from "../../hooks/useTokenUsage";
+import { useConversationTitle } from "../../hooks/useConversationTitle";
 import { ApiError } from "../../utils/apiFetch";
 import type { Message } from "@/llm/types/Message";
 import {
@@ -178,6 +179,23 @@ export default function ChatFullscreen({
   const usage = useTokenUsage(tokenUsageVersion);
   const isOverLimit = isTokenLimitReached(usage);
   const [messages, setMessages] = useState<ChatMessageType[]>([]);
+  const [pendingTitleIds, setPendingTitleIds] = useState(new Set<string>());
+  useConversationTitle(
+    open &&
+      selectedConversationId &&
+      !discardedConversationIds.includes(selectedConversationId) &&
+      pendingTitleIds.has(selectedConversationId)
+      ? selectedConversationId
+      : null,
+    (conversationId) => {
+      setPendingTitleIds((current) => {
+        const next = new Set(current);
+        next.delete(conversationId);
+        return next;
+      });
+      refreshConversationList();
+    },
+  );
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [requestPhase, setRequestPhase] = useState<RequestPhase>("idle");
   const isSavingMessage = requestPhase !== "idle";
@@ -402,6 +420,9 @@ export default function ChatFullscreen({
       const questionSaveGeneration = owner.visibleGeneration;
       const savedMessage = await saveUserMessage(conversationId, content);
       userMessageSaved = true;
+      if (isMountedRef.current && savedMessage.titlePending) {
+        setPendingTitleIds((current) => new Set(current).add(conversationId));
+      }
       const userMessage = mapTutorMessageToChatMessage(savedMessage);
       const assistantMessage: ChatMessageType = {
         type: "bot",
@@ -635,9 +656,8 @@ export default function ChatFullscreen({
         }
       }
       // Usage only changes once an exchange has run, so refresh it here rather
-      // than on every conversation list refresh. The list is refreshed again
-      // too: a new conversation's title is generated without being awaited, so
-      // it lands after the refresh made when the message was saved.
+      // than on every conversation list refresh. Title observation separately
+      // refreshes the list once the background title is actually persisted.
       if (isMountedRef.current) {
         refreshTokenUsage();
         refreshConversationList();

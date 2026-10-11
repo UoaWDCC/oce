@@ -310,7 +310,7 @@ export const SITE_GUIDE: SiteGuideEntry[] = [
       "A post can be published anonymously.",
       "Select a post to read its full thread, view its comments, and see its view and reply counts.",
       "Users can add comments, reply to comments, and like or unlike comments.",
-      "Comments can be sorted by Latest, Oldest, or Most liked.",
+      "Comments can be sorted by Latest, Oldest, or Most reacted, and filtered by reaction type (or all reactions) with a minimum reaction count.",
       "Comments and replies can include an image attachment.",
     ],
   },

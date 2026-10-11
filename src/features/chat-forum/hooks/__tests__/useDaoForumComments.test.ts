@@ -5,6 +5,8 @@ import { getPostComments } from "../../services";
 import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { createTestQueryClient, createWrapper } from "./queryTestUtils";
 import type { FormattedComment } from "@app-types/dao-forum";
+import { DEFAULT_COMMENT_FILTER } from "../../lib/commentReactions";
+import type { ForumCommentFilter } from "../../types";
 
 vi.mock("../../services", () => ({
   getPostComments: vi.fn(),
@@ -66,6 +68,7 @@ describe("useDaoForumComments", () => {
       "oldest",
       "token-123",
       expect.any(AbortSignal),
+      { reaction: "all", minCount: 0 },
     );
   });
 
@@ -218,6 +221,7 @@ describe("useDaoForumComments", () => {
       "oldest",
       "token-b",
       expect.any(AbortSignal),
+      { reaction: "all", minCount: 0 },
     );
 
     await act(async () => resolveSecondUser([]));
@@ -261,5 +265,92 @@ describe("useDaoForumComments", () => {
       .slice(2)
       .map((call) => call[2]);
     expect(sortsRefetched.sort()).toEqual(["latest", "oldest"]);
+  });
+
+  it("requests and caches each reaction filter separately", async () => {
+    getPostCommentsMock.mockResolvedValue([]);
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
+      },
+    });
+    const fireFilter = { reaction: "fire" as const, minCount: 2 };
+
+    const { rerender } = renderHook(
+      ({ filter }) =>
+        useDaoForumComments(
+          "dao-1",
+          "post-1",
+          "token-123",
+          "most_reacted",
+          true,
+          "user-1",
+          filter,
+        ),
+      {
+        wrapper: createWrapper(client),
+        initialProps: { filter: DEFAULT_COMMENT_FILTER as ForumCommentFilter },
+      },
+    );
+    await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(1));
+
+    rerender({ filter: fireFilter });
+    await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(2));
+
+    expect(getPostCommentsMock).toHaveBeenLastCalledWith(
+      "dao-1",
+      "post-1",
+      "most_reacted",
+      "token-123",
+      expect.any(AbortSignal),
+      fireFilter,
+    );
+    expect(
+      client.getQueryData([
+        "forum",
+        "comments",
+        "dao-1",
+        "post-1",
+        "user-1",
+        "most_reacted",
+        "fire",
+        2,
+      ]),
+    ).toEqual([]);
+  });
+
+  it("keeps the current replies visible while a new filter loads", async () => {
+    let resolveFiltered: (value: FormattedComment[]) => void = () => {};
+    getPostCommentsMock
+      .mockResolvedValueOnce([loadedComment])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveFiltered = resolve;
+          }),
+      );
+    const client = createTestQueryClient();
+
+    const { result, rerender } = renderHook(
+      ({ minCount }) =>
+        useDaoForumComments(
+          "dao-1",
+          "post-1",
+          "token-123",
+          "oldest",
+          true,
+          null,
+          { reaction: "all", minCount },
+        ),
+      { wrapper: createWrapper(client), initialProps: { minCount: 0 } },
+    );
+    await waitFor(() => expect(result.current.comments).toHaveLength(1));
+
+    rerender({ minCount: 3 });
+    await waitFor(() => expect(getPostCommentsMock).toHaveBeenCalledTimes(2));
+    expect(result.current.comments.map((c) => c.id)).toEqual(["comment-1"]);
+
+    act(() => resolveFiltered([]));
+    await waitFor(() => expect(result.current.comments).toEqual([]));
   });
 });

@@ -197,6 +197,33 @@ describe("mapCommentToForumCommentPreview", () => {
     expect(comment.isDeleted).toBe(false);
     expect(comment.isOwnComment).toBe(true);
   });
+
+  it("carries the context-only flag from the API", () => {
+    const raw = {
+      id: "context",
+      body: "Parent kept for a matching reply",
+      image_url: null,
+      author_id: "user-1",
+      username: "Jordan",
+      wallet_address: null,
+      ens_name: null,
+      parent_comment_id: null,
+      created_at: "2026-07-22T00:00:00.000Z",
+      updated_at: null,
+      deleted_at: null,
+    };
+
+    expect(
+      mapCommentToForumCommentPreview(
+        { ...raw, is_context_only: true },
+        "post-1",
+        null,
+      ).isContextOnly,
+    ).toBe(true);
+    expect(
+      mapCommentToForumCommentPreview(raw, "post-1", null).isContextOnly,
+    ).toBe(false);
+  });
 });
 
 describe("buildForumThreadComments", () => {
@@ -248,6 +275,40 @@ describe("buildForumThreadComments", () => {
     ];
 
     expect(buildForumThreadComments(comments)[0].imageUrl).toBeNull();
+  });
+
+  it("nests a matching reply under its context-only parent in sorted order", () => {
+    const comment = (
+      id: string,
+      parentCommentId: string | null,
+      isContextOnly = false,
+    ): ForumCommentPreview => ({
+      id,
+      postId: "post-1",
+      parentCommentId,
+      authorName: "Alex",
+      body: id,
+      createdAt: "2026-07-22T00:00:00.000Z",
+      createdAtLabel: "Jul 22, 2026",
+      isContextOnly,
+    });
+
+    // The API returns the flat list already sorted, e.g. by most reacted.
+    const thread = buildForumThreadComments([
+      comment("top-match", null),
+      comment("reply-more", "context-parent"),
+      comment("context-parent", null, true),
+      comment("reply-fewer", "context-parent"),
+    ]);
+
+    expect(thread.map((node) => [node.id, node.isContextOnly])).toEqual([
+      ["top-match", false],
+      ["context-parent", true],
+    ]);
+    expect(thread[1].replies?.map((reply) => reply.id)).toEqual([
+      "reply-more",
+      "reply-fewer",
+    ]);
   });
 });
 

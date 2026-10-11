@@ -184,6 +184,8 @@ export interface FormattedComment {
   created_at: string;
   updated_at: string | null;
   deleted_at: string | null;
+  /** True when the comment misses the reaction filter but a matching reply needs it. */
+  is_context_only?: boolean;
 }
 
 export type CommentListItem = FormattedComment;
@@ -231,5 +233,6 @@ export interface ForumCommentPreview {
   userReactions?: UserReactions;
   isOwnComment?: boolean;
   isDeleted?: boolean;
+  isContextOnly?: boolean;
   imageUrl?: string | null;
 }

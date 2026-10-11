@@ -417,7 +417,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json[1].id).toBe("c1");
   });
 
-  it("returns 200 with comments sorted by most likes", async () => {
+  it("returns 200 with comments sorted by most reactions", async () => {
     const fakeComments = [
       {
         id: "c1",
@@ -457,7 +457,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
         error: null,
       }),
     );
-    // c1 gets 1 like, c2 gets 3 likes — c2 should sort first
+    // c1 gets 1 reaction, c2 gets 3 — c2 should sort first
     mockSupabase.in.mockResolvedValueOnce({
       data: [
         { comment_id: "c1", user_id: "user-1", reaction: "heart" },
@@ -475,7 +475,7 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
       );
 
     const req = new NextRequest(
-      "http://localhost/api/dao-forum/dao-1/posts/post-1/comments?sort=most_likes",
+      "http://localhost/api/dao-forum/dao-1/posts/post-1/comments?sort=most_reacted",
       { method: "GET", headers: { Authorization: "Bearer fake-token" } },
     );
     const res = await GET(req, mockParamsWithPostId);
@@ -668,5 +668,227 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]/comments", () => {
     expect(json[0].deleted_at).toBe("2026-06-01");
     expect(json[1].body).toBe("active child");
     expect(json[1].deleted_at).toBeNull();
+  });
+});
+
+describe("GET comments with reaction sorting and filtering", () => {
+  type ReactionRow = { comment_id: string; user_id: string; reaction: string };
+
+  beforeEach(() => {
+    resetAll();
+  });
+
+  function fakeComment(
+    id: string,
+    createdAt: string,
+    parentId: string | null = null,
+  ) {
+    return {
+      id,
+      body: `comment ${id}`,
+      image_url: null,
+      parent_comment_id: parentId,
+      created_at: createdAt,
+      updated_at: createdAt,
+      deleted_at: null,
+      author: {
+        id: "user-1",
+        username: "alice",
+        FirstName: "Alice",
+        LastName: "A",
+      },
+    };
+  }
+
+  /** Builds `count` reaction rows of one type on a comment, from distinct users. */
+  function reactions(commentId: string, reaction: string, count: number) {
+    return Array.from({ length: count }, (_, index) => ({
+      comment_id: commentId,
+      user_id: `${reaction}-user-${index}`,
+      reaction,
+    }));
+  }
+
+  function mockThread(
+    comments: ReturnType<typeof fakeComment>[],
+    reactionRows: ReactionRow[],
+  ) {
+    mockSupabase.maybeSingle.mockImplementation(() =>
+      Promise.resolve({
+        data: { id: "post-1", deleted_at: null },
+        error: null,
+      }),
+    );
+    mockSupabase.eq
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce(mockSupabase)
+      .mockReturnValueOnce(Promise.resolve({ data: comments, error: null }));
+    mockSupabase.in.mockResolvedValueOnce({ data: reactionRows, error: null });
+  }
+
+  async function getComments(query: string) {
+    const req = new NextRequest(
+      `http://localhost/api/dao-forum/dao-1/posts/post-1/comments?${query}`,
+      { method: "GET", headers: { Authorization: "Bearer fake-token" } },
+    );
+    const res = await GET(req, mockParamsWithPostId);
+    return { res, json: await readJson<CommentListItem[]>(res) };
+  }
+
+  it("orders sibling comments by total reactions across every type", async () => {
+    mockThread(
+      [
+        fakeComment("two", "2026-06-01T00:00:00Z"),
+        fakeComment("seven", "2026-06-02T00:00:00Z"),
+        fakeComment("four", "2026-06-03T00:00:00Z"),
+      ],
+      [
+        ...reactions("two", "heart", 2),
+        ...reactions("seven", "fire", 3),
+        ...reactions("seven", "thumbs_down", 4),
+        ...reactions("four", "thumbs_up", 4),
+      ],
+    );
+
+    const { res, json } = await getComments("sort=most_reacted");
+
+    expect(res.status).toBe(200);
+    expect(json.map((comment) => comment.id)).toEqual(["seven", "four", "two"]);
+  });
+
+  it("breaks equal totals newest first, the same way on every request", async () => {
+    const comments = [
+      fakeComment("older", "2026-06-01T00:00:00Z"),
+      fakeComment("newer", "2026-06-02T00:00:00Z"),
+    ];
+    const rows = [
+      ...reactions("older", "heart", 2),
+      ...reactions("newer", "fire", 2),
+    ];
+
+    mockThread(comments, rows);
+    const first = await getComments("sort=most_reacted");
+    mockThread([...comments].reverse(), [...rows].reverse());
+    const second = await getComments("sort=most_reacted");
+
+    expect(first.json.map((comment) => comment.id)).toEqual(["newer", "older"]);
+    expect(second.json.map((comment) => comment.id)).toEqual([
+      "newer",
+      "older",
+    ]);
+  });
+
+  it("filters by reaction type", async () => {
+    mockThread(
+      [
+        fakeComment("heart", "2026-06-01T00:00:00Z"),
+        fakeComment("fire", "2026-06-02T00:00:00Z"),
+        fakeComment("thumbs", "2026-06-03T00:00:00Z"),
+      ],
+      [
+        ...reactions("heart", "heart", 3),
+        ...reactions("fire", "fire", 1),
+        ...reactions("thumbs", "thumbs_up", 2),
+      ],
+    );
+
+    const { res, json } = await getComments("reaction=fire");
+
+    expect(res.status).toBe(200);
+    expect(json.map((comment) => comment.id)).toEqual(["fire"]);
+    expect(json[0].is_context_only).toBe(false);
+  });
+
+  it("filters by a minimum count of the selected reaction", async () => {
+    mockThread(
+      [
+        fakeComment("zero", "2026-06-01T00:00:00Z"),
+        fakeComment("two", "2026-06-02T00:00:00Z"),
+        fakeComment("five", "2026-06-03T00:00:00Z"),
+      ],
+      [
+        ...reactions("zero", "heart", 4),
+        ...reactions("two", "fire", 2),
+        ...reactions("five", "fire", 5),
+      ],
+    );
+
+    const { json } = await getComments("reaction=fire&min_reactions=2");
+
+    expect(json.map((comment) => comment.id)).toEqual(["two", "five"]);
+  });
+
+  it("uses the aggregate count when filtering by all reactions", async () => {
+    mockThread(
+      [
+        fakeComment("mixed", "2026-06-01T00:00:00Z"),
+        fakeComment("few", "2026-06-02T00:00:00Z"),
+      ],
+      [
+        ...reactions("mixed", "heart", 1),
+        ...reactions("mixed", "fire", 2),
+        ...reactions("mixed", "thumbs_up", 1),
+        ...reactions("few", "heart", 3),
+      ],
+    );
+
+    const { json } = await getComments("reaction=all&min_reactions=4");
+
+    expect(json.map((comment) => comment.id)).toEqual(["mixed"]);
+  });
+
+  it("keeps a non-matching parent as context for a matching reply", async () => {
+    mockThread(
+      [
+        fakeComment("parent", "2026-06-01T00:00:00Z"),
+        fakeComment("reply", "2026-06-02T00:00:00Z", "parent"),
+        fakeComment("unrelated", "2026-06-03T00:00:00Z"),
+      ],
+      [...reactions("parent", "heart", 1), ...reactions("reply", "fire", 2)],
+    );
+
+    const { json } = await getComments("reaction=fire");
+
+    expect(
+      json.map((comment) => [
+        comment.id,
+        comment.parent_comment_id,
+        comment.is_context_only,
+      ]),
+    ).toEqual([
+      ["parent", null, true],
+      ["reply", "parent", false],
+    ]);
+  });
+
+  it("returns an empty list when no comment matches", async () => {
+    mockThread(
+      [fakeComment("only", "2026-06-01T00:00:00Z")],
+      reactions("only", "heart", 1),
+    );
+
+    const { res, json } = await getComments("reaction=thumbs_down");
+
+    expect(res.status).toBe(200);
+    expect(json).toEqual([]);
+  });
+
+  it.each([
+    ["reaction=laugh", "Invalid reaction filter"],
+    ["reaction=", "Invalid reaction filter"],
+    ["min_reactions=-1", "min_reactions must be"],
+    ["min_reactions=abc", "min_reactions must be"],
+    ["min_reactions=2.5", "min_reactions must be"],
+    ["sort=most_likes", "Invalid sort option"],
+  ])("returns 400 for %s", async (query, message) => {
+    const req = new NextRequest(
+      `http://localhost/api/dao-forum/dao-1/posts/post-1/comments?${query}`,
+      { method: "GET", headers: { Authorization: "Bearer fake-token" } },
+    );
+    const res = await GET(req, mockParamsWithPostId);
+    const json = await readJson<{ error: string }>(res);
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain(message);
   });
 });

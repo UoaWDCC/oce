@@ -71,7 +71,7 @@ type PostThreadProps = {
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
   { value: "latest", label: "Latest" },
   { value: "oldest", label: "Oldest" },
-  { value: "most_likes", label: "Most liked" },
+  { value: "most_reacted", label: "Most reacted" },
 ];
 
 function classNames(...classes: Array<string | false | null | undefined>) {

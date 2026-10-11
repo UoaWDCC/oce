@@ -166,6 +166,7 @@ export function mapCommentToForumCommentPreview(
     userReactions: comment.user_reactions,
     isDeleted: comment.deleted_at !== null,
     isOwnComment: comment.author_id === currentUserId,
+    isContextOnly: comment.is_context_only ?? false,
     imageUrl: comment.image_url,
   };
 }
@@ -210,6 +211,7 @@ export function buildForumThreadComments(
       userReactions: comment.userReactions,
       isDeleted: comment.isDeleted,
       isOwnComment: comment.isOwnComment,
+      isContextOnly: comment.isContextOnly,
       imageUrl: comment.isDeleted ? null : comment.imageUrl,
       replies: [],
     });

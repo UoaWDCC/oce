@@ -27,6 +27,8 @@ import type {
   PostSubmitPayload,
 } from "@app-types/dao-forum";
 import type {
+  ForumCommentFilter,
+  ForumReactionFilterType,
   ForumThreadComment,
   ForumThreadPost,
   ForumThreadSort,
@@ -37,14 +39,21 @@ import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
 import { getPostTypePresentation } from "../postTypePresentation";
 import { RESOLVED_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
+import {
+  DEFAULT_COMMENT_FILTER,
+  isCommentFilterActive,
+  parseMinReactions,
+} from "../lib/commentReactions";
 
 type PostThreadProps = {
   daoGroupId: string;
   post: ForumThreadPost;
   comments: ForumThreadComment[];
   sort?: ForumThreadSort;
+  filter?: ForumCommentFilter;
   onBack?: () => void;
   onSortChange?: (sort: ForumThreadSort) => void;
+  onFilterChange?: (filter: ForumCommentFilter) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
   onCommentRefetch?: () => Promise<void>;
   onReaction?: (
@@ -72,6 +81,24 @@ const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
   { value: "latest", label: "Latest" },
   { value: "oldest", label: "Oldest" },
   { value: "most_reacted", label: "Most reacted" },
+];
+
+const REACTIONS: Array<{ type: ReactionType; label: string; emoji: string }> = [
+  { type: "heart", label: "Heart", emoji: "❤️" },
+  { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
+  { type: "fire", label: "Fire", emoji: "🔥" },
+  { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
+];
+
+const REACTION_FILTER_OPTIONS: Array<{
+  value: ForumReactionFilterType;
+  label: string;
+}> = [
+  { value: "all", label: "All reactions" },
+  ...REACTIONS.map(({ type, label, emoji }) => ({
+    value: type,
+    label: `${emoji} ${label}`,
+  })),
 ];
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -355,14 +382,6 @@ function ThreadComment({
   const menuRef = useRef<HTMLDivElement>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
 
-  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> =
-    [
-      { type: "heart", label: "Heart", emoji: "❤️" },
-      { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
-      { type: "fire", label: "Fire", emoji: "🔥" },
-      { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
-    ];
-
   const handleEdit = async (data: {
     body?: string | null;
     imageUrl?: string | null;
@@ -412,7 +431,19 @@ function ThreadComment({
 
   return (
     <div>
-      <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
+      <article
+        className={classNames(
+          "rounded-2xl border border-l-4 p-4 shadow-sm sm:p-5",
+          comment.isContextOnly
+            ? "border-dashed border-slate-200 border-l-slate-300 bg-slate-50"
+            : "border-purple-100 border-l-purple-500 bg-white",
+        )}
+      >
+        {comment.isContextOnly && (
+          <div className="mb-2 text-xs font-semibold text-slate-500">
+            Shown for context. Doesn&apos;t match the reaction filter.
+          </div>
+        )}
         {parentAuthorName && depth > MAX_NESTING_DEPTH && (
           <div className="mb-2 text-xs font-semibold text-purple-600">
             Replying to {parentAuthorName}
@@ -506,7 +537,7 @@ function ThreadComment({
               </button>
               {isReactionPickerOpen && (
                 <div className="absolute bottom-full left-0 z-10 mb-2 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
-                  {reactions.map(({ type, label, emoji }) => {
+                  {REACTIONS.map(({ type, label, emoji }) => {
                     const isActive = comment.userReactions?.[type] ?? false;
                     return (
                       <button
@@ -532,7 +563,7 @@ function ThreadComment({
               )}
             </div>
           )}
-          {reactions.map(({ type, emoji, label }) => {
+          {REACTIONS.map(({ type, emoji, label }) => {
             const count = comment.reactionCounts?.[type] ?? 0;
             if (count === 0) return null;
             const isActive = comment.userReactions?.[type] ?? false;
@@ -684,10 +715,93 @@ function ThreadComment({
   );
 }
 
+/** Counts comments in the tree, leaving out ancestors shown only as context. */
 function countComments(comments: ForumThreadComment[]): number {
   return comments.reduce(
-    (count, comment) => count + 1 + countComments(comment.replies ?? []),
+    (count, comment) =>
+      count +
+      (comment.isContextOnly ? 0 : 1) +
+      countComments(comment.replies ?? []),
     0,
+  );
+}
+
+type CommentFilterControlsProps = {
+  filter: ForumCommentFilter;
+  onFilterChange?: (filter: ForumCommentFilter) => void;
+};
+
+function CommentFilterControls({
+  filter,
+  onFilterChange,
+}: CommentFilterControlsProps) {
+  // Kept as text so the field can be cleared while typing; only valid
+  // counts are sent on, and blurring restores the applied value.
+  const [minCountInput, setMinCountInput] = useState(String(filter.minCount));
+  const [appliedMinCount, setAppliedMinCount] = useState(filter.minCount);
+
+  // Follow resets and URL changes during render, so the field never shows
+  // a stale count for a frame.
+  if (appliedMinCount !== filter.minCount) {
+    setAppliedMinCount(filter.minCount);
+    setMinCountInput(String(filter.minCount));
+  }
+
+  const selectClassName =
+    "rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100";
+
+  return (
+    <>
+      <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+        <span>Reaction:</span>
+        <select
+          className={selectClassName}
+          disabled={!onFilterChange}
+          onChange={(event) =>
+            onFilterChange?.({
+              ...filter,
+              reaction: event.target.value as ForumReactionFilterType,
+            })
+          }
+          value={filter.reaction}
+        >
+          {REACTION_FILTER_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+        <span>At least:</span>
+        <input
+          className={classNames(selectClassName, "w-20")}
+          disabled={!onFilterChange}
+          inputMode="numeric"
+          min={0}
+          onBlur={() => setMinCountInput(String(filter.minCount))}
+          onChange={(event) => {
+            setMinCountInput(event.target.value);
+            const minCount = parseMinReactions(event.target.value);
+            if (minCount !== null && minCount !== filter.minCount) {
+              onFilterChange?.({ ...filter, minCount });
+            }
+          }}
+          step={1}
+          type="number"
+          value={minCountInput}
+        />
+      </label>
+      {onFilterChange && isCommentFilterActive(filter) && (
+        <button
+          className="text-sm font-semibold text-purple-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+          onClick={() => onFilterChange(DEFAULT_COMMENT_FILTER)}
+          type="button"
+        >
+          Reset filters
+        </button>
+      )}
+    </>
   );
 }
 
@@ -696,8 +810,10 @@ export default function PostThread({
   post,
   comments,
   sort = "latest",
+  filter = DEFAULT_COMMENT_FILTER,
   onBack,
   onSortChange,
+  onFilterChange,
   onSubmitComment,
   onCommentRefetch,
   onReaction,
@@ -717,17 +833,23 @@ export default function PostThread({
   currentUserId,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
+  const isFiltered = isCommentFilterActive(filter);
   /**
    * Comment counts are derived from the loaded thread, so they are only
    * meaningful once it has settled. Until then the labels say what is actually
    * happening rather than asserting a zero the user is about to see replaced.
+   * A filtered thread only holds the matching replies, so the post's total
+   * is withheld and the heading counts matches instead.
    */
-  const commentCountLabel = commentsState.hasResolved
-    ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}`
-    : "comments";
-  const replyCountLabel = commentsState.hasResolved
-    ? `${commentCount} ${commentCount === 1 ? "Reply" : "Replies"}`
-    : "Replies";
+  const commentCountLabel =
+    commentsState.hasResolved && !isFiltered
+      ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}`
+      : "comments";
+  const replyCountLabel = !commentsState.hasResolved
+    ? "Replies"
+    : isFiltered
+      ? `${commentCount} Matching ${commentCount === 1 ? "reply" : "replies"}`
+      : `${commentCount} ${commentCount === 1 ? "Reply" : "Replies"}`;
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
@@ -937,23 +1059,29 @@ export default function PostThread({
             </span>
           ) : null}
         </h2>
-        <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-          <span>Sort by:</span>
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-            disabled={!onSortChange}
-            onChange={(event) =>
-              onSortChange?.(event.target.value as ForumThreadSort)
-            }
-            value={sort}
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="flex flex-wrap items-center gap-3">
+          <CommentFilterControls
+            filter={filter}
+            onFilterChange={onFilterChange}
+          />
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+            <span>Sort by:</span>
+            <select
+              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+              disabled={!onSortChange}
+              onChange={(event) =>
+                onSortChange?.(event.target.value as ForumThreadSort)
+              }
+              value={sort}
+            >
+              {SORT_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       {!replyingTo && (
@@ -1013,11 +1141,25 @@ export default function PostThread({
           ))
         ) : (
           commentsState.hasResolved &&
-          !commentsState.isBlockingError && (
+          !commentsState.isBlockingError &&
+          (isFiltered ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+              <span>No replies match this reaction filter.</span>
+              {onFilterChange && (
+                <button
+                  className="rounded-full border border-purple-200 px-4 py-1.5 font-bold text-purple-700 transition hover:bg-purple-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                  onClick={() => onFilterChange(DEFAULT_COMMENT_FILTER)}
+                  type="button"
+                >
+                  Reset filters
+                </button>
+              )}
+            </div>
+          ) : (
             <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
               No replies yet. Start the discussion.
             </div>
-          )
+          ))
         )}
       </div>
     </section>

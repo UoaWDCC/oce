@@ -164,3 +164,65 @@ export function parseMinReactions(
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) ? parsed : null;
 }
+
+export type ForumCommentView = {
+  sort: ForumThreadSort;
+  filter: ForumCommentFilter;
+};
+
+/** Page URL keys for the thread's sort and reaction filter. */
+export const COMMENT_VIEW_PARAMS = {
+  sort: "commentSort",
+  reaction: "reaction",
+  minCount: "minReactions",
+} as const;
+
+/**
+ * Reads the thread view from the page URL. Unlike the API, unsupported values
+ * fall back to defaults, so a hand-edited link still opens the thread.
+ */
+export function readCommentViewParams(
+  params: Pick<URLSearchParams, "get">,
+  defaultSort: ForumThreadSort,
+): ForumCommentView {
+  const sortParam = params.get(COMMENT_VIEW_PARAMS.sort);
+  return {
+    sort:
+      sortParam === null
+        ? defaultSort
+        : (parseCommentSort(sortParam) ?? defaultSort),
+    filter: {
+      reaction:
+        parseReactionFilterType(params.get(COMMENT_VIEW_PARAMS.reaction)) ??
+        DEFAULT_COMMENT_FILTER.reaction,
+      minCount:
+        parseMinReactions(params.get(COMMENT_VIEW_PARAMS.minCount)) ??
+        DEFAULT_COMMENT_FILTER.minCount,
+    },
+  };
+}
+
+/** Writes the thread view into the URL, leaving defaults out to keep it short. */
+export function writeCommentViewParams(
+  params: URLSearchParams,
+  view: ForumCommentView,
+  defaultSort: ForumThreadSort,
+): URLSearchParams {
+  const next = new URLSearchParams(params);
+  const setOrDelete = (key: string, value: string, isDefault: boolean) => {
+    if (isDefault) next.delete(key);
+    else next.set(key, value);
+  };
+  setOrDelete(COMMENT_VIEW_PARAMS.sort, view.sort, view.sort === defaultSort);
+  setOrDelete(
+    COMMENT_VIEW_PARAMS.reaction,
+    view.filter.reaction,
+    view.filter.reaction === DEFAULT_COMMENT_FILTER.reaction,
+  );
+  setOrDelete(
+    COMMENT_VIEW_PARAMS.minCount,
+    String(view.filter.minCount),
+    view.filter.minCount === DEFAULT_COMMENT_FILTER.minCount,
+  );
+  return next;
+}

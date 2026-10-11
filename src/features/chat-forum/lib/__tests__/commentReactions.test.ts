@@ -9,7 +9,9 @@ import {
   parseMinReactions,
   parseReactionFilterType,
   reactionCountFor,
+  readCommentViewParams,
   totalReactions,
+  writeCommentViewParams,
 } from "../commentReactions";
 
 function counts(overrides: Partial<ReactionCounts> = {}): ReactionCounts {
@@ -218,4 +220,53 @@ describe("query parsing", () => {
       expect(parseMinReactions(value)).toBeNull();
     },
   );
+});
+
+describe("comment view URL params", () => {
+  it("reads defaults from an empty URL", () => {
+    expect(readCommentViewParams(new URLSearchParams(), "latest")).toEqual({
+      sort: "latest",
+      filter: { reaction: "all", minCount: 0 },
+    });
+  });
+
+  it("reads a shared link", () => {
+    expect(
+      readCommentViewParams(
+        new URLSearchParams(
+          "commentSort=most_reacted&reaction=fire&minReactions=2",
+        ),
+        "latest",
+      ),
+    ).toEqual({
+      sort: "most_reacted",
+      filter: { reaction: "fire", minCount: 2 },
+    });
+  });
+
+  it("falls back to defaults for unsupported values", () => {
+    expect(
+      readCommentViewParams(
+        new URLSearchParams(
+          "commentSort=most_likes&reaction=laugh&minReactions=-3",
+        ),
+        "latest",
+      ),
+    ).toEqual({
+      sort: "latest",
+      filter: { reaction: "all", minCount: 0 },
+    });
+  });
+
+  it("writes only non-default values and keeps unrelated params", () => {
+    const params = writeCommentViewParams(
+      new URLSearchParams("tab=forum&reaction=heart"),
+      { sort: "most_reacted", filter: { reaction: "all", minCount: 3 } },
+      "latest",
+    );
+
+    expect(params.toString()).toBe(
+      "tab=forum&commentSort=most_reacted&minReactions=3",
+    );
+  });
 });

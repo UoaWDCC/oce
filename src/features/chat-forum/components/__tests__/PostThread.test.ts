@@ -140,10 +140,30 @@ describe("PostThread comment states", () => {
   });
 });
 
-describe("PostThread reaction sorting and filtering", () => {
+describe("PostThread sort and filter panel", () => {
   const fireFilter: ForumCommentFilter = { reaction: "fire", minCount: 1 };
 
-  it("shows Most reacted as the selected sort", () => {
+  function openPanel() {
+    fireEvent.click(screen.getByRole("button", { name: /Sort & filter/ }));
+    return screen.getByRole("dialog", { name: "Sort and filter replies" });
+  }
+
+  it("keeps the panel closed until the button is pressed", () => {
+    renderThread({
+      comments,
+      commentsState: resolved(),
+      onSortChange: vi.fn(),
+    });
+
+    const button = screen.getByRole("button", { name: /Sort & filter/ });
+    expect(button.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    openPanel();
+    expect(button.getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it("shows Most reacted as the selected sort, on the button and in the panel", () => {
     renderThread({
       comments,
       commentsState: resolved(),
@@ -152,48 +172,110 @@ describe("PostThread reaction sorting and filtering", () => {
     });
 
     expect(
-      screen.getByRole("option", { name: "Most reacted", selected: true }),
-    ).toBeDefined();
-    expect(screen.queryByRole("option", { name: "Most liked" })).toBeNull();
+      screen.getByRole("button", { name: /Sort & filter/ }).textContent,
+    ).toContain("Most reacted");
+    openPanel();
+    expect(
+      (screen.getByRole("radio", { name: "Most reacted" }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    expect(screen.queryByRole("radio", { name: "Most liked" })).toBeNull();
   });
 
-  it("sends reaction type and minimum count changes", () => {
+  it("sends sort, reaction type and minimum count changes", () => {
+    const onSortChange = vi.fn();
     const onFilterChange = vi.fn();
     renderThread({
       comments,
       commentsState: resolved(),
+      onSortChange,
       onFilterChange,
     });
+    openPanel();
 
-    fireEvent.change(screen.getByRole("combobox", { name: /Reaction/ }), {
-      target: { value: "fire" },
-    });
-    fireEvent.change(screen.getByRole("spinbutton", { name: /At least/ }), {
-      target: { value: "3" },
-    });
+    fireEvent.click(screen.getByRole("radio", { name: "Oldest" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Fire" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Increase minimum reactions" }),
+    );
+    fireEvent.change(
+      screen.getByRole("spinbutton", { name: "Minimum reactions" }),
+      { target: { value: "3" } },
+    );
 
+    expect(onSortChange).toHaveBeenCalledWith("oldest");
     expect(onFilterChange).toHaveBeenNthCalledWith(1, {
       reaction: "fire",
       minCount: 0,
     });
     expect(onFilterChange).toHaveBeenNthCalledWith(2, {
       reaction: "all",
+      minCount: 1,
+    });
+    expect(onFilterChange).toHaveBeenNthCalledWith(3, {
+      reaction: "all",
       minCount: 3,
     });
   });
 
-  it("ignores a minimum count that is not a whole number", () => {
+  it("does not step the minimum below 0 or accept a non-whole number", () => {
     const onFilterChange = vi.fn();
     renderThread({ comments, commentsState: resolved(), onFilterChange });
+    openPanel();
 
-    const input = screen.getByRole<HTMLInputElement>("spinbutton", {
-      name: /At least/,
-    });
+    const decrease = screen.getByRole("button", {
+      name: "Decrease minimum reactions",
+    }) as HTMLButtonElement;
+    expect(decrease.disabled).toBe(true);
+
+    const input = screen.getByRole("spinbutton", {
+      name: "Minimum reactions",
+    }) as HTMLInputElement;
     fireEvent.change(input, { target: { value: "" } });
     fireEvent.blur(input);
 
     expect(onFilterChange).not.toHaveBeenCalled();
     expect(input.value).toBe("0");
+  });
+
+  it("summarises an active filter on the button and resets it from the panel", () => {
+    const onFilterChange = vi.fn();
+    renderThread({
+      comments,
+      commentsState: resolved(),
+      sort: "latest",
+      filter: { reaction: "fire", minCount: 2 },
+      onFilterChange,
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Sort & filter/ }).textContent,
+    ).toContain("Latest · 🔥 ≥2");
+
+    openPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
+    expect(onFilterChange).toHaveBeenCalledWith({
+      reaction: "all",
+      minCount: 0,
+    });
+  });
+
+  it("closes on Escape and on Done, returning focus to the button", () => {
+    renderThread({
+      comments,
+      commentsState: resolved(),
+      onSortChange: vi.fn(),
+    });
+    const button = screen.getByRole("button", { name: /Sort & filter/ });
+
+    openPanel();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(button);
+
+    openPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Done" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
   });
 
   it("shows a filtered empty state that resets the filter", () => {
@@ -211,10 +293,7 @@ describe("PostThread reaction sorting and filtering", () => {
     expect(screen.queryByText(/No replies yet/)).toBeNull();
     expect(screen.getByText("0 Matching replies")).toBeDefined();
 
-    const resetButtons = screen.getAllByRole("button", {
-      name: "Reset filters",
-    });
-    fireEvent.click(resetButtons[resetButtons.length - 1]);
+    fireEvent.click(screen.getByRole("button", { name: "Reset filters" }));
     expect(onFilterChange).toHaveBeenCalledWith({
       reaction: "all",
       minCount: 0,

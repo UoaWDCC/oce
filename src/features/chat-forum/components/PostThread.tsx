@@ -899,30 +899,39 @@ function CommentViewMenu({
               Reaction
             </legend>
             <div className="flex flex-wrap gap-2">
-              {REACTION_FILTER_OPTIONS.map((option) => (
-                <label key={option.value} title={option.label}>
-                  <input
+              {REACTION_FILTER_OPTIONS.map((option) => {
+                const isSelected = filter.reaction === option.value;
+                return (
+                  <button
+                    key={option.value}
                     aria-label={option.label}
-                    checked={filter.reaction === option.value}
-                    className="peer sr-only"
-                    name={`${panelId}-reaction`}
-                    onChange={() =>
-                      onFilterChange?.({ ...filter, reaction: option.value })
-                    }
-                    type="radio"
-                    value={option.value}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className={optionClassName(
-                      filter.reaction === option.value,
-                      !onFilterChange,
+                    aria-pressed={isSelected}
+                    className={classNames(
+                      optionClassName(isSelected, !onFilterChange),
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-1",
                     )}
+                    // Pressing the selected reaction again clears it, so
+                    // nobody has to find "All" to stop filtering by type.
+                    onClick={() =>
+                      onFilterChange?.({
+                        ...filter,
+                        reaction:
+                          isSelected && option.value !== "all"
+                            ? "all"
+                            : option.value,
+                      })
+                    }
+                    title={
+                      isSelected && option.value !== "all"
+                        ? `Clear ${option.label} filter`
+                        : option.label
+                    }
+                    type="button"
                   >
                     {option.emoji ?? "All"}
-                  </span>
-                </label>
-              ))}
+                  </button>
+                );
+              })}
             </div>
           </fieldset>
 

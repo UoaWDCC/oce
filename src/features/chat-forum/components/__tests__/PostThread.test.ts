@@ -194,7 +194,7 @@ describe("PostThread sort and filter panel", () => {
     openPanel();
 
     fireEvent.click(screen.getByRole("radio", { name: "Oldest" }));
-    fireEvent.click(screen.getByRole("radio", { name: "Fire" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fire" }));
     fireEvent.click(
       screen.getByRole("button", { name: "Increase minimum reactions" }),
     );
@@ -215,6 +215,26 @@ describe("PostThread sort and filter panel", () => {
     expect(onFilterChange).toHaveBeenNthCalledWith(3, {
       reaction: "all",
       minCount: 3,
+    });
+  });
+
+  it("clears a reaction type when its selected option is pressed again", () => {
+    const onFilterChange = vi.fn();
+    renderThread({
+      comments,
+      commentsState: resolved(),
+      filter: { reaction: "fire", minCount: 0 },
+      onFilterChange,
+    });
+    openPanel();
+
+    const fire = screen.getByRole("button", { name: "Fire" });
+    expect(fire.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(fire);
+
+    expect(onFilterChange).toHaveBeenCalledWith({
+      reaction: "all",
+      minCount: 0,
     });
   });
 

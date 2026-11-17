@@ -9,8 +9,12 @@ interface ConversationContextType {
   setTargetMessageId: (id: string | null) => void;
   conversationListVersion: number;
   refreshConversationList: () => void;
+  tokenUsageVersion: number;
+  refreshTokenUsage: () => void;
   messageResetVersion: number;
   clearCurrentMessages: () => void;
+  discardedConversationIds: string[];
+  discardConversation: (id: string) => void;
   favouriteVersion: number;
   refreshFavourites: () => void;
   error: string | undefined;
@@ -27,7 +31,11 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
   >(null);
   const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
   const [conversationListVersion, setConversationListVersion] = useState(0);
+  const [tokenUsageVersion, setTokenUsageVersion] = useState(0);
   const [messageResetVersion, setMessageResetVersion] = useState(0);
+  const [discardedConversationIds, setDiscardedConversationIds] = useState<
+    string[]
+  >([]);
   const [favouriteVersion, setFavouriteVersion] = useState(0);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -41,9 +49,16 @@ export function ConversationProvider({ children }: { children: ReactNode }) {
         conversationListVersion,
         refreshConversationList: () =>
           setConversationListVersion((version) => version + 1),
+        tokenUsageVersion,
+        refreshTokenUsage: () => setTokenUsageVersion((version) => version + 1),
         messageResetVersion,
         clearCurrentMessages: () =>
           setMessageResetVersion((version) => version + 1),
+        discardedConversationIds,
+        discardConversation: (id) =>
+          setDiscardedConversationIds((ids) =>
+            ids.includes(id) ? ids : [...ids, id],
+          ),
         favouriteVersion,
         refreshFavourites: () => setFavouriteVersion((version) => version + 1),
         error,

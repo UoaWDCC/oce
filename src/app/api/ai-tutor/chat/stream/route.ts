@@ -3,6 +3,10 @@ import {
   resolvePageContext,
   type ResolvedPageContext,
 } from "@/features/chatbot/server/knowledge/resolvePageContext";
+import {
+  selectConversationMessages,
+  selectNavigationEntries,
+} from "@/features/chatbot/server/context/selectTutorContext";
 import { buildAiTutorInstruction } from "@/features/chatbot/server/prompts/buildAiTutorInstruction";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import type { LLMConfig } from "@/llm/types/LLMConfig";
@@ -126,8 +130,19 @@ export async function POST(req: NextRequest) {
   }
 
   const provider = createLLMProvider();
-  const systemInstruction = buildAiTutorInstruction(pageContext);
-  const stream = provider.stream(body.messages, {
+  const latestQuestion =
+    [...body.messages].reverse().find((message) => message.role === "user")
+      ?.content ?? "";
+  const navigationEntries = selectNavigationEntries(
+    latestQuestion,
+    pageContext,
+  );
+  const selectedMessages = selectConversationMessages(body.messages);
+  const systemInstruction = buildAiTutorInstruction(
+    pageContext,
+    navigationEntries,
+  );
+  const stream = provider.stream(selectedMessages, {
     ...body.config,
     systemInstruction,
   });
@@ -137,25 +152,28 @@ export async function POST(req: NextRequest) {
 
   try {
     firstChunk = await iterator.next();
-  } catch {
+  } catch (error) {
+    console.error("AI tutor stream first chunk failed:", error);
     return NextResponse.json({ error: "LLM provider error" }, { status: 502 });
   }
 
   const encoder = new TextEncoder();
   let clientCancelled = false;
 
-  req.signal.addEventListener("abort", () => {
+  const onAbort = () => {
     clientCancelled = true;
     iterator.return?.();
-  });
+  };
+  req.signal.addEventListener("abort", onAbort);
 
   const responseStream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let fullResponse = "";
+      let generationComplete = false;
 
       // Text chunks are JSON-encoded so newlines/blank lines survive SSE framing
-      // (a raw "\n\n" in a chunk would otherwise read as an event boundary). The
-      // [MESSAGE_ID]/[DONE] sentinels stay bare tokens, distinct from quoted JSON.
+      // (a raw "\n\n" in a chunk would otherwise read as an event boundary).
+      // The terminal/id sentinels stay bare tokens, distinct from quoted JSON.
       try {
         if (!firstChunk.done) {
           fullResponse += firstChunk.value;
@@ -176,6 +194,7 @@ export async function POST(req: NextRequest) {
             encoder.encode(`data: ${JSON.stringify(chunk.value)}\n\n`),
           );
         }
+        generationComplete = true;
 
         // Reached after a clean finish, but a client cancel also ends the
         // loop cleanly, so the flag is needed to avoid saving partial replies.
@@ -195,13 +214,18 @@ export async function POST(req: NextRequest) {
             .select("id")
             .single();
 
-          if (insertError) {
-            console.error("Failed to save assistant message:", insertError);
-          } else if (saved) {
-            controller.enqueue(
-              encoder.encode(`data: [MESSAGE_ID]${saved.id}\n\n`),
+          if (
+            insertError ||
+            typeof saved?.id !== "string" ||
+            saved.id.trim() === ""
+          ) {
+            throw (
+              insertError ?? new Error("Assistant message did not return an id")
             );
           }
+          controller.enqueue(
+            encoder.encode(`data: [MESSAGE_ID]${saved.id}\n\n`),
+          );
         }
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
@@ -219,10 +243,29 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        // A genuine provider failure while the client is still connected — let
-        // it propagate so the active conversation shows the error.
+        // Report failures explicitly: abruptly ending the transport can look
+        // like normal EOF, and must not claim an unsaved reply succeeded.
         console.error("AI tutor stream failed:", error);
-        controller.error(new Error("LLM provider error"));
+        const failure = generationComplete
+          ? {
+              code: "persistence_failed",
+              message: "The response was generated but could not be saved.",
+            }
+          : {
+              code: "generation_failed",
+              message:
+                "The response could not be completed. Any text received is kept.",
+            };
+        try {
+          controller.enqueue(
+            encoder.encode(`data: [ERROR]${JSON.stringify(failure)}\n\n`),
+          );
+          controller.close();
+        } catch {
+          controller.error(new Error(failure.message));
+        }
+      } finally {
+        req.signal.removeEventListener("abort", onAbort);
       }
     },
     cancel() {

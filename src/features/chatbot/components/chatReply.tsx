@@ -4,6 +4,7 @@ import ReactMarkdown from "react-markdown";
 import { useState } from "react";
 import { useFavouriteMessage } from "../hooks/useFavouriteMessage";
 import TutorRequestMessageAction from "@/features/tutorRequest/components/tutorRequestMessageAction";
+import styles from "./chatReply.module.css";
 
 interface ChatReplyType {
   children: string;
@@ -41,8 +42,10 @@ export default function ChatReply({
         isTargeted ? "animate-favourite-message" : ""
       }`}
     >
-      <div className="min-w-0 max-w-full overflow-x-auto">
-        <div className="markdown min-w-0 max-w-full text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">
+      <div className={`${styles.viewport} min-w-0 overflow-x-auto`}>
+        <div
+          className={`${styles.content} markdown min-w-0 max-w-full text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]`}
+        >
           <ReactMarkdown>{children}</ReactMarkdown>
         </div>
       </div>

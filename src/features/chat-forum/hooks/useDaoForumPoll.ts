@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ForumPoll } from "@app-types/dao-forum";
 import { getForumPoll, submitForumPollVote } from "../services";
 import { forumKeys } from "../queryKeys";
+import { toForumAsyncState } from "../lib/asyncState";
 
 export function useDaoForumPoll(
   daoGroupId: string,
@@ -14,11 +15,12 @@ export function useDaoForumPoll(
   const [isVoting, setIsVoting] = useState(false);
   const [voteError, setVoteError] = useState<Error | null>(null);
   const queryKey = forumKeys.poll(daoGroupId, postId, currentUserId);
+  const isEnabled = Boolean(token);
 
   const query = useQuery({
     queryKey,
     queryFn: ({ signal }) => getForumPoll(daoGroupId, postId, token, signal),
-    enabled: Boolean(token),
+    enabled: isEnabled,
   });
 
   const refetch = useCallback(async () => {
@@ -50,11 +52,15 @@ export function useDaoForumPoll(
     [daoGroupId, postId, token, queryClient, queryKey],
   );
 
+  const state = toForumAsyncState(query, isEnabled, () => void refetch());
+
   return {
     poll: query.data ?? null,
-    isLoading: query.isPending && query.isFetching,
+    ...state,
+    // A failed vote is surfaced alongside fetch failures, but it never blocks
+    // the poll: the options the user was looking at are still on screen.
+    error: state.error ?? voteError,
     isVoting,
-    error: (query.error as Error | null) ?? voteError,
     vote,
     refetch,
   };

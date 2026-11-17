@@ -8,10 +8,14 @@ import {
   ArrowLeft,
   BookOpen,
   Eye,
+  Loader2,
   MessageCircle,
+  Minus,
   MoreHorizontal,
   Pencil,
+  Plus,
   Reply,
+  SlidersHorizontal,
   SmilePlus,
   Trash2,
   X,
@@ -26,6 +30,8 @@ import type {
   PostSubmitPayload,
 } from "@app-types/dao-forum";
 import type {
+  ForumCommentFilter,
+  ForumReactionFilterType,
   ForumThreadComment,
   ForumThreadPost,
   ForumThreadSort,
@@ -35,14 +41,22 @@ import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";
 import { getPostTypePresentation } from "../postTypePresentation";
+import { RESOLVED_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
+import {
+  DEFAULT_COMMENT_FILTER,
+  isCommentFilterActive,
+  parseMinReactions,
+} from "../lib/commentReactions";
 
 type PostThreadProps = {
   daoGroupId: string;
   post: ForumThreadPost;
   comments: ForumThreadComment[];
   sort?: ForumThreadSort;
+  filter?: ForumCommentFilter;
   onBack?: () => void;
   onSortChange?: (sort: ForumThreadSort) => void;
+  onFilterChange?: (filter: ForumCommentFilter) => void;
   onSubmitComment?: (payload: CommentSubmitPayload) => Promise<void>;
   onCommentRefetch?: () => Promise<void>;
   onReaction?: (
@@ -57,7 +71,8 @@ type PostThreadProps = {
   mutationError?: string | null;
   replyingTo?: { id: string; authorName: string } | null;
   onCancelReply?: () => void;
-  isLoadingComments?: boolean;
+  /** Loading/refresh/failure state for this thread's comments. */
+  commentsState?: ForumAsyncState;
   commentsError?: string | null;
   className?: string;
   daoName?: string;
@@ -68,7 +83,23 @@ type PostThreadProps = {
 const SORT_OPTIONS: Array<{ value: ForumThreadSort; label: string }> = [
   { value: "latest", label: "Latest" },
   { value: "oldest", label: "Oldest" },
-  { value: "most_likes", label: "Most liked" },
+  { value: "most_reacted", label: "Most reacted" },
+];
+
+const REACTIONS: Array<{ type: ReactionType; label: string; emoji: string }> = [
+  { type: "heart", label: "Heart", emoji: "❤️" },
+  { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
+  { type: "fire", label: "Fire", emoji: "🔥" },
+  { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
+];
+
+const REACTION_FILTER_OPTIONS: Array<{
+  value: ForumReactionFilterType;
+  label: string;
+  emoji?: string;
+}> = [
+  { value: "all", label: "All reactions" },
+  ...REACTIONS.map(({ type, label, emoji }) => ({ value: type, label, emoji })),
 ];
 
 function classNames(...classes: Array<string | false | null | undefined>) {
@@ -146,12 +177,8 @@ function ForumPollCard({
   token?: string;
   currentUserId?: string | null;
 }) {
-  const { poll, isLoading, isVoting, error, vote } = useDaoForumPoll(
-    daoGroupId,
-    postId,
-    token,
-    currentUserId,
-  );
+  const { poll, isInitialLoading, isRefreshing, isVoting, error, retry, vote } =
+    useDaoForumPoll(daoGroupId, postId, token, currentUserId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
@@ -162,17 +189,33 @@ function ForumPollCard({
     );
   }, [poll]);
 
-  if (isLoading) {
-    return (
-      <div
-        className="mt-6 h-36 animate-pulse rounded-2xl bg-violet-100"
-        aria-label="Loading poll"
-      />
-    );
-  }
+  /**
+   * Polls are optional and most posts do not have one, but nothing in the post
+   * list says which do — the poll is only discoverable by fetching it. A
+   * skeleton here therefore reserved a block of space on *every* thread and
+   * then collapsed it again for the majority that turned out to have no poll,
+   * shunting the footer, the replies heading and the whole comment thread
+   * upwards as it went.
+   *
+   * Reserving no space is the honest option while we don't know: a post with a
+   * poll grows once when it arrives, and a post without one never moves at all.
+   * Reserving space correctly needs the post list to tell us whether a poll
+   * exists, which is a backend change.
+   */
+  if (isInitialLoading) return null;
   if (!poll) {
     return error ? (
-      <p className="mt-4 text-sm text-red-600">{error.message}</p>
+      <p className="mt-4 flex flex-wrap items-center gap-3 text-sm text-red-600">
+        <span>{error.message}</span>
+        <button
+          className="rounded-full border border-red-300 px-3 py-1 font-bold transition hover:bg-red-50 disabled:opacity-60"
+          disabled={isRefreshing}
+          onClick={retry}
+          type="button"
+        >
+          {isRefreshing ? "Retrying…" : "Retry"}
+        </button>
+      </p>
     ) : null;
   }
 
@@ -307,6 +350,8 @@ type ThreadCommentProps = {
   depth?: number;
   parentAuthorName?: string;
   onCommentRefetch?: () => Promise<void>;
+  /** Refetch after a delete, which the thread keeps quiet about. */
+  onDeleteRefetch?: () => Promise<void>;
   token?: string;
 };
 
@@ -321,6 +366,7 @@ function ThreadComment({
   depth = 0,
   parentAuthorName,
   onCommentRefetch,
+  onDeleteRefetch,
   token,
 }: ThreadCommentProps) {
   const { updateComment } = useUpdateDaoForumComment(comment.id);
@@ -337,14 +383,6 @@ function ThreadComment({
   const menuRef = useRef<HTMLDivElement>(null);
   const reactionPickerRef = useRef<HTMLDivElement>(null);
 
-  const reactions: Array<{ type: ReactionType; label: string; emoji: string }> =
-    [
-      { type: "heart", label: "Heart", emoji: "❤️" },
-      { type: "thumbs_up", label: "Thumbs up", emoji: "👍" },
-      { type: "fire", label: "Fire", emoji: "🔥" },
-      { type: "thumbs_down", label: "Thumbs down", emoji: "👎" },
-    ];
-
   const handleEdit = async (data: {
     body?: string | null;
     imageUrl?: string | null;
@@ -357,7 +395,7 @@ function ThreadComment({
   const handleDelete = async () => {
     const deleted = await deleteComment(token);
     if (deleted) {
-      await onCommentRefetch?.();
+      await (onDeleteRefetch ?? onCommentRefetch)?.();
       setIsDeleteConfirmOpen(false);
     }
   };
@@ -394,7 +432,19 @@ function ThreadComment({
 
   return (
     <div>
-      <article className="rounded-2xl border border-purple-100 border-l-4 border-l-purple-500 bg-white p-4 shadow-sm sm:p-5">
+      <article
+        className={classNames(
+          "rounded-2xl border border-l-4 p-4 shadow-sm sm:p-5",
+          comment.isContextOnly
+            ? "border-dashed border-slate-200 border-l-slate-300 bg-slate-50"
+            : "border-purple-100 border-l-purple-500 bg-white",
+        )}
+      >
+        {comment.isContextOnly && (
+          <div className="mb-2 text-xs font-semibold text-slate-500">
+            Shown for context. Doesn&apos;t match the reaction filter.
+          </div>
+        )}
         {parentAuthorName && depth > MAX_NESTING_DEPTH && (
           <div className="mb-2 text-xs font-semibold text-purple-600">
             Replying to {parentAuthorName}
@@ -488,7 +538,7 @@ function ThreadComment({
               </button>
               {isReactionPickerOpen && (
                 <div className="absolute bottom-full left-0 z-10 mb-2 flex gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-lg">
-                  {reactions.map(({ type, label, emoji }) => {
+                  {REACTIONS.map(({ type, label, emoji }) => {
                     const isActive = comment.userReactions?.[type] ?? false;
                     return (
                       <button
@@ -514,7 +564,7 @@ function ThreadComment({
               )}
             </div>
           )}
-          {reactions.map(({ type, emoji, label }) => {
+          {REACTIONS.map(({ type, emoji, label }) => {
             const count = comment.reactionCounts?.[type] ?? 0;
             if (count === 0) return null;
             const isActive = comment.userReactions?.[type] ?? false;
@@ -609,6 +659,7 @@ function ThreadComment({
                     onCancelReply={onCancelReply}
                     onSubmitComment={onSubmitComment}
                     onCommentRefetch={onCommentRefetch}
+                    onDeleteRefetch={onDeleteRefetch}
                     token={token}
                   />
                 </div>
@@ -654,6 +705,7 @@ function ThreadComment({
                   onCancelReply={onCancelReply}
                   onSubmitComment={onSubmitComment}
                   onCommentRefetch={onCommentRefetch}
+                  onDeleteRefetch={onDeleteRefetch}
                   token={token}
                 />
               </div>
@@ -664,10 +716,294 @@ function ThreadComment({
   );
 }
 
+/** Counts live comments, excluding ancestors shown only as context. */
 function countComments(comments: ForumThreadComment[]): number {
   return comments.reduce(
-    (count, comment) => count + 1 + countComments(comment.replies ?? []),
+    (count, comment) =>
+      count +
+      (comment.isDeleted || comment.isContextOnly ? 0 : 1) +
+      countComments(comment.replies ?? []),
     0,
+  );
+}
+
+type CommentViewMenuProps = {
+  sort: ForumThreadSort;
+  filter: ForumCommentFilter;
+  onSortChange?: (sort: ForumThreadSort) => void;
+  onFilterChange?: (filter: ForumCommentFilter) => void;
+};
+
+/** Short description of the active view for the closed menu button. */
+function describeCommentView(
+  sort: ForumThreadSort,
+  filter: ForumCommentFilter,
+) {
+  const sortLabel =
+    SORT_OPTIONS.find((option) => option.value === sort)?.label ?? "";
+  if (!isCommentFilterActive(filter)) return sortLabel;
+  const emoji = REACTIONS.find(({ type }) => type === filter.reaction)?.emoji;
+  const minimum =
+    filter.reaction === "all" ? filter.minCount : Math.max(filter.minCount, 1);
+  return `${sortLabel} · ${emoji ?? "All"} ≥${minimum}`;
+}
+
+/**
+ * One button that opens the thread's sort and reaction filter in a panel, so
+ * the replies header stays a single control however many options there are.
+ * The panel is positioned against the header row rather than the button, so
+ * it stays on screen when the header wraps on narrow viewports.
+ */
+function CommentViewMenu({
+  sort,
+  filter,
+  onSortChange,
+  onFilterChange,
+}: CommentViewMenuProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const panelId = React.useId();
+  const isFiltered = isCommentFilterActive(filter);
+
+  // Kept as text so the field can be cleared while typing; only valid
+  // counts are sent on, and blurring restores the applied value.
+  const [minCountInput, setMinCountInput] = useState(String(filter.minCount));
+  const [appliedMinCount, setAppliedMinCount] = useState(filter.minCount);
+
+  // Follow resets and URL changes during render, so the field never shows
+  // a stale count for a frame.
+  if (appliedMinCount !== filter.minCount) {
+    setAppliedMinCount(filter.minCount);
+    setMinCountInput(String(filter.minCount));
+  }
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleDismiss = (event: KeyboardEvent | PointerEvent) => {
+      if (event instanceof KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        setIsOpen(false);
+        buttonRef.current?.focus();
+        return;
+      }
+      const target = event.target as Node;
+      if (
+        panelRef.current?.contains(target) ||
+        buttonRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setIsOpen(false);
+    };
+
+    document.addEventListener("keydown", handleDismiss);
+    document.addEventListener("pointerdown", handleDismiss);
+    return () => {
+      document.removeEventListener("keydown", handleDismiss);
+      document.removeEventListener("pointerdown", handleDismiss);
+    };
+  }, [isOpen]);
+
+  const setMinCount = (minCount: number) => {
+    if (minCount < 0 || minCount === filter.minCount) return;
+    onFilterChange?.({ ...filter, minCount });
+  };
+
+  const optionClassName = (isSelected: boolean, disabled: boolean) =>
+    classNames(
+      "inline-flex cursor-pointer items-center justify-center gap-1 rounded-lg border px-3 py-1.5 text-sm font-semibold transition peer-focus-visible:ring-2 peer-focus-visible:ring-purple-500 peer-focus-visible:ring-offset-1",
+      isSelected
+        ? "border-purple-500 bg-purple-100 text-purple-800"
+        : "border-slate-200 bg-white text-slate-600 hover:border-purple-300 hover:bg-purple-50",
+      disabled && "cursor-not-allowed opacity-60",
+    );
+
+  const stepButtonClassName =
+    "inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:bg-purple-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 disabled:cursor-not-allowed disabled:opacity-50";
+
+  const selectedReaction = REACTIONS.find(
+    ({ type }) => type === filter.reaction,
+  );
+
+  return (
+    <>
+      <button
+        ref={buttonRef}
+        aria-controls={isOpen ? panelId : undefined}
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        className={classNames(
+          "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 disabled:cursor-not-allowed disabled:opacity-60",
+          isFiltered
+            ? "border-purple-300 bg-purple-50 text-purple-800"
+            : "border-slate-200 bg-white text-slate-700 hover:border-purple-300",
+        )}
+        disabled={!onSortChange && !onFilterChange}
+        onClick={() => setIsOpen((open) => !open)}
+        type="button"
+      >
+        <SlidersHorizontal aria-hidden="true" className="h-4 w-4" />
+        <span>Sort &amp; filter</span>
+        <span
+          className={classNames(
+            "rounded-full px-2 py-0.5 text-xs",
+            isFiltered
+              ? "bg-purple-200 text-purple-900"
+              : "bg-slate-100 text-slate-600",
+          )}
+        >
+          {describeCommentView(sort, filter)}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div
+          ref={panelRef}
+          aria-label="Sort and filter replies"
+          className="absolute right-0 top-full z-20 mt-2 w-full max-w-xs space-y-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl"
+          id={panelId}
+          role="dialog"
+        >
+          <fieldset disabled={!onSortChange}>
+            <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              Sort by
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {SORT_OPTIONS.map((option) => (
+                <label key={option.value}>
+                  <input
+                    checked={sort === option.value}
+                    className="peer sr-only"
+                    name={`${panelId}-sort`}
+                    onChange={() => onSortChange?.(option.value)}
+                    type="radio"
+                    value={option.value}
+                  />
+                  <span
+                    className={optionClassName(
+                      sort === option.value,
+                      !onSortChange,
+                    )}
+                  >
+                    {option.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+
+          <fieldset disabled={!onFilterChange}>
+            <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              Reaction
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {REACTION_FILTER_OPTIONS.map((option) => {
+                const isSelected = filter.reaction === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    aria-label={option.label}
+                    aria-pressed={isSelected}
+                    className={classNames(
+                      optionClassName(isSelected, !onFilterChange),
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-1",
+                    )}
+                    // Pressing the selected reaction again clears it, so
+                    // nobody has to find "All" to stop filtering by type.
+                    onClick={() =>
+                      onFilterChange?.({
+                        ...filter,
+                        reaction:
+                          isSelected && option.value !== "all"
+                            ? "all"
+                            : option.value,
+                      })
+                    }
+                    title={
+                      isSelected && option.value !== "all"
+                        ? `Clear ${option.label} filter`
+                        : option.label
+                    }
+                    type="button"
+                  >
+                    {option.emoji ?? "All"}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          <fieldset disabled={!onFilterChange}>
+            <legend className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-400">
+              At least
+            </legend>
+            <div className="flex items-center gap-2">
+              <button
+                aria-label="Decrease minimum reactions"
+                className={stepButtonClassName}
+                disabled={!onFilterChange || filter.minCount === 0}
+                onClick={() => setMinCount(filter.minCount - 1)}
+                type="button"
+              >
+                <Minus aria-hidden="true" className="h-4 w-4" />
+              </button>
+              <input
+                aria-label="Minimum reactions"
+                className="h-9 w-16 rounded-lg border border-slate-200 bg-white text-center text-sm font-semibold text-slate-700 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
+                inputMode="numeric"
+                min={0}
+                onBlur={() => setMinCountInput(String(filter.minCount))}
+                onChange={(event) => {
+                  setMinCountInput(event.target.value);
+                  const minCount = parseMinReactions(event.target.value);
+                  if (minCount !== null) setMinCount(minCount);
+                }}
+                step={1}
+                type="number"
+                value={minCountInput}
+              />
+              <button
+                aria-label="Increase minimum reactions"
+                className={stepButtonClassName}
+                disabled={!onFilterChange}
+                onClick={() => setMinCount(filter.minCount + 1)}
+                type="button"
+              >
+                <Plus aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              {selectedReaction
+                ? `${selectedReaction.emoji} ${selectedReaction.label} reactions on a reply. Picking a reaction shows replies with at least one.`
+                : "Total reactions of every type on a reply."}
+            </p>
+          </fieldset>
+
+          <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+            <button
+              className="text-sm font-semibold text-purple-700 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 disabled:cursor-not-allowed disabled:text-slate-400 disabled:no-underline"
+              disabled={!onFilterChange || !isFiltered}
+              onClick={() => onFilterChange?.(DEFAULT_COMMENT_FILTER)}
+              type="button"
+            >
+              Reset filters
+            </button>
+            <button
+              className="rounded-full bg-purple-600 px-4 py-1.5 text-sm font-bold text-white transition hover:bg-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+              onClick={() => {
+                setIsOpen(false);
+                buttonRef.current?.focus();
+              }}
+              type="button"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -676,8 +1012,10 @@ export default function PostThread({
   post,
   comments,
   sort = "latest",
+  filter = DEFAULT_COMMENT_FILTER,
   onBack,
   onSortChange,
+  onFilterChange,
   onSubmitComment,
   onCommentRefetch,
   onReaction,
@@ -689,7 +1027,7 @@ export default function PostThread({
   mutationError = null,
   replyingTo = null,
   onCancelReply,
-  isLoadingComments = false,
+  commentsState = RESOLVED_ASYNC_STATE,
   commentsError = null,
   className,
   daoName = "the DAO",
@@ -697,9 +1035,38 @@ export default function PostThread({
   currentUserId,
 }: PostThreadProps) {
   const commentCount = countComments(comments);
+  const isFiltered = isCommentFilterActive(filter);
+  /**
+   * Comment counts are derived from the loaded thread, so they are only
+   * meaningful once it has settled. Until then the labels say what is actually
+   * happening rather than asserting a zero the user is about to see replaced.
+   * A filtered thread only holds the matching replies, so the post's total
+   * is withheld and the heading counts matches instead.
+   */
+  const commentCountLabel =
+    commentsState.hasResolved && !isFiltered
+      ? `${commentCount} ${commentCount === 1 ? "comment" : "comments"}`
+      : "comments";
+  const replyCountLabel = !commentsState.hasResolved
+    ? "Replies"
+    : isFiltered
+      ? `${commentCount} Matching ${commentCount === 1 ? "reply" : "replies"}`
+      : `${commentCount} ${commentCount === 1 ? "Reply" : "Replies"}`;
   const viewLabel = `${post.viewCount} ${post.viewCount === 1 ? "view" : "views"}`;
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isRefetchingAfterDelete, setIsRefetchingAfterDelete] = useState(false);
+
+  // The delete dialog stays open until this refetch finishes, so the user
+  // already has something on screen for it; the heading spinner stays quiet.
+  const refetchAfterDelete = async () => {
+    setIsRefetchingAfterDelete(true);
+    try {
+      await onCommentRefetch?.();
+    } finally {
+      setIsRefetchingAfterDelete(false);
+    }
+  };
   /** Untyped posts keep the generic book glyph. */
   const PostTypeIcon = post.postType
     ? getPostTypePresentation(post.postType).icon
@@ -817,7 +1184,7 @@ export default function PostThread({
               </span>
               <span className="flex shrink-0 items-center gap-1.5">
                 <MessageCircle aria-hidden="true" className="h-4 w-4" />
-                {commentCount} {commentCount === 1 ? "comment" : "comments"}
+                {commentCountLabel}
               </span>
             </span>
             <div className="flex items-center gap-2">
@@ -869,28 +1236,34 @@ export default function PostThread({
         />
       )}
 
-      <div className="mt-7 flex flex-wrap items-center justify-between gap-3">
+      <div className="relative mt-7 flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
           <MessageCircle aria-hidden="true" className="h-5 w-5" />
-          {commentCount} {commentCount === 1 ? "Reply" : "Replies"}
+          {replyCountLabel}
+          {commentsState.isInitialLoading ? (
+            /* Decorative only: the skeleton below already carries
+               aria-label="Loading replies", so announcing it here too would
+               just say the same thing twice. */
+            <Loader2
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin text-purple-500"
+            />
+          ) : commentsState.isRefreshing && !isRefetchingAfterDelete ? (
+            <span role="status">
+              <Loader2
+                aria-hidden="true"
+                className="h-4 w-4 animate-spin text-purple-500"
+              />
+              <span className="sr-only">Refreshing replies</span>
+            </span>
+          ) : null}
         </h2>
-        <label className="flex items-center gap-2 text-sm font-semibold text-slate-500">
-          <span>Sort by:</span>
-          <select
-            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-700 outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100"
-            disabled={!onSortChange}
-            onChange={(event) =>
-              onSortChange?.(event.target.value as ForumThreadSort)
-            }
-            value={sort}
-          >
-            {SORT_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        <CommentViewMenu
+          filter={filter}
+          onFilterChange={onFilterChange}
+          onSortChange={onSortChange}
+          sort={sort}
+        />
       </div>
 
       {!replyingTo && (
@@ -903,14 +1276,28 @@ export default function PostThread({
       )}
 
       <div className="mt-5 space-y-4">
-        {commentsError ? (
+        {/* A failed refresh leaves the previously loaded replies in the cache,
+            so the banner stacks above them instead of taking their place. Only
+            a failure with nothing behind it replaces the list outright. */}
+        {commentsError && (
           <div
-            className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
+            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-700"
             role="alert"
           >
-            {commentsError}
+            <span>{commentsError}</span>
+            {commentsState.error && (
+              <button
+                className="rounded-full border border-red-300 bg-white px-4 py-1.5 font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-60"
+                disabled={commentsState.isRefreshing}
+                onClick={commentsState.retry}
+                type="button"
+              >
+                {commentsState.isRefreshing ? "Retrying…" : "Retry"}
+              </button>
+            )}
           </div>
-        ) : isLoadingComments ? (
+        )}
+        {commentsState.isInitialLoading ? (
           <div className="space-y-3" aria-label="Loading replies">
             {[0, 1].map((item) => (
               <div
@@ -930,13 +1317,31 @@ export default function PostThread({
               onCancelReply={onCancelReply}
               onSubmitComment={onSubmitComment}
               onCommentRefetch={onCommentRefetch}
+              onDeleteRefetch={refetchAfterDelete}
               token={token}
             />
           ))
         ) : (
-          <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
-            No replies yet. Start the discussion.
-          </div>
+          commentsState.hasResolved &&
+          !commentsState.isBlockingError &&
+          (isFiltered ? (
+            <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+              <span>No replies match this reaction filter.</span>
+              {onFilterChange && (
+                <button
+                  className="rounded-full border border-purple-200 px-4 py-1.5 font-bold text-purple-700 transition hover:bg-purple-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500"
+                  onClick={() => onFilterChange(DEFAULT_COMMENT_FILTER)}
+                  type="button"
+                >
+                  Reset filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-purple-200 bg-white p-8 text-center text-sm font-semibold text-slate-500">
+              No replies yet. Start the discussion.
+            </div>
+          ))
         )}
       </div>
     </section>

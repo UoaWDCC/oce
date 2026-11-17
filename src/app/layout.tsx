@@ -6,6 +6,7 @@ import ClientNavigation from "@/components/clientNavigation";
 import { headers } from "next/headers";
 import ChatWrapper from "@/features/chatbot/components/chatWrapper";
 import QueryProvider from "@/lib/queryClient";
+import { FloatingPanelLayoutProvider } from "@/context/FloatingPanelLayoutProvider";
 
 const agreya = Alegreya_SC({
   weight: ["400", "500", "700", "800", "900"],
@@ -109,10 +110,12 @@ export default async function RootLayout({
       >
         <QueryProvider>
           <UserProvider>
-            <ChatWrapper />
-            <div className="relative w-full min-h-screen bg-white text-gray-800">
-              <ClientNavigation>{children}</ClientNavigation>
-            </div>
+            <FloatingPanelLayoutProvider>
+              <ChatWrapper />
+              <div className="relative w-full min-h-screen bg-white text-gray-800">
+                <ClientNavigation>{children}</ClientNavigation>
+              </div>
+            </FloatingPanelLayoutProvider>
           </UserProvider>
         </QueryProvider>
       </body>

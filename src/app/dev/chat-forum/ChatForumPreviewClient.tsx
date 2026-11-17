@@ -15,7 +15,11 @@ import {
 import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
 import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
 import { ForumPanel } from "@/features/chat-forum";
-import type { ForumThreadSort } from "@/features/chat-forum";
+import type {
+  ForumCommentFilter,
+  ForumThreadComment,
+  ForumThreadSort,
+} from "@/features/chat-forum";
 import PostThread from "@/features/chat-forum/components/PostThread";
 import {
   mockForumCommentPreviews,
@@ -23,10 +27,33 @@ import {
   mockForumThreadComments,
   mockForumThreadPost,
 } from "@/features/chat-forum/mocks";
+import {
+  DEFAULT_COMMENT_FILTER,
+  isCommentFilterActive,
+  matchesCommentFilter,
+} from "@/features/chat-forum/lib/commentReactions";
 
 const PREVIEW_DAO_ID = "0x333B47F13128A1225A434d9f403A3e850B0B48D";
 const PREVIEW_USER_ID = "preview-user-001";
 const PREVIEW_DAO_GROUP_ID = "00000000-0000-4000-8000-000000000001";
+
+/**
+ * Mirrors the API's reaction filter on the nested mock thread: a comment is
+ * kept when it matches or a reply under it does, and flagged as context when
+ * it is only kept for that reply.
+ */
+function filterPreviewThread(
+  comments: ForumThreadComment[],
+  filter: ForumCommentFilter,
+): ForumThreadComment[] {
+  if (!isCommentFilterActive(filter)) return comments;
+  return comments.flatMap((comment) => {
+    const replies = filterPreviewThread(comment.replies ?? [], filter);
+    const matches = matchesCommentFilter(comment.reactionCounts, filter);
+    if (!matches && replies.length === 0) return [];
+    return [{ ...comment, isContextOnly: !matches, replies }];
+  });
+}
 
 // Fake latency so the composer's "submitting" state is visible when clicking
 // through the preview.
@@ -184,6 +211,9 @@ export default function ChatForumPreviewClient() {
   const [simulateFailure, setSimulateFailure] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [threadSort, setThreadSort] = useState<ForumThreadSort>("latest");
+  const [threadFilter, setThreadFilter] = useState<ForumCommentFilter>(
+    DEFAULT_COMMENT_FILTER,
+  );
 
   const handlePreviewSubmitPost = async (payload: PostSubmitPayload) => {
     await simulateLatency();
@@ -346,7 +376,11 @@ export default function ChatForumPreviewClient() {
           </div>
           <PostThread
             daoGroupId={PREVIEW_DAO_ID}
-            comments={mockForumThreadComments}
+            comments={filterPreviewThread(
+              mockForumThreadComments,
+              threadFilter,
+            )}
+            filter={threadFilter}
             onBack={() => console.log("Back to forum")}
             onReaction={(commentId: string, reaction: ReactionType) =>
               console.log(`${reaction} comment ${commentId}`)
@@ -354,6 +388,7 @@ export default function ChatForumPreviewClient() {
             onReplyToComment={(commentId) =>
               console.log(`Reply to comment ${commentId}`)
             }
+            onFilterChange={setThreadFilter}
             onSortChange={setThreadSort}
             onSubmitComment={async (payload) => {
               console.log("Thread comment submitted:", payload);

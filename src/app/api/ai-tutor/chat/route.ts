@@ -1,4 +1,5 @@
 import { createClient } from "@/utils/supabase/server";
+import { after } from "next/server";
 import { createLLMProvider } from "@/llm/LLMProviderFactory";
 import {
   estimateTokenUsage,
@@ -16,6 +17,11 @@ type ChatMessageRequestBody = {
   conversation_id?: unknown;
   content?: unknown;
 };
+
+// Best-effort coalescing within one worker, without sharing request-bound I/O.
+// Expire reservations if the runtime cancels a task before its finally runs.
+const titleTasks = new Map<string, { expiresAt: number }>();
+const TITLE_TASK_LIFETIME_MS = 30000;
 
 // POST /api/ai-tutor/chat
 // Saves a user message to the messages table for a given conversation.
@@ -102,7 +108,7 @@ export async function POST(req: Request) {
 
     const { data: conversation, error: conversationError } = await supabase
       .from("conversations")
-      .select("id")
+      .select("id, title")
       .eq("id", conversation_id)
       .eq("user_id", user.id)
       .single();
@@ -132,52 +138,101 @@ export async function POST(req: Request) {
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation_id);
 
-    // Check if conversation already has a title
-    const { data: titledConversation } = await supabase
-      .from("conversations")
-      .select("title")
-      .eq("id", conversation_id)
-      .single();
-
-    if (!titledConversation?.title) {
-      try {
-        const provider = createLLMProvider();
-        const title = await provider.complete(
-          [
-            {
-              role: "user",
-              content: `Generate one concise, natural conversation title in sentence case.
-Keep it under 10 words.
-Return only the title, with no quotes, bullet points, or explanation.
-
-User message: ${content.trim()}`,
-            },
-          ],
-          {},
-        );
-        const cleanedTitle = title
-          .trim()
-          .replace(/^["']|["']$/g, "")
-          .slice(0, 80);
-
-        if (cleanedTitle) {
-          await supabase
-            .from("conversations")
-            .update({ title: cleanedTitle })
-            .eq("id", conversation_id);
-        }
-      } catch (error) {
-        console.warn("AI tutor title generation failed:", error);
-      }
+    // OpenNext connects after to Cloudflare's waitUntil. Keep the LLM call off
+    // the save response's critical path while retaining its request lifetime.
+    const titlePending = !conversation.title;
+    if (titlePending) {
+      scheduleConversationTitle(supabase, conversation_id, content, user.id);
     }
 
-    return Response.json({ message }, { status: 201, headers: corsHeaders });
+    return Response.json(
+      { message, titlePending },
+      { status: 201, headers: corsHeaders },
+    );
   } catch (error) {
     console.error("POST /api/ai-tutor/chat failed:", error);
     return Response.json(
       { error: "Internal server error" },
       { status: 500, headers: corsHeaders },
     );
+  }
+}
+
+function scheduleConversationTitle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  content: string,
+  userId: string,
+) {
+  const now = Date.now();
+  for (const [key, task] of titleTasks) {
+    if (task.expiresAt <= now) titleTasks.delete(key);
+  }
+  const key = `${userId}:${conversationId}`;
+  if (titleTasks.has(key)) return;
+  const task = { expiresAt: now + TITLE_TASK_LIFETIME_MS };
+  titleTasks.set(key, task);
+  const release = () => {
+    if (titleTasks.get(key) === task) titleTasks.delete(key);
+  };
+  try {
+    after(async () => {
+      try {
+        await generateConversationTitle(
+          supabase,
+          conversationId,
+          content,
+          userId,
+        );
+      } finally {
+        release();
+      }
+    });
+  } catch (error) {
+    release();
+    console.warn("AI tutor title generation failed:", error);
+  }
+}
+
+async function generateConversationTitle(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  conversationId: string,
+  content: string,
+  userId: string,
+) {
+  try {
+    const provider = createLLMProvider();
+    const title = await provider.complete(
+      [
+        {
+          role: "user",
+          content: `Generate one concise, natural conversation title in sentence case.
+Keep it under 10 words.
+Return only the title, with no quotes, bullet points, or explanation.
+
+User message: ${content.trim()}`,
+        },
+      ],
+      {},
+    );
+    const cleanedTitle = title
+      .trim()
+      .replace(/^["']|["']$/g, "")
+      .slice(0, 80);
+
+    if (cleanedTitle) {
+      const { error } = await supabase
+        .from("conversations")
+        .update({ title: cleanedTitle })
+        .eq("id", conversationId)
+        .eq("user_id", userId)
+        // Both null and an empty string are treated as untitled by the send
+        // flow. This predicate is atomic across concurrent worker instances.
+        .or('title.is.null,title.eq.""');
+      if (error) throw error;
+    }
+  } catch (error) {
+    console.warn("AI tutor title generation failed:", error);
   }
 }
 

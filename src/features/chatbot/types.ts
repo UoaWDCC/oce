@@ -1,8 +1,15 @@
+export type AssistantResponseStatus =
+  "streaming" | "persisted" | "incomplete" | "unsaved";
+
 export interface ChatMessageType {
   type: "user" | "bot";
   message: string;
   id?: string;
   favourited?: boolean;
+  conversationId?: string;
+  createdAt?: string;
+  clientId?: string;
+  responseStatus?: AssistantResponseStatus;
 }
 
 export interface Conversation {

@@ -8,6 +8,7 @@ import type {
   UpdatePostFields,
   ForumPoll,
 } from "@app-types/dao-forum";
+import type { ForumCommentFilter } from "./types";
 
 const NETWORK_ERROR_MESSAGE =
   "Couldn't reach the server. Check your connection and try again.";
@@ -195,9 +196,17 @@ export async function getPostComments(
   sort = "oldest",
   token?: string,
   signal?: AbortSignal,
+  filter?: ForumCommentFilter,
 ) {
+  const query = new URLSearchParams({ sort });
+  if (filter && filter.reaction !== "all") {
+    query.set("reaction", filter.reaction);
+  }
+  if (filter && filter.minCount > 0) {
+    query.set("min_reactions", String(filter.minCount));
+  }
   const data = (await request(
-    `/dao-forum/${daoGroupId}/posts/${postId}/comments?sort=${sort}`,
+    `/dao-forum/${daoGroupId}/posts/${postId}/comments?${query}`,
     { signal },
     token,
   )) as FormattedComment[];

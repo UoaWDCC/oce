@@ -21,6 +21,8 @@ import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type { PostListItem } from "@app-types/dao-forum";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { isDaoShaman } from "@/features/chat-forum/daoShaman";
 
 vi.mock("@/utils/authHelper", () => ({
   authenticateUser: vi.fn(),
@@ -759,6 +761,9 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(json.error).toBe(
       "Unauthorized, you are not the author of this post",
     );
+    // Moderation capability never grants editing rights, even to a shaman.
+    expect(mockSupabase.from).not.toHaveBeenCalledWith("DAO");
+    expect(mockSupabase.update).not.toHaveBeenCalled();
   });
 
   it("returns 404 when post not found", async () => {
@@ -773,6 +778,38 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     const res = await PATCH(req, mockParamsWithPostId);
 
     expect(res.status).toBe(404);
+  });
+
+  it("denies editing another author's post even for a verified DAO shaman", async () => {
+    mockSupabase.maybeSingle
+      .mockResolvedValueOnce({ data: { dao_id: "dao-1" }, error: null })
+      .mockResolvedValueOnce({
+        data: { Members: { shamans: [{ address: "0xshaman" }] } },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { Wallet: [{ walletAddress: "0xSHAMAN" }] },
+        error: null,
+      });
+    expect(
+      await isDaoShaman(
+        mockSupabase as unknown as SupabaseClient,
+        "test-user",
+        "dao-1",
+      ),
+    ).toBe(true);
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "different-user" },
+      error: null,
+    });
+
+    const res = await PATCH(
+      createMockRequest("PATCH", validBody),
+      mockParamsWithPostId,
+    );
+
+    expect(res.status).toBe(403);
+    expect(mockSupabase.update).not.toHaveBeenCalled();
   });
 
   it("returns 500 when supabase update fails", async () => {
@@ -850,36 +887,69 @@ describe("DELETE /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     );
   });
 
-  it("soft-deletes another author's post when the viewer has a shaman wallet", async () => {
-    mockSupabase.single
-      .mockResolvedValueOnce({
-        data: { id: "post-1", author_id: "different-user" },
-        error: null,
-      })
-      .mockResolvedValueOnce({
-        data: { id: "post-1", deleted_at: "2026-06-10" },
-        error: null,
+  it.each([false, true])(
+    "soft-deletes another author's post (anonymous=%s) when the viewer has a shaman wallet",
+    async (anonymous) => {
+      mockSupabase.single
+        .mockResolvedValueOnce({
+          data: { id: "post-1", author_id: "different-user", anonymous },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: { id: "post-1", deleted_at: "2026-06-10" },
+          error: null,
+        });
+      mockSupabase.maybeSingle
+        .mockResolvedValueOnce({ data: { dao_id: "0xDAO" }, error: null })
+        .mockResolvedValueOnce({
+          data: { Members: { shamans: [{ address: "0xShaman" }] } },
+          error: null,
+        })
+        .mockResolvedValueOnce({
+          data: { Wallet: [{ walletAddress: "0xshaman" }] },
+          error: null,
+        });
+
+      const res = await DELETE(
+        createMockRequest("DELETE"),
+        mockParamsWithPostId,
+      );
+      const json = await readJson<{ deleted_at: string | null }>(res);
+
+      expect(res.status).toBe(200);
+      expect(json.deleted_at).toBeTruthy();
+      expect(mockSupabase.update).toHaveBeenCalledWith({
+        deleted_at: expect.any(String),
       });
+      expect(mockSupabase.eq).not.toHaveBeenCalledWith(
+        "author_id",
+        "test-user",
+      );
+      expect(mockSupabase.eq).toHaveBeenCalledWith("dao_group_id", "dao-1");
+    },
+  );
+
+  it("rejects a wallet that is a shaman of another DAO", async () => {
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "different-user" },
+      error: null,
+    });
     mockSupabase.maybeSingle
-      .mockResolvedValueOnce({ data: { dao_id: "0xDAO" }, error: null })
+      .mockResolvedValueOnce({ data: { dao_id: "dao-1" }, error: null })
       .mockResolvedValueOnce({
-        data: { Members: { shamans: [{ address: "0xShaman" }] } },
+        data: { Members: { shamans: [{ address: "0xDaoOneShaman" }] } },
         error: null,
       })
       .mockResolvedValueOnce({
-        data: { Wallet: [{ walletAddress: "0xshaman" }] },
+        data: { Wallet: [{ walletAddress: "0xDaoTwoShaman" }] },
         error: null,
       });
 
     const res = await DELETE(createMockRequest("DELETE"), mockParamsWithPostId);
-    const json = await readJson<{ deleted_at: string | null }>(res);
 
-    expect(res.status).toBe(200);
-    expect(json.deleted_at).toBeTruthy();
-    expect(mockSupabase.update).toHaveBeenCalledWith({
-      deleted_at: expect.any(String),
-    });
-    expect(mockSupabase.eq).not.toHaveBeenCalledWith("author_id", "test-user");
+    expect(res.status).toBe(403);
+    expect(mockSupabase.eq).toHaveBeenCalledWith("DAOID", "dao-1");
+    expect(mockSupabase.update).not.toHaveBeenCalled();
   });
 
   it("returns 404 when post not found", async () => {

@@ -1,12 +1,12 @@
+import {
+  forumCorsHeaders,
+  readForumJson,
+} from "@/features/chat-forum/server/http";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import type { ForumPoll } from "@app-types/dao-forum";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = forumCorsHeaders("GET, POST, OPTIONS");
 
 type RouteContext = {
   params: Promise<{ daoGroupId: string; postId: string }>;
@@ -42,15 +42,12 @@ export async function POST(request: NextRequest, context: RouteContext) {
   const auth = await authenticateUser(request, corsHeaders);
   if (auth.response) return auth.response;
 
-  let optionIds: unknown;
-  try {
-    ({ optionIds } = (await request.json()) as { optionIds?: unknown });
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400, headers: corsHeaders },
-    );
-  }
+  const parsed = await readForumJson<{ optionIds?: unknown }>(
+    request,
+    corsHeaders,
+  );
+  if (parsed.response) return parsed.response;
+  const { optionIds } = parsed.data;
 
   if (
     !Array.isArray(optionIds) ||

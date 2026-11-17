@@ -1,3 +1,12 @@
+import {
+  postCapabilities,
+  redactAnonymousPost,
+  validatePostFieldTypes,
+} from "@/features/chat-forum/server/posts";
+import {
+  forumCorsHeaders,
+  readForumJson,
+} from "@/features/chat-forum/server/http";
 import { authenticateUser } from "@/utils/authHelper";
 import { isDaoShaman } from "@/features/chat-forum/daoShaman";
 import {
@@ -11,11 +20,7 @@ import type { Post, UpdatePostFields } from "@app-types/dao-forum";
 import { NextResponse } from "next/server";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = forumCorsHeaders("GET, PATCH, DELETE, OPTIONS");
 
 export async function GET(
   _request: Request,
@@ -24,12 +29,13 @@ export async function GET(
   const { daoGroupId, postId } = await params;
   const auth = await authenticateUser(_request, corsHeaders);
   if (auth.response) return auth.response;
-  const { supabase } = auth;
+  const { supabase, user } = auth;
 
   const { data, error } = await supabase
     .from("posts")
     .select("*")
     .eq("dao_group_id", daoGroupId)
+    .is("deleted_at", null)
     .eq("id", postId)
     .maybeSingle();
 
@@ -40,14 +46,16 @@ export async function GET(
     );
   }
 
-  if (!data) {
+  if (!data || data.deleted_at) {
     return NextResponse.json(
       { error: "Post not found" },
       { status: 404, headers: corsHeaders },
     );
   }
 
-  return NextResponse.json(data as Post, { headers: corsHeaders });
+  return NextResponse.json(redactAnonymousPost(data as Post, user.id), {
+    headers: corsHeaders,
+  });
 }
 
 export async function PATCH(
@@ -60,7 +68,9 @@ export async function PATCH(
   if (auth.response) return auth.response;
   const { supabase, user } = auth;
 
-  const body = (await request.json()) as UpdatePostFields;
+  const parsed = await readForumJson<UpdatePostFields>(request, corsHeaders);
+  if (parsed.response) return parsed.response;
+  const body = parsed.data;
 
   if (
     !hasValidPostTitle(body.title) ||
@@ -76,6 +86,13 @@ export async function PATCH(
   }
 
   // Validate input fields
+  const fieldError = validatePostFieldTypes(body);
+  if (fieldError)
+    return NextResponse.json(
+      { error: fieldError },
+      { status: 400, headers: corsHeaders },
+    );
+
   const errors: Record<string, string> = {};
   const normalizedTitle = normalizePostTitle(body.title);
   const normalizedBody = trimTrailingEmptyParagraphs(body.body);
@@ -94,12 +111,13 @@ export async function PATCH(
 
   const { data: post, error: postError } = await supabase
     .from("posts")
-    .select("id, author_id")
+    .select("id, author_id, deleted_at")
     .eq("id", postId)
     .eq("dao_group_id", daoGroupId)
+    .is("deleted_at", null)
     .single();
 
-  if (postError || !post) {
+  if (postError || !post || post.deleted_at) {
     return NextResponse.json(
       { error: "Post not found" },
       { status: 404, headers: corsHeaders },
@@ -124,6 +142,7 @@ export async function PATCH(
       image_url: body.image_url,
     })
     .eq("dao_group_id", daoGroupId)
+    .is("deleted_at", null)
     .eq("id", postId)
     .select()
     .maybeSingle();
@@ -135,7 +154,17 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json(data, { status: 200, headers: corsHeaders });
+  if (!data) {
+    return NextResponse.json(
+      { error: "Post not found" },
+      { status: 404, headers: corsHeaders },
+    );
+  }
+
+  return NextResponse.json(redactAnonymousPost(data, user.id), {
+    status: 200,
+    headers: corsHeaders,
+  });
 }
 
 export async function OPTIONS() {
@@ -157,12 +186,13 @@ export async function DELETE(
 
   const { data: post, error: postError } = await supabase
     .from("posts")
-    .select("id, author_id")
+    .select("id, author_id, deleted_at")
     .eq("id", postId)
     .eq("dao_group_id", daoGroupId)
+    .is("deleted_at", null)
     .single();
 
-  if (postError || !post) {
+  if (postError || !post || post.deleted_at) {
     return NextResponse.json(
       { error: "Post not found" },
       { status: 404, headers: corsHeaders },
@@ -174,7 +204,7 @@ export async function DELETE(
     ? false
     : await isDaoShaman(supabase, user.id, daoGroupId);
 
-  if (!isAuthor && !isShaman) {
+  if (!postCapabilities(post.author_id, user.id, isShaman).canDelete) {
     return NextResponse.json(
       {
         error:
@@ -189,6 +219,7 @@ export async function DELETE(
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", postId)
     .eq("dao_group_id", daoGroupId)
+    .is("deleted_at", null)
     .select()
     .single();
 
@@ -206,5 +237,8 @@ export async function DELETE(
     );
   }
 
-  return NextResponse.json(data, { status: 200, headers: corsHeaders });
+  return NextResponse.json(redactAnonymousPost(data, user.id), {
+    status: 200,
+    headers: corsHeaders,
+  });
 }

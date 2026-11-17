@@ -11,7 +11,7 @@ export type PostType = (typeof POST_TYPE)[keyof typeof POST_TYPE];
 export interface Post {
   id: string;
   dao_group_id: string;
-  author_id: string;
+  author_id: string | null;
   post_type: PostType | null;
   title: string | null;
   body: string | null;

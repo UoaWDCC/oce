@@ -1,3 +1,7 @@
+import {
+  forumCorsHeaders,
+  readForumJson,
+} from "@/features/chat-forum/server/http";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
@@ -26,11 +30,7 @@ import {
   parseReactionFilterType,
 } from "@/features/chat-forum/lib/commentReactions";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = forumCorsHeaders("GET, POST, OPTIONS");
 
 // POST - Create new comment
 export async function POST(
@@ -72,15 +72,9 @@ export async function POST(
     );
   }
 
-  let comment: CreateCommentFields;
-  try {
-    comment = (await req.json()) as CreateCommentFields;
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400, headers: corsHeaders },
-    );
-  }
+  const parsed = await readForumJson<CreateCommentFields>(req, corsHeaders);
+  if (parsed.response) return parsed.response;
+  const comment = parsed.data;
 
   const { parent_comment_id, body, image_url } = comment;
   const parentCommentId =

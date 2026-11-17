@@ -1,3 +1,12 @@
+import {
+  postCapabilities,
+  redactAnonymousPost,
+  validatePostFieldTypes,
+} from "@/features/chat-forum/server/posts";
+import {
+  forumCorsHeaders,
+  readForumJson,
+} from "@/features/chat-forum/server/http";
 import { authenticateUser } from "@/utils/authHelper";
 import { checkDAOMembership } from "@/utils/daoMembership";
 import { isDaoShaman } from "@/features/chat-forum/daoShaman";
@@ -15,11 +24,7 @@ import { isPostUnread } from "@/features/chat-forum/readState";
 import { validateAndNormalizePoll } from "@/features/chat-forum/polls";
 import { loadDaoAuthorIdentities } from "@/features/chat-forum/authorIdentity";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = forumCorsHeaders("GET, POST, OPTIONS");
 
 type RawPostListItem = Omit<
   PostListItem,
@@ -90,7 +95,11 @@ function formatPostListItem(
 ): PostListItem {
   const profile = post.anonymous ? null : firstOrNull(post.author);
   const identity = profile ? identities[post.author_id] : undefined;
-  const isAuthor = post.author_id === userId;
+  const { isAuthor, canDelete } = postCapabilities(
+    post.author_id,
+    userId,
+    viewerIsShaman,
+  );
 
   return {
     id: post.id,
@@ -107,8 +116,8 @@ function formatPostListItem(
     comment_count: commentCounts[post.id] ?? 0,
     view_count: viewCounts[post.id] ?? 0,
     is_unread: unreadState[post.id] ?? true,
-    is_own_post: post.anonymous ? post.author_id === userId : undefined,
-    can_delete: isAuthor || viewerIsShaman,
+    is_own_post: post.anonymous ? isAuthor : undefined,
+    can_delete: canDelete,
     author: profile
       ? {
           ...profile,
@@ -283,7 +292,9 @@ export async function POST(
   if (auth.response) return auth.response;
   const { supabase, user } = auth;
 
-  const body = (await request.json()) as CreatePostFields;
+  const parsed = await readForumJson<CreatePostFields>(request, corsHeaders);
+  if (parsed.response) return parsed.response;
+  const body = parsed.data;
 
   if (
     !hasValidPostTitle(body.title) ||
@@ -296,6 +307,13 @@ export async function POST(
       { status: 400, headers: corsHeaders },
     );
   }
+
+  const fieldError = validatePostFieldTypes(body);
+  if (fieldError)
+    return NextResponse.json(
+      { error: fieldError },
+      { status: 400, headers: corsHeaders },
+    );
 
   const errors: Record<string, string> = {};
   const normalizedTitle = normalizePostTitle(body.title);
@@ -382,7 +400,10 @@ export async function POST(
       { status: 500, headers: corsHeaders },
     );
   }
-  return NextResponse.json(data, { status: 201, headers: corsHeaders });
+  return NextResponse.json(redactAnonymousPost(data, user.id), {
+    status: 201,
+    headers: corsHeaders,
+  });
 }
 
 export async function OPTIONS() {

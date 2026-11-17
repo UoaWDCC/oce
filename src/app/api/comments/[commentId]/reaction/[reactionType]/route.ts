@@ -1,11 +1,8 @@
+import { forumCorsHeaders } from "@/features/chat-forum/server/http";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = forumCorsHeaders("POST, DELETE, OPTIONS");
 
 const reactionTypes = ["heart", "thumbs_up", "fire", "thumbs_down"] as const;
 type ReactionType = (typeof reactionTypes)[number];

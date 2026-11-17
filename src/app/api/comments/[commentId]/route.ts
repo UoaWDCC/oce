@@ -1,3 +1,7 @@
+import {
+  forumCorsHeaders,
+  readForumJson,
+} from "@/features/chat-forum/server/http";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateUser } from "@/utils/authHelper";
 import {
@@ -8,11 +12,7 @@ import {
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type { UpdateCommentFields } from "@app-types/dao-forum";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "PATCH, DELETE, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const corsHeaders = forumCorsHeaders("PATCH, DELETE, OPTIONS");
 
 export async function PATCH(
   req: NextRequest,
@@ -24,15 +24,9 @@ export async function PATCH(
   if (auth.response) return auth.response;
   const { supabase, user } = auth;
 
-  let json: UpdateCommentFields;
-  try {
-    json = (await req.json()) as UpdateCommentFields;
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid JSON body" },
-      { status: 400, headers: corsHeaders },
-    );
-  }
+  const parsed = await readForumJson<UpdateCommentFields>(req, corsHeaders);
+  if (parsed.response) return parsed.response;
+  const json = parsed.data;
 
   if (
     json.body !== undefined &&

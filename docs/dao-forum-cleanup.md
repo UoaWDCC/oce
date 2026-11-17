@@ -14,9 +14,16 @@ Extracted `ThreadComment`, `ForumPollCard`, `CommentViewMenu`, and shared conten
 
 Validation: full Vitest suite, lint/format, production build, and TypeScript before commit.
 
+## 3. API consistency
+
+Shared CORS construction and JSON-object parsing across forum routes; malformed JSON, null, arrays, and scalar request bodies now return controlled 400 errors. Post types, boolean flags, and image field types are validated before writes. Shared post capability and redaction helpers keep moderation separate from ownership and redact anonymous author IDs from single-post and mutation responses. Single-post reads/edits/deletion exclude deleted rows; updates also include that condition to handle deletion races. The API contract reflects nullable anonymous author IDs.
+
+Validation: regression tests for invalid request envelopes across five write routes, invalid post field types, anonymous ownership/redaction, and deleted-post reads/edits; existing author/shaman, reaction, poll, and comment tests; full suite, lint/format, production build, and TypeScript before commit.
+
+Deferred: a complete authorization/RLS audit, reaction membership/deleted-parent enforcement, private image storage and existing URL migration, and a replacement of every database error with a new public error contract. These require database integration tests and coordinated client behavior, beyond this bounded cleanup. API redaction does not make public images or direct database reads anonymous.
+
 ## Remaining steps
 
-3. Standardize bounded API validation and response behavior; document larger authorization/database changes rather than changing unverified production policies.
 4. Remove unused service code, redundant error handling, and leftover like terminology.
 5. Consolidate editor commands/content handling; defer a full editor replacement if it needs new dependencies or extensive interaction testing.
 6. Update forum API/setup documentation and record remaining database/privacy/deployment work. Remove only forum-owned development residue; leave shared repository cleanup out of this branch.

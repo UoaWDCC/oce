@@ -602,6 +602,34 @@ describe("GET /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     expect(json).toEqual(fakePost);
   });
 
+  it.each(["test-user", "another-author"])(
+    "redacts an anonymous author %s while preserving ownership",
+    async (author_id) => {
+      setMockQueryResult({
+        data: { id: "post-1", anonymous: true, author_id, deleted_at: null },
+        error: null,
+      });
+      const res = await singleGET(
+        createMockRequest("GET"),
+        mockParamsWithPostId,
+      );
+      expect(res.status).toBe(200);
+      expect(await res.json()).toMatchObject({
+        author_id: null,
+        is_own_post: author_id === "test-user",
+      });
+    },
+  );
+
+  it("does not return a deleted post", async () => {
+    setMockQueryResult({
+      data: { id: "post-1", deleted_at: "2026-11-17" },
+      error: null,
+    });
+    const res = await singleGET(createMockRequest("GET"), mockParamsWithPostId);
+    expect(res.status).toBe(404);
+  });
+
   it("returns 401 when not authenticated", async () => {
     vi.mocked(authenticateUser).mockResolvedValue({
       response: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
@@ -649,6 +677,33 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     is_pinned: false,
     image_url: null,
   };
+
+  it("does not update a deleted post", async () => {
+    mockSupabase.single.mockResolvedValueOnce({
+      data: { id: "post-1", author_id: "test-user", deleted_at: "2026-11-17" },
+      error: null,
+    });
+    const res = await PATCH(
+      createMockRequest("PATCH", validBody),
+      mockParamsWithPostId,
+    );
+    expect(res.status).toBe(404);
+    expect(mockSupabase.update).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { post_type: "Unknown" },
+    { anonymous: "false" },
+    { is_pinned: 1 },
+    { image_url: {} },
+  ])("rejects invalid post fields %j", async (fields) => {
+    const res = await PATCH(
+      createMockRequest("PATCH", { ...validBody, ...fields }),
+      mockParamsWithPostId,
+    );
+    expect(res.status).toBe(400);
+    expect(mockSupabase.update).not.toHaveBeenCalled();
+  });
 
   it("updates a post successfully", async () => {
     mockSupabase.single.mockImplementation(() =>

@@ -716,12 +716,12 @@ function ThreadComment({
   );
 }
 
-/** Counts comments in the tree, leaving out ancestors shown only as context. */
+/** Counts live comments, excluding ancestors shown only as context. */
 function countComments(comments: ForumThreadComment[]): number {
   return comments.reduce(
     (count, comment) =>
       count +
-      (comment.isContextOnly ? 0 : 1) +
+      (comment.isDeleted || comment.isContextOnly ? 0 : 1) +
       countComments(comment.replies ?? []),
     0,
   );

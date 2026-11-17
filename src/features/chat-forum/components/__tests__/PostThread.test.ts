@@ -320,6 +320,49 @@ describe("PostThread sort and filter panel", () => {
     });
   });
 
+  it.each([
+    { filter: fireFilter, heading: "1 Matching reply" },
+    { filter: { reaction: "all", minCount: 0 } as const, heading: "1 Reply" },
+  ])(
+    "excludes deleted ancestors from the $heading count",
+    ({ filter, heading }) => {
+      const deletedAncestor: ForumThreadComment = {
+        id: "deleted-parent",
+        body: "This comment was deleted.",
+        author: { name: "Deleted comment" },
+        createdAt: "2026-09-01T00:00:00.000Z",
+        createdAtLabel: "1 Sep",
+        isDeleted: true,
+        // The API reserves the context-only flag for live ancestors.
+        isContextOnly: false,
+      };
+
+      renderThread({
+        comments: [
+          {
+            ...deletedAncestor,
+            replies: [
+              {
+                ...deletedAncestor,
+                id: "deleted-middle",
+                replies: [comments[0]],
+              },
+            ],
+          },
+        ],
+        commentsState: resolved(),
+        filter,
+      });
+
+      expect(screen.getByRole("heading", { name: heading })).toBeDefined();
+      expect(screen.getAllByText("This comment was deleted.")).toHaveLength(2);
+      expect(screen.getByText(comments[0].body)).toBeDefined();
+      if (filter.reaction === "all") {
+        expect(screen.getByText("1 comment")).toBeDefined();
+      }
+    },
+  );
+
   it("labels a context-only parent and counts only matching replies", () => {
     renderThread({
       comments: [

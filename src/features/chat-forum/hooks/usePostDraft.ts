@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { PollSubmitPayload } from "@app-types/dao-forum";
+import type { PollSubmitPayload } from "@/features/chat-forum/contracts";
 
 export type PostDraft = {
   title: string;

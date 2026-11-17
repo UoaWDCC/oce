@@ -21,14 +21,14 @@ import {
   X,
 } from "lucide-react";
 import StudentAvatar from "@/components/common/StudentAvatar";
-import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
-import ConfirmDeleteDialog from "@/components/dao-forum/ConfirmDeleteDialog";
-import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
-import Tag from "@/components/dao-forum/Tag";
+import CommentEntryComposer from "@/features/chat-forum/components/CommentEntryComposer";
+import ConfirmDeleteDialog from "@/features/chat-forum/components/ConfirmDeleteDialog";
+import PostEntryComposer from "@/features/chat-forum/components/PostEntryComposer";
+import Tag from "@/features/chat-forum/components/Tag";
 import type {
   CommentSubmitPayload,
   PostSubmitPayload,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import type {
   ForumCommentFilter,
   ForumReactionFilterType,
@@ -36,7 +36,7 @@ import type {
   ForumThreadPost,
   ForumThreadSort,
 } from "../types";
-import type { ReactionType } from "@app-types/dao-forum";
+import type { ReactionType } from "@/features/chat-forum/contracts";
 import { useUpdateDaoForumComment } from "../hooks/useUpdateDaoForumComment";
 import { useDeleteDaoForumComment } from "../hooks/useDeleteDaoForumComment";
 import { useDaoForumPoll } from "../hooks/useDaoForumPoll";

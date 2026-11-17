@@ -6,18 +6,18 @@ import {
   POST_TYPE,
   type PostSubmitPayload,
   type PostType,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import ForumEntryComposer from "./ForumEntryComposer";
 import { usePostDraft } from "@/features/chat-forum/hooks/usePostDraft";
-import { CONTENT_LIMITS } from "../../features/chat-forum/lib/contentLimits";
-import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { CONTENT_LIMITS } from "../lib/contentLimits";
+import { useCharacterCount } from "../hooks/useCharacterCount";
 import { CharacterCounter } from "./CharacterCounter";
 import { POLL_LIMITS } from "@/features/chat-forum/polls";
 import {
   POST_TYPES_IN_ORDER,
   POST_TYPE_PRESENTATION,
 } from "@/features/chat-forum/postTypePresentation";
-import type { PollSubmitPayload } from "@app-types/dao-forum";
+import type { PollSubmitPayload } from "@/features/chat-forum/contracts";
 
 export type PostComposerInitialValues = {
   title?: string;

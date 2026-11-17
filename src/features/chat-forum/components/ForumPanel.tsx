@@ -12,8 +12,8 @@ import {
   Search,
   Tag as TagIcon,
 } from "lucide-react";
-import PostCard from "@/components/dao-forum/Post";
-import NewPostDialog from "@/components/dao-forum/NewPostDialog";
+import PostCard from "@/features/chat-forum/components/PostCard";
+import NewPostDialog from "@/features/chat-forum/components/NewPostDialog";
 import PostThread from "./PostThread";
 import {
   buildForumThreadComments,
@@ -29,7 +29,7 @@ import type {
   PostSubmitPayload,
   PostType,
   ReactionType,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 type ForumPanelProps = {
   daoGroupId: string;

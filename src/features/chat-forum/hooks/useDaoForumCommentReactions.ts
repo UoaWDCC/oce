@@ -7,7 +7,7 @@ import type {
   ReactionCounts,
   ReactionType,
   UserReactions,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 type OptimisticCommentReactions = {
   reactionCounts: ReactionCounts;

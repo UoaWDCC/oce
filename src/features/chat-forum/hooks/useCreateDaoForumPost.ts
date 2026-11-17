@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import { createForumPost } from "../services";
 import { mapPostSubmitPayloadToCreatePostFields } from "../mappers";
-import type { Post, PostSubmitPayload } from "@app-types/dao-forum";
+import type { Post, PostSubmitPayload } from "@/features/chat-forum/contracts";
 
 export interface UseCreateDaoForumPostResult {
   createPost: (composerData: PostSubmitPayload) => Promise<Post | null>;

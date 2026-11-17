@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { ForumPoll } from "@app-types/dao-forum";
+import type { ForumPoll } from "@/features/chat-forum/contracts";
 import { getForumPoll, submitForumPollVote } from "../services";
 import { forumKeys } from "../queryKeys";
 import { toForumAsyncState } from "../lib/asyncState";

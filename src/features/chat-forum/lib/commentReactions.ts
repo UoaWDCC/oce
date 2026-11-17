@@ -1,4 +1,7 @@
-import type { ReactionCounts, ReactionType } from "@app-types/dao-forum";
+import type {
+  ReactionCounts,
+  ReactionType,
+} from "@/features/chat-forum/contracts";
 import type {
   ForumCommentFilter,
   ForumReactionFilterType,

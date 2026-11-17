@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import type { CommentSubmitPayload } from "@app-types/dao-forum";
+import type { CommentSubmitPayload } from "@/features/chat-forum/contracts";
 import ForumEntryComposer from "./ForumEntryComposer";
 
 export type CommentEntryComposerProps = {

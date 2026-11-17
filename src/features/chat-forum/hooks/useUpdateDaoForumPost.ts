@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { updateForumPost } from "../services";
 import { mapPostSubmitPayloadToUpdatePostFields } from "../mappers";
-import type { Post, PostSubmitPayload } from "@app-types/dao-forum";
+import type { Post, PostSubmitPayload } from "@/features/chat-forum/contracts";
 
 export interface UseUpdateDaoForumPostResult {
   updatePost: (payload: PostSubmitPayload) => Promise<Post | null>;

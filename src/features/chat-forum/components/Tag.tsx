@@ -1,5 +1,5 @@
 import React from "react";
-import { type PostType } from "@app-types/dao-forum";
+import { type PostType } from "@/features/chat-forum/contracts";
 import { POST_TYPE_PRESENTATION } from "@/features/chat-forum/postTypePresentation";
 
 type TagSize = "sm" | "md";

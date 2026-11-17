@@ -8,7 +8,7 @@ import type {
   PostSubmitPayload,
   PostType,
   UpdatePostFields,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import type { ForumThreadComment, ForumThreadPost } from "./types";
 import { resolveForumAuthorLabel } from "./authorIdentity";
 

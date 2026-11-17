@@ -1,7 +1,7 @@
 import type {
   ForumCommentPreview,
   ForumPostPreview,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import type { ForumThreadComment, ForumThreadPost } from "./types";
 
 export const mockForumPostPreviews: ForumPostPreview[] = [

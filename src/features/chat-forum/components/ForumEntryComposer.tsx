@@ -8,7 +8,7 @@ import {
 } from "@/utils/forumContent";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
 import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
-import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { useCharacterCount } from "../hooks/useCharacterCount";
 import { CharacterCounter } from "./CharacterCounter";
 
 const FORMAT_COMMANDS: Record<FormatType, string> = {

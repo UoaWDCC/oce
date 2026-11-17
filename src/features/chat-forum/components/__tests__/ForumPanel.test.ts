@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import ForumPanel from "../ForumPanel";
 import { PENDING_ASYNC_STATE } from "../../lib/asyncState";
 
-vi.mock("@/components/dao-forum/NewPostDialog", () => ({
+vi.mock("@/features/chat-forum/components/NewPostDialog", () => ({
   default: () => null,
 }));
 

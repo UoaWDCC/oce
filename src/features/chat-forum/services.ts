@@ -7,7 +7,7 @@ import type {
   UpdateCommentFields,
   UpdatePostFields,
   ForumPoll,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import type { ForumCommentFilter } from "./types";
 
 const NETWORK_ERROR_MESSAGE =

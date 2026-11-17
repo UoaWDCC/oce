@@ -129,7 +129,12 @@ export const mockForumThreadComments: ForumThreadComment[] = [
             createdAt: "2026-07-22T07:02:00.000Z",
             createdAtLabel: "22 minutes ago",
             reactionCounts: { heart: 4, thumbs_up: 0, fire: 0, thumbs_down: 0 },
-            userReactions: { heart: true, thumbs_up: false, fire: false, thumbs_down: false },
+            userReactions: {
+              heart: true,
+              thumbs_up: false,
+              fire: false,
+              thumbs_down: false,
+            },
             replies: [
               {
                 id: "thread-comment-4",
@@ -139,7 +144,12 @@ export const mockForumThreadComments: ForumThreadComment[] = [
                 },
                 createdAt: "2026-07-22T07:09:00.000Z",
                 createdAtLabel: "15 minutes ago",
-                reactionCounts: { heart: 1, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+                reactionCounts: {
+                  heart: 1,
+                  thumbs_up: 0,
+                  fire: 0,
+                  thumbs_down: 0,
+                },
               },
             ],
           },
@@ -148,4 +158,3 @@ export const mockForumThreadComments: ForumThreadComment[] = [
     ],
   },
 ];
-

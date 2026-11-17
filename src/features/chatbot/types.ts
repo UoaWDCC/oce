@@ -1,5 +1,8 @@
 export type AssistantResponseStatus =
-  "streaming" | "persisted" | "incomplete" | "unsaved";
+  | "streaming"
+  | "persisted"
+  | "incomplete"
+  | "unsaved";
 
 export interface ChatMessageType {
   type: "user" | "bot";

@@ -170,7 +170,6 @@ export default function ChatFullscreen({
     refreshConversationList,
     tokenUsageVersion,
     refreshTokenUsage,
-    conversationListVersion,
     messageResetVersion,
     discardedConversationIds = NO_DISCARDED_CONVERSATIONS,
     error,

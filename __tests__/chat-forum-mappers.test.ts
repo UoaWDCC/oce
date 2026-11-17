@@ -77,45 +77,53 @@ describe("mapCommentToForumCommentPreview", () => {
     { ens: "jordan.eth", wallet: "0x123", deleted: null, label: "jordan.eth" },
     { ens: null, wallet: "0x123", deleted: null, label: "0x123" },
     { ens: null, wallet: null, deleted: null, label: "Unknown" },
-    { ens: "jordan.eth", wallet: "0x123", deleted: "2026-07-23", label: "Deleted comment" },
-  ])("uses $label for comments and nested replies", ({ ens, wallet, deleted, label }) => {
-    const raw = {
-      id: "parent",
-      body: "Comment",
-      image_url: null,
-      author_id: "user-1",
-      username: "Private username",
-      wallet_address: wallet,
-      ens_name: ens,
-      like_count: 0,
-      is_liked: false,
-      parent_comment_id: null,
-      created_at: "2026-07-22T00:00:00.000Z",
-      updated_at: null,
-      deleted_at: deleted,
-    };
-    const parent = mapCommentToForumCommentPreview(raw, "post-1", null);
-    const reply = mapCommentToForumCommentPreview(
-      { ...raw, id: "reply", parent_comment_id: "parent" },
-      "post-1",
-      null,
-    );
-    expect(parent.authorName).toBe(label);
-    expect(reply.authorName).toBe(label);
-    const thread = buildForumThreadComments([parent, reply]);
-    expect(thread[0].author.name).toBe(label);
-    expect(thread[0].replies?.[0].author.name).toBe(label);
-    if (deleted) {
-      expect(parent.authorWallet).toBeUndefined();
-      expect(parent.authorEns).toBeUndefined();
-      expect(reply.authorWallet).toBeUndefined();
-      expect(reply.authorEns).toBeUndefined();
-    }
-    if (ens || deleted) {
-      expect(thread[0].author.walletAddress).toBeUndefined();
-      expect(thread[0].replies?.[0].author.walletAddress).toBeUndefined();
-    }
-  });
+    {
+      ens: "jordan.eth",
+      wallet: "0x123",
+      deleted: "2026-07-23",
+      label: "Deleted comment",
+    },
+  ])(
+    "uses $label for comments and nested replies",
+    ({ ens, wallet, deleted, label }) => {
+      const raw = {
+        id: "parent",
+        body: "Comment",
+        image_url: null,
+        author_id: "user-1",
+        username: "Private username",
+        wallet_address: wallet,
+        ens_name: ens,
+        like_count: 0,
+        is_liked: false,
+        parent_comment_id: null,
+        created_at: "2026-07-22T00:00:00.000Z",
+        updated_at: null,
+        deleted_at: deleted,
+      };
+      const parent = mapCommentToForumCommentPreview(raw, "post-1", null);
+      const reply = mapCommentToForumCommentPreview(
+        { ...raw, id: "reply", parent_comment_id: "parent" },
+        "post-1",
+        null,
+      );
+      expect(parent.authorName).toBe(label);
+      expect(reply.authorName).toBe(label);
+      const thread = buildForumThreadComments([parent, reply]);
+      expect(thread[0].author.name).toBe(label);
+      expect(thread[0].replies?.[0].author.name).toBe(label);
+      if (deleted) {
+        expect(parent.authorWallet).toBeUndefined();
+        expect(parent.authorEns).toBeUndefined();
+        expect(reply.authorWallet).toBeUndefined();
+        expect(reply.authorEns).toBeUndefined();
+      }
+      if (ens || deleted) {
+        expect(thread[0].author.walletAddress).toBeUndefined();
+        expect(thread[0].replies?.[0].author.walletAddress).toBeUndefined();
+      }
+    },
+  );
 
   it("preserves reply relationships and marks deleted comments", () => {
     expect(
@@ -129,7 +137,12 @@ describe("mapCommentToForumCommentPreview", () => {
           wallet_address: null,
           ens_name: null,
           reaction_counts: { heart: 3, thumbs_up: 0, fire: 0, thumbs_down: 0 },
-          user_reactions: { heart: true, thumbs_up: false, fire: false, thumbs_down: false },
+          user_reactions: {
+            heart: true,
+            thumbs_up: false,
+            fire: false,
+            thumbs_down: false,
+          },
           parent_comment_id: "comment-1",
           created_at: "2026-07-22T00:00:00.000Z",
           updated_at: null,
@@ -157,8 +170,13 @@ describe("mapCommentToForumCommentPreview", () => {
         username: "Jordan",
         wallet_address: null,
         ens_name: null,
-  reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
-  user_reactions: { heart: false, thumbs_up: false, fire: false, thumbs_down: false },
+        reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+        user_reactions: {
+          heart: false,
+          thumbs_up: false,
+          fire: false,
+          thumbs_down: false,
+        },
         parent_comment_id: null,
         created_at: "2026-07-22T00:00:00.000Z",
         updated_at: null,
@@ -183,8 +201,13 @@ describe("mapCommentToForumCommentPreview", () => {
         username: "Jordan",
         wallet_address: null,
         ens_name: null,
-  reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
-  user_reactions: { heart: false, thumbs_up: false, fire: false, thumbs_down: false },
+        reaction_counts: { heart: 0, thumbs_up: 0, fire: 0, thumbs_down: 0 },
+        user_reactions: {
+          heart: false,
+          thumbs_up: false,
+          fire: false,
+          thumbs_down: false,
+        },
         parent_comment_id: null,
         created_at: "2026-07-22T00:00:00.000Z",
         updated_at: null,
@@ -387,45 +410,59 @@ describe("mapPostToForumPostPreview", () => {
     { isOwnPost: true, label: "Anonymous (You)" },
     { isOwnPost: false, label: "Anonymous" },
     { isOwnPost: undefined, label: "Anonymous" },
-  ])("labels anonymous feed and thread posts as $label (ownership: $isOwnPost)", ({ isOwnPost, label }) => {
-    const preview = mapPostToForumPostPreview({
-      ...listItem,
-      anonymous: true,
-      author_id: null,
-      author: null,
-      is_own_post: isOwnPost,
-    }, "user-1");
+  ])(
+    "labels anonymous feed and thread posts as $label (ownership: $isOwnPost)",
+    ({ isOwnPost, label }) => {
+      const preview = mapPostToForumPostPreview(
+        {
+          ...listItem,
+          anonymous: true,
+          author_id: null,
+          author: null,
+          is_own_post: isOwnPost,
+        },
+        "user-1",
+      );
 
-    expect(preview.authorName).toBe(label);
-    expect(preview.authorId).toBeUndefined();
-    expect(preview.isOwnPost).toBe(isOwnPost === true);
-    const thread = mapForumPostPreviewToThreadPost(preview);
-    expect(thread.author.name).toBe(label);
-    expect(thread.isOwnPost).toBe(isOwnPost === true);
-  });
+      expect(preview.authorName).toBe(label);
+      expect(preview.authorId).toBeUndefined();
+      expect(preview.isOwnPost).toBe(isOwnPost === true);
+      const thread = mapForumPostPreviewToThreadPost(preview);
+      expect(thread.author.name).toBe(label);
+      expect(thread.isOwnPost).toBe(isOwnPost === true);
+    },
+  );
 
   it.each([
-    { ens: "jordan.eth", wallet: "0x123", anonymous: false, label: "jordan.eth" },
+    {
+      ens: "jordan.eth",
+      wallet: "0x123",
+      anonymous: false,
+      label: "jordan.eth",
+    },
     { ens: null, wallet: "0x123", anonymous: false, label: "0x123" },
     { ens: null, wallet: null, anonymous: false, label: "Unknown" },
     { ens: "jordan.eth", wallet: "0x123", anonymous: true, label: "Anonymous" },
-  ])("uses $label in the feed and thread", ({ ens, wallet, anonymous, label }) => {
-    const preview = mapPostToForumPostPreview({
-      ...listItem,
-      anonymous,
-      author: { ...listItem.author, ensName: ens, walletAddress: wallet },
-    });
-    expect(preview.authorName).toBe(label);
-    const thread = mapForumPostPreviewToThreadPost(preview);
-    expect(thread.author.name).toBe(label);
-    if (anonymous) {
-      expect(preview.authorWallet).toBeUndefined();
-      expect(preview.authorEns).toBeUndefined();
-    }
-    if (ens || anonymous) {
-      expect(thread.author.walletAddress).toBeUndefined();
-    }
-  });
+  ])(
+    "uses $label in the feed and thread",
+    ({ ens, wallet, anonymous, label }) => {
+      const preview = mapPostToForumPostPreview({
+        ...listItem,
+        anonymous,
+        author: { ...listItem.author, ensName: ens, walletAddress: wallet },
+      });
+      expect(preview.authorName).toBe(label);
+      const thread = mapForumPostPreviewToThreadPost(preview);
+      expect(thread.author.name).toBe(label);
+      if (anonymous) {
+        expect(preview.authorWallet).toBeUndefined();
+        expect(preview.authorEns).toBeUndefined();
+      }
+      if (ens || anonymous) {
+        expect(thread.author.walletAddress).toBeUndefined();
+      }
+    },
+  );
 
   it("includes authorId and isOwnPost on the frontend model", () => {
     const preview = mapPostToForumPostPreview(listItem, "user-1");

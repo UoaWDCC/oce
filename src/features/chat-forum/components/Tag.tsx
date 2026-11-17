@@ -1,3 +1,4 @@
+import { classNames } from "../lib/classNames";
 import React from "react";
 import { type PostType } from "@/features/chat-forum/contracts";
 import { POST_TYPE_PRESENTATION } from "@/features/chat-forum/postTypePresentation";
@@ -14,10 +15,6 @@ export type TagProps = {
   className?: string;
   size?: TagSize;
 };
-
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 const Tag = ({ type, className = "", size = "sm" }: TagProps) => {
   if (!type) return null;

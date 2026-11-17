@@ -24,7 +24,7 @@ describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
     resetAll();
   });
 
-  it("creates a like successfully", async () => {
+  it("creates a heart reaction successfully", async () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({ data: { deleted_at: null }, error: null })
       .mockResolvedValueOnce({ data: null, error: null })
@@ -101,7 +101,7 @@ describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
     expect(json.error).toBe("Comment not found");
   });
 
-  it("returns 409 when already liked", async () => {
+  it("returns 409 when already reacted", async () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({ data: { deleted_at: null }, error: null })
       .mockResolvedValueOnce({
@@ -119,12 +119,12 @@ describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
     );
   });
 
-  it("returns 500 when checking existing like fails", async () => {
+  it("returns 500 when checking existing reaction fails", async () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({ data: { deleted_at: null }, error: null })
       .mockResolvedValueOnce({
         data: null,
-        error: { message: "Like check failed" },
+        error: { message: "Reaction check failed" },
       });
 
     const req = createMockRequest("POST");
@@ -132,7 +132,7 @@ describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Like check failed");
+    expect(json.error).toBe("Reaction check failed");
   });
 
   it("returns 500 when insert fails", async () => {
@@ -141,7 +141,7 @@ describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
       .mockResolvedValueOnce({ data: null, error: null })
       .mockResolvedValueOnce({
         data: null,
-        error: { message: "Like insert failed" },
+        error: { message: "Reaction insert failed" },
       });
 
     const req = createMockRequest("POST");
@@ -149,7 +149,7 @@ describe("POST /api/comments/[commentId]/reaction/[reactionType]", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Like insert failed");
+    expect(json.error).toBe("Reaction insert failed");
   });
 });
 
@@ -158,7 +158,7 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
     resetAll();
   });
 
-  it("removes a like successfully", async () => {
+  it("removes a heart reaction successfully", async () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({
         data: { deleted_at: null },
@@ -170,9 +170,9 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
       });
     // eq call count:
     // 1. comment-check .eq("id") -> chain
-    // 2. like-check .eq("comment_id") -> chain
-    // 3. like-check .eq("user_id") -> chain
-    // 4. like-check .eq("reaction") -> chain to .maybeSingle()
+    // 2. reaction-check .eq("comment_id") -> chain
+    // 3. reaction-check .eq("user_id") -> chain
+    // 4. reaction-check .eq("reaction") -> chain to .maybeSingle()
     // 5. delete .eq("comment_id") -> chain
     // 6. delete .eq("user_id") -> chain
     // 7. delete .eq("reaction") -> terminal
@@ -229,7 +229,7 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
     expect(json.error).toBe("Comment not found");
   });
 
-  it("returns 404 when like does not exist", async () => {
+  it("returns 404 when reaction does not exist", async () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({
         data: { deleted_at: null },
@@ -264,7 +264,7 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
     expect(json.error).toBe("Comment not found");
   });
 
-  it("returns 500 when checking existing like fails", async () => {
+  it("returns 500 when checking existing reaction fails", async () => {
     mockSupabase.maybeSingle
       .mockResolvedValueOnce({
         data: { deleted_at: null },
@@ -272,7 +272,7 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
       })
       .mockResolvedValueOnce({
         data: null,
-        error: { message: "Like check failed" },
+        error: { message: "Reaction check failed" },
       });
 
     const req = createMockRequest("DELETE");
@@ -280,7 +280,7 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Like check failed");
+    expect(json.error).toBe("Reaction check failed");
   });
 
   it("returns 500 when delete fails", async () => {
@@ -300,13 +300,13 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
     // eq call count: same as success test
     mockSupabase.eq
       .mockReturnValueOnce(mockSupabase) // #1 comment-check
-      .mockReturnValueOnce(mockSupabase) // #2 like-check
-      .mockReturnValueOnce(mockSupabase) // #3 like-check
+      .mockReturnValueOnce(mockSupabase) // #2 reaction-check
+      .mockReturnValueOnce(mockSupabase) // #3 reaction-check
       .mockReturnValueOnce(mockSupabase) // #4 delete
       .mockReturnValueOnce(mockSupabase) // #5 delete
       .mockReturnValueOnce(mockSupabase) // #6 delete
       .mockReturnValueOnce(
-        Promise.resolve({ error: { message: "Like delete failed" } }),
+        Promise.resolve({ error: { message: "Reaction delete failed" } }),
       ); // #7 delete terminal
 
     const req = createMockRequest("DELETE");
@@ -314,6 +314,6 @@ describe("DELETE /api/comments/[commentId]/reaction/[reactionType]", () => {
     const json = await readJson<{ error: string }>(res);
 
     expect(res.status).toBe(500);
-    expect(json.error).toBe("Like delete failed");
+    expect(json.error).toBe("Reaction delete failed");
   });
 });

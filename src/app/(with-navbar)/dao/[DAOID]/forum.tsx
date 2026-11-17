@@ -95,7 +95,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const {
     toggleReaction,
     optimisticState,
-    error: commentLikeError,
+    error: reactionError,
   } = useDaoForumCommentReactions(daoGroupId, selectedPostId, currentUserId);
 
   const { recordView } = useRecordPostView(token);
@@ -181,7 +181,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     ? signInMessage
     : (commentsError?.message ??
       createCommentError?.message ??
-      commentLikeError?.message);
+      reactionError?.message);
   const mutationError = updatePostError?.message ?? deletePostError?.message;
   const optimisticComments = comments.map((comment) => {
     const override = optimisticState[comment.id];

@@ -83,7 +83,7 @@ async function request(
   }
 }
 
-// POST ENDPOINTS
+// Post endpoints
 export async function getForumPosts(
   daoGroupId: string,
   token?: string,
@@ -94,19 +94,6 @@ export async function getForumPosts(
     { signal },
     token,
   )) as PostListItem[];
-  return data;
-}
-
-export async function getOnePost(
-  daoGroupId: string,
-  postId: string,
-  token?: string,
-) {
-  const data = (await request(
-    `/dao-forum/${daoGroupId}/posts/${postId}`,
-    {},
-    token,
-  )) as Post;
   return data;
 }
 

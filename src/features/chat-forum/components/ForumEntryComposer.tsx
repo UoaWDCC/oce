@@ -1,5 +1,7 @@
 "use client";
 
+import { classNames } from "../lib/classNames";
+
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
 import {
@@ -36,10 +38,6 @@ export type ForumEntryComposerProps = {
   initialImageUrl?: string | null;
   onSubmittingChange?: (isSubmitting: boolean) => void;
 };
-
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function ForumEntryComposer({
   onChange,

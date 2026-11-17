@@ -1,5 +1,7 @@
 "use client";
 
+import { classNames } from "../lib/classNames";
+
 import React, { useEffect, useRef, useState } from "react";
 import { X, BarChart3, Plus, Trash2 } from "lucide-react";
 import {
@@ -43,10 +45,6 @@ export type PostEntryComposerProps = {
   initialValues?: PostComposerInitialValues;
   onSubmittingChange?: (isSubmitting: boolean) => void;
 };
-
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function PostEntryComposer({
   userId,
@@ -201,31 +199,27 @@ export default function PostEntryComposer({
       };
     }
 
-    try {
-      await onSubmit({
-        title: title.trim(),
-        body: data.body,
-        postType,
-        anonymous,
-        isPinned,
-        imageUrl: data.imageUrl,
-        poll,
-      });
+    await onSubmit({
+      title: title.trim(),
+      body: data.body,
+      postType,
+      anonymous,
+      isPinned,
+      imageUrl: data.imageUrl,
+      poll,
+    });
 
-      if (!isEditMode) {
-        clearDraft();
-        setTitle("");
-        setBody("");
-        setPostType(POST_TYPE.Discussion);
-        setAnonymous(false);
-        setIsPinned(false);
-        setPollEnabled(false);
-        setPollQuestion("");
-        setPollOptions(["", ""]);
-        setAllowMultiple(false);
-      }
-    } catch (err) {
-      throw err;
+    if (!isEditMode) {
+      clearDraft();
+      setTitle("");
+      setBody("");
+      setPostType(POST_TYPE.Discussion);
+      setAnonymous(false);
+      setIsPinned(false);
+      setPollEnabled(false);
+      setPollQuestion("");
+      setPollOptions(["", ""]);
+      setAllowMultiple(false);
     }
   };
 

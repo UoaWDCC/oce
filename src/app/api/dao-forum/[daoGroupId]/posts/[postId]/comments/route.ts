@@ -304,10 +304,9 @@ export async function GET(
 
   const commentIds = commentsData.map((c) => c.id);
 
-  // 1. Add "reaction" to your select statement
   const { data: reactionsData, error: reactionsError } = await supabase
     .from("comment_reactions")
-    .select("comment_id, user_id, reaction") // <--- Added reaction here
+    .select("comment_id, user_id, reaction")
     .in("comment_id", commentIds);
 
   if (reactionsError) {

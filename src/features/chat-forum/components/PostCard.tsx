@@ -1,4 +1,6 @@
 "use client";
+
+import { classNames } from "../lib/classNames";
 import Link from "next/link";
 import React from "react";
 import { Eye, MessageCircle } from "lucide-react";
@@ -20,9 +22,6 @@ export type PostCardProps = {
   onSelect?: () => void;
   className?: string;
 };
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 function PostCardContent({
   title,
   types,

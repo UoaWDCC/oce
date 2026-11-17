@@ -1,5 +1,7 @@
 "use client";
 
+import { classNames } from "../lib/classNames";
+
 import React from "react";
 import { Bold, Italic, Underline, List } from "lucide-react";
 
@@ -10,10 +12,6 @@ type FormattingToolbarProps = {
   activeFormats?: FormatType[];
   disabled?: boolean;
 };
-
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function FormattingToolbar({
   onFormat,

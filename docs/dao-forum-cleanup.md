@@ -22,9 +22,14 @@ Validation: regression tests for invalid request envelopes across five write rou
 
 Deferred: a complete authorization/RLS audit, reaction membership/deleted-parent enforcement, private image storage and existing URL migration, and a replacement of every database error with a new public error contract. These require database integration tests and coordinated client behavior, beyond this bounded cleanup. API redaction does not make public images or direct database reads anonymous.
 
+## 4. Unused code and terminology
+
+Removed the unused `getOnePost` client wrapper (the documented API route remains available), a catch-and-rethrow block, copied class-name helpers, and stale implementation comments. Renamed remaining client error/cache helper names and the heart-reaction test file to describe reactions rather than the retired likes feature. Kept the heart-reaction tests because their failure-path coverage is useful.
+
+Validation: full Vitest suite, lint/format, production build, and TypeScript before commit.
+
 ## Remaining steps
 
-4. Remove unused service code, redundant error handling, and leftover like terminology.
 5. Consolidate editor commands/content handling; defer a full editor replacement if it needs new dependencies or extensive interaction testing.
 6. Update forum API/setup documentation and record remaining database/privacy/deployment work. Remove only forum-owned development residue; leave shared repository cleanup out of this branch.
 

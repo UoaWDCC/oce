@@ -93,7 +93,8 @@ describe("AI Tutor system instruction", () => {
   });
 
   it.each([undefined, { path: "/dao", title: "Your DAOs" }] satisfies (
-    ResolvedPageContext | undefined
+    | ResolvedPageContext
+    | undefined
   )[])(
     "supplies a verified static destination when current context is elsewhere or absent: %j",
     (context) => {

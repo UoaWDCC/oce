@@ -46,19 +46,19 @@ This repository includes the AI Tutor and DAO Chat Forum developed by the Univer
 
 ## Tech Stack
 
-| Area | Technology |
-| --- | --- |
-| Application | Next.js 15, React 19, TypeScript |
-| Styling | Tailwind CSS |
-| UI components | Lucide, Radix UI |
-| Authentication | Supabase Auth |
-| Database | Supabase PostgreSQL |
-| Image storage | Supabase Storage |
-| Forum queries | TanStack React Query |
-| AI provider | Google GenAI SDK through a shared provider interface |
-| Content rendering | React Markdown and forum HTML sanitisation |
-| Testing | Vitest, Testing Library, jsdom |
-| Deployment | OpenNext and Cloudflare Workers |
+| Area              | Technology                                           |
+| ----------------- | ---------------------------------------------------- |
+| Application       | Next.js 15, React 19, TypeScript                     |
+| Styling           | Tailwind CSS                                         |
+| UI components     | Lucide, Radix UI                                     |
+| Authentication    | Supabase Auth                                        |
+| Database          | Supabase PostgreSQL                                  |
+| Image storage     | Supabase Storage                                     |
+| Forum queries     | TanStack React Query                                 |
+| AI provider       | Google GenAI SDK through a shared provider interface |
+| Content rendering | React Markdown and forum HTML sanitisation           |
+| Testing           | Vitest, Testing Library, jsdom                       |
+| Deployment        | OpenNext and Cloudflare Workers                      |
 
 Dependency versions are defined in `package.json` and `package-lock.json`.
 
@@ -109,15 +109,15 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Environment Variables
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Public anonymous key for the same Supabase project |
-| `NEXT_SUPABASE_SERVICE_ROLE_KEY` | Yes | Server-side service role key |
-| `GOOGLE_API_KEY` | For Gemini | Server-side Google AI API key |
-| `LLM_PROVIDER` | For AI Tutor | Provider selection; currently supports `google` |
-| `MAX_DAILY_TOKENS` | No | Positive integer; defaults to `100000` |
-| `NEXT_PUBLIC_API_URL` | No | API base used by existing consumers; defaults to `/api` |
+| Variable                         | Required     | Description                                             |
+| -------------------------------- | ------------ | ------------------------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`       | Yes          | Supabase project URL                                    |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`  | Yes          | Public anonymous key for the same Supabase project      |
+| `NEXT_SUPABASE_SERVICE_ROLE_KEY` | Yes          | Server-side service role key                            |
+| `GOOGLE_API_KEY`                 | For Gemini   | Server-side Google AI API key                           |
+| `LLM_PROVIDER`                   | For AI Tutor | Provider selection; currently supports `google`         |
+| `MAX_DAILY_TOKENS`               | No           | Positive integer; defaults to `100000`                  |
+| `NEXT_PUBLIC_API_URL`            | No           | API base used by existing consumers; defaults to `/api` |
 
 Keep service role and AI API keys server-side. Never prefix private credentials with `NEXT_PUBLIC_` or commit their values.
 
@@ -129,14 +129,14 @@ The AI Tutor and forum API clients use relative `/api/...` paths. `NEXT_PUBLIC_A
 
 The main feature dependencies are:
 
-| Area | Tables |
-| --- | --- |
-| Application identity | `AllowedUsers`, `Student` |
-| DAO information | `DAO`, `dao_groups`, `dao_members` |
-| AI Tutor | `conversations`, `messages`, `tutor_requests` |
-| Forum content | `posts`, `comments`, `tags`, `post_tags` |
-| Forum activity | `post_views`, `comment_reactions` |
-| Forum polls | `forum_polls`, `forum_poll_options`, `forum_poll_votes` |
+| Area                 | Tables                                                  |
+| -------------------- | ------------------------------------------------------- |
+| Application identity | `AllowedUsers`, `Student`                               |
+| DAO information      | `DAO`, `dao_groups`, `dao_members`                      |
+| AI Tutor             | `conversations`, `messages`, `tutor_requests`           |
+| Forum content        | `posts`, `comments`, `tags`, `post_tags`                |
+| Forum activity       | `post_views`, `comment_reactions`                       |
+| Forum polls          | `forum_polls`, `forum_poll_options`, `forum_poll_votes` |
 
 Other application flows require additional tables. For example, registration also uses `StudentActivity` and `user_eula_acceptances`.
 
@@ -144,13 +144,13 @@ For a new database, prepare the complete base schema, foreign keys, functions, g
 
 For an existing database, inspect its current state and apply only missing migrations.
 
-| Migration | Purpose |
-| --- | --- |
-| `20260714000000_link_dao_groups_to_dao.sql` | Links forum groups to DAOs |
-| `20260802000000_create_forum_images_bucket.sql` | Configures forum image storage |
-| `20260804000000_add_post_views.sql` | Adds view tracking |
-| `20260820000000_add_forum_polls.sql` | Adds poll tables and functions |
-| `20260903000000_add_message_favourited_at.sql` | Adds favourite timestamps |
+| Migration                                                       | Purpose                                    |
+| --------------------------------------------------------------- | ------------------------------------------ |
+| `20260714000000_link_dao_groups_to_dao.sql`                     | Links forum groups to DAOs                 |
+| `20260802000000_create_forum_images_bucket.sql`                 | Configures forum image storage             |
+| `20260804000000_add_post_views.sql`                             | Adds view tracking                         |
+| `20260820000000_add_forum_polls.sql`                            | Adds poll tables and functions             |
+| `20260903000000_add_message_favourited_at.sql`                  | Adds favourite timestamps                  |
 | `20260913055540_convert_comment_likes_to_comment_reactions.sql` | Converts existing likes to typed reactions |
 
 Migration files are located in [`supabase/migrations`](supabase/migrations).
@@ -192,24 +192,24 @@ Development preview pages are available at `/dev/chatbot` and `/dev/chat-forum`.
 
 ## Project Structure
 
-| Path | Purpose |
-| --- | --- |
-| `src/app/` | Application pages, layouts and API routes |
-| `src/app/api/ai-tutor/` | AI chat, conversations, favourites, usage and tutor requests |
-| `src/app/api/dao-forum/` | Forum posts, comments and polls |
-| `src/app/api/comments/` | Comment actions and reactions |
-| `src/features/chatbot/` | AI Tutor components, hooks, state and API clients |
-| `src/features/chatbot/server/` | Tutor instructions, page knowledge and context selection |
-| `src/features/chat-forum/` | Forum queries, mutations, mapping and thread views |
-| `src/features/tutorRequest/` | Student tutor-request interface |
-| `src/components/dao-forum/` | Shared forum components and composers |
-| `src/llm/` | AI provider interface, factory and implementations |
-| `src/utils/supabase/` | Supabase browser and server clients |
-| `src/utils/authHelper.ts` | Authentication and role helpers |
-| `src/lib/queryClient.tsx` | React Query configuration |
-| `supabase/migrations/` | Incremental database changes |
-| `__tests__/` | API, component and behaviour tests |
-| `docs/` | Development guides and API documentation |
+| Path                           | Purpose                                                      |
+| ------------------------------ | ------------------------------------------------------------ |
+| `src/app/`                     | Application pages, layouts and API routes                    |
+| `src/app/api/ai-tutor/`        | AI chat, conversations, favourites, usage and tutor requests |
+| `src/app/api/dao-forum/`       | Forum posts, comments and polls                              |
+| `src/app/api/comments/`        | Comment actions and reactions                                |
+| `src/features/chatbot/`        | AI Tutor components, hooks, state and API clients            |
+| `src/features/chatbot/server/` | Tutor instructions, page knowledge and context selection     |
+| `src/features/chat-forum/`     | Forum queries, mutations, mapping and thread views           |
+| `src/features/tutorRequest/`   | Student tutor-request interface                              |
+| `src/components/dao-forum/`    | Shared forum components and composers                        |
+| `src/llm/`                     | AI provider interface, factory and implementations           |
+| `src/utils/supabase/`          | Supabase browser and server clients                          |
+| `src/utils/authHelper.ts`      | Authentication and role helpers                              |
+| `src/lib/queryClient.tsx`      | React Query configuration                                    |
+| `supabase/migrations/`         | Incremental database changes                                 |
+| `__tests__/`                   | API, component and behaviour tests                           |
+| `docs/`                        | Development guides and API documentation                     |
 
 Additional tests are colocated within feature directories.
 
@@ -236,12 +236,12 @@ Because the question is saved first, a failed generation request can leave a que
 
 The API returns `text/event-stream` with:
 
-| Event payload | Meaning |
-| --- | --- |
-| JSON-encoded string | Incremental response text |
-| `[MESSAGE_ID]...` | Persisted assistant message ID |
-| `[DONE]` | Successful completion |
-| `[ERROR]...` | Generation or persistence failure |
+| Event payload       | Meaning                           |
+| ------------------- | --------------------------------- |
+| JSON-encoded string | Incremental response text         |
+| `[MESSAGE_ID]...`   | Persisted assistant message ID    |
+| `[DONE]`            | Successful completion             |
+| `[ERROR]...`        | Generation or persistence failure |
 
 The client parser is implemented in `src/features/chatbot/api/conversations.ts`.
 
@@ -304,7 +304,7 @@ The forum currently uses request-based loading rather than live subscriptions.
 - Post types: `Announcement`, `Proposal`, `Question`, `Discussion`, `Resource`.
 - Search matches loaded post titles and content.
 - Comments use `parent_comment_id` for threaded replies.
-- Editing and deletion are restricted to the author.
+- Editing remains author-only. Posts may also be deleted by a shaman of that DAO, including anonymous posts. Comment deletion remains author-only.
 - Soft deletion uses `deleted_at`.
 - Deleted parent comments may retain placeholders where replies remain.
 - Author labels prefer ENS names, falling back to wallet addresses.
@@ -320,15 +320,15 @@ View tracking records one entry per user and post. New comments after the user's
 
 #### Content Limits
 
-| Content | Limit |
-| --- | --- |
-| Post title | 50 characters |
-| Visible post body | 350 characters |
+| Content              | Limit          |
+| -------------------- | -------------- |
+| Post title           | 50 characters  |
+| Visible post body    | 350 characters |
 | Visible comment body | 350 characters |
-| Image attachment | 5 MB |
-| Poll question | 200 characters |
-| Poll option | 80 characters |
-| Poll options | 2–6 |
+| Image attachment     | 5 MB           |
+| Poll question        | 200 characters |
+| Poll option          | 80 characters  |
+| Poll options         | 2–6            |
 
 ### Authentication and Authorisation
 
@@ -346,6 +346,8 @@ The shared helpers have different responsibilities:
 AI routes verify conversation ownership. Forum operations combine author checks, relevant DAO membership checks and database access policies.
 
 Some queries depend on configured RLS policies. Preserve these policies when reproducing the database or changing server-side clients.
+
+Shaman status is resolved from `dao_groups.dao_id`, `DAO.Members.shamans` and the authenticated user's `Student.Wallet` addresses. The post list exposes `can_delete` separately from ownership so moderation does not reveal an anonymous author. Verify live policies permit shaman soft deletion within the correct DAO without permitting edits to another author's content; mocked tests do not verify database permissions.
 
 ## AI Configuration
 
@@ -404,17 +406,17 @@ Test title generation, streaming, context handling, persistence and error behavi
 
 ### Commands
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the development server |
-| `npm run build` | Build the Next.js application |
-| `npm start` | Start the built Next.js application |
-| `npm test` | Run Vitest in watch mode |
-| `npm test -- --run` | Run tests once |
-| `npm run lint:prettier` | Check formatting |
-| `npm run format` | Apply formatting |
-| `npm run preview` | Build and preview the Cloudflare Worker |
-| `npm run deploy` | Build and deploy through Wrangler |
+| Command                 | Purpose                                 |
+| ----------------------- | --------------------------------------- |
+| `npm run dev`           | Start the development server            |
+| `npm run build`         | Build the Next.js application           |
+| `npm start`             | Start the built Next.js application     |
+| `npm test`              | Run Vitest in watch mode                |
+| `npm test -- --run`     | Run tests once                          |
+| `npm run lint:prettier` | Check formatting                        |
+| `npm run format`        | Apply formatting                        |
+| `npm run preview`       | Build and preview the Cloudflare Worker |
+| `npm run deploy`        | Build and deploy through Wrangler       |
 
 Example focused tests:
 
@@ -504,21 +506,21 @@ After deployment, verify authentication, streaming, persistence, forum operation
 
 ## Troubleshooting
 
-| Symptom | Checks |
-| --- | --- |
-| AI returns 502 or “LLM provider error” | API key, model availability, provider logs and issue #203 |
-| Question saved without an answer | Inspect the separate streaming request and provider response |
-| Conversation remains untitled | Check background title generation and database updates |
-| API returns 401 | Session, Bearer token and Supabase configuration |
-| AI streaming rejects a valid Auth user | Confirm the account has an `AllowedUsers` entry |
-| DAO has no forum | Check `dao_groups.dao_id` and the resolved group UUID |
-| Forum access is denied | Membership records, RLS and grants |
-| Edit or delete is denied | The current implementation permits author-only actions |
-| Missing database relationship | Verify the base schema and named foreign keys |
-| Poll or view recording fails | Check database functions, migrations and grants |
-| Image upload fails | Check the bucket, upload policy, MIME type and file size |
-| API returns 429 | Distinguish AI allowance, middleware and provider rate limits |
-| Deployed requests fail an origin check | Update `allowedOrigins` for the exact origin |
+| Symptom                                | Checks                                                                                                           |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| AI returns 502 or “LLM provider error” | API key, model availability, provider logs and issue #203                                                        |
+| Question saved without an answer       | Inspect the separate streaming request and provider response                                                     |
+| Conversation remains untitled          | Check background title generation and database updates                                                           |
+| API returns 401                        | Session, Bearer token and Supabase configuration                                                                 |
+| AI streaming rejects a valid Auth user | Confirm the account has an `AllowedUsers` entry                                                                  |
+| DAO has no forum                       | Check `dao_groups.dao_id` and the resolved group UUID                                                            |
+| Forum access is denied                 | Membership records, RLS and grants                                                                               |
+| Edit or delete is denied               | Editing is author-only; post deletion also allows that DAO's shamans. Check wallet mapping and database policies |
+| Missing database relationship          | Verify the base schema and named foreign keys                                                                    |
+| Poll or view recording fails           | Check database functions, migrations and grants                                                                  |
+| Image upload fails                     | Check the bucket, upload policy, MIME type and file size                                                         |
+| API returns 429                        | Distinguish AI allowance, middleware and provider rate limits                                                    |
+| Deployed requests fail an origin check | Update `allowedOrigins` for the exact origin                                                                     |
 
 ### Current Behaviour and Limitations
 
@@ -527,7 +529,6 @@ After deployment, verify authentication, streaming, persistence, forum operation
 - Tutor requests do not include a staff response interface.
 - Course-level AI enable/disable controls are not implemented.
 - Forum changes are loaded through requests rather than live subscriptions.
-- Shaman moderation of other authors' posts is not implemented.
 - Forum post lists are not paginated; search filters loaded posts.
 - Post drafts are browser-local and do not synchronise between devices.
 - Usage allowance is an estimate rather than a billing measurement.

@@ -123,7 +123,9 @@ interface StreamAssistantMessageHandlers {
 export class AssistantStreamError extends Error {
   constructor(
     readonly code:
-      "generation_failed" | "persistence_failed" | "incomplete_response",
+      | "generation_failed"
+      | "persistence_failed"
+      | "incomplete_response",
     message: string,
   ) {
     super(message);

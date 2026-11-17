@@ -24,7 +24,7 @@ function isAvailable(element: HTMLElement): boolean {
     return false;
   }
 
-  for (let ancestor: HTMLElement | null = element; ancestor;) {
+  for (let ancestor: HTMLElement | null = element; ancestor; ) {
     const style = window.getComputedStyle(ancestor);
     if (
       style.display === "none" ||
@@ -72,7 +72,7 @@ function isolateBackground(root: HTMLElement): () => void {
 
   // Isolate siblings along the shell's ancestry, without depending on any page
   // structure. Later body-portaled confirmation dialogs remain available.
-  for (let branch: HTMLElement = root; branch.parentElement;) {
+  for (let branch: HTMLElement = root; branch.parentElement; ) {
     const parent = branch.parentElement;
     for (const sibling of parent.children) {
       if (!(sibling instanceof HTMLElement) || sibling === branch) continue;

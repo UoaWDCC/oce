@@ -530,8 +530,11 @@ paths:
       description: >
         Uses a Bearer token to authenticate the current user. The route first
         verifies that the post exists in the DAO group and that the current
-        user is the post author, then soft-deletes comments for the post and
-        soft-deletes the post by setting deleted_at.
+        user is the post author or a shaman of that DAO, then soft-deletes the
+        post by setting deleted_at. Shaman status is resolved from the DAO's
+        shaman addresses and the authenticated user's wallets. This includes
+        anonymous posts and does not grant permission to edit another author's
+        content. Comments are not individually soft-deleted by this route.
       security:
         - bearerAuth: []
       parameters:

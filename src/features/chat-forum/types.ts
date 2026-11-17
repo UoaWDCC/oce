@@ -43,6 +43,7 @@ export type ForumThreadPost = {
   anonymous?: boolean;
   isPinned?: boolean;
   isOwnPost?: boolean;
+  canDelete?: boolean;
 };
 
 export type ForumThreadComment = {

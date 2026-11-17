@@ -64,9 +64,7 @@ function PostCardContent({
       </div>
 
       {/* Title */}
-      <h3 className="text-xl font-bold leading-snug text-slate-950">
-        {title}
-      </h3>
+      <h3 className="text-xl font-bold leading-snug text-slate-950">{title}</h3>
 
       {/* Excerpt */}
       {excerpt && (

@@ -1,4 +1,5 @@
 import { authenticateUser } from "@/utils/authHelper";
+import { isDaoShaman } from "@/features/chat-forum/daoShaman";
 import {
   hasMeaningfulForumContent,
   hasValidPostTitle,
@@ -168,9 +169,17 @@ export async function DELETE(
     );
   }
 
-  if (post.author_id !== user.id) {
+  const isAuthor = post.author_id === user.id;
+  const isShaman = isAuthor
+    ? false
+    : await isDaoShaman(supabase, user.id, daoGroupId);
+
+  if (!isAuthor && !isShaman) {
     return NextResponse.json(
-      { error: "Unauthorized, you are not the author of this post" },
+      {
+        error:
+          "Unauthorized, you are not the author of this post or a shaman of this DAO",
+      },
       { status: 403, headers: corsHeaders },
     );
   }
@@ -180,7 +189,6 @@ export async function DELETE(
     .update({ deleted_at: new Date().toISOString() })
     .eq("id", postId)
     .eq("dao_group_id", daoGroupId)
-    .eq("author_id", user.id)
     .select()
     .single();
 

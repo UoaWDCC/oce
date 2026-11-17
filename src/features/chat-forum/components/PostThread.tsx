@@ -1056,7 +1056,6 @@ export default function PostThread({
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [isRefetchingAfterDelete, setIsRefetchingAfterDelete] = useState(false);
-  const showOwnerActions = Boolean(post.isOwnPost);
 
   // The delete dialog stays open until this refetch finishes, so the user
   // already has something on screen for it; the heading spinner stays quiet.
@@ -1084,6 +1083,8 @@ export default function PostThread({
       setIsDeleteConfirmOpen(false);
     }
   };
+  const showOwnerActions = Boolean(post.isOwnPost);
+  const showDeleteAction = Boolean(post.isOwnPost || post.canDelete);
 
   return (
     <section
@@ -1187,29 +1188,25 @@ export default function PostThread({
               </span>
             </span>
             <div className="flex items-center gap-2">
-              {showOwnerActions && (
-                <>
-                  {onUpdatePost && (
-                    <button
-                      type="button"
-                      aria-label="Edit post"
-                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-purple-50 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
-                      onClick={() => setIsEditing(true)}
-                    >
-                      <Pencil aria-hidden="true" className="h-4 w-4" />
-                    </button>
-                  )}
-                  {onDeletePost && (
-                    <button
-                      type="button"
-                      aria-label="Delete post"
-                      className="rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
-                      onClick={() => setIsDeleteConfirmOpen(true)}
-                    >
-                      <Trash2 aria-hidden="true" className="h-4 w-4" />
-                    </button>
-                  )}
-                </>
+              {showOwnerActions && onUpdatePost && (
+                <button
+                  type="button"
+                  aria-label="Edit post"
+                  className="rounded-full p-1.5 text-slate-400 transition hover:bg-purple-50 hover:text-purple-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil aria-hidden="true" className="h-4 w-4" />
+                </button>
+              )}
+              {showDeleteAction && onDeletePost && (
+                <button
+                  type="button"
+                  aria-label="Delete post"
+                  className="rounded-full p-1.5 text-slate-400 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2"
+                  onClick={() => setIsDeleteConfirmOpen(true)}
+                >
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                </button>
               )}
               <time
                 className="text-xs font-semibold text-slate-400"

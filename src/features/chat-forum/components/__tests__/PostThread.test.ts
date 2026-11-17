@@ -1,7 +1,18 @@
 import { createElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import PostThread from "../PostThread";
+import {
+  mapPostToForumPostPreview,
+  mapForumPostPreviewToThreadPost,
+} from "../../mappers";
 import {
   PENDING_ASYNC_STATE,
   type ForumAsyncState,
@@ -138,6 +149,105 @@ describe("PostThread comment states", () => {
     expect(screen.getByText(/No replies yet/)).toBeDefined();
     expect(screen.getByText("0 Replies")).toBeDefined();
   });
+});
+
+describe("PostThread moderation actions", () => {
+  it.each([
+    {
+      role: "author",
+      isOwnPost: true,
+      canDelete: true,
+      edit: true,
+      remove: true,
+    },
+    {
+      role: "shaman",
+      isOwnPost: false,
+      canDelete: true,
+      edit: false,
+      remove: true,
+    },
+    {
+      role: "ordinary member",
+      isOwnPost: false,
+      canDelete: false,
+      edit: false,
+      remove: false,
+    },
+  ])(
+    "shows the correct controls for an $role",
+    ({ isOwnPost, canDelete, edit, remove }) => {
+      render(
+        createElement(PostThread, {
+          daoGroupId: "dao-1",
+          post: { ...post, isOwnPost, canDelete },
+          comments: [],
+          onUpdatePost: vi.fn(),
+          onDeletePost: vi.fn(),
+        }),
+      );
+
+      expect(Boolean(screen.queryByRole("button", { name: "Edit post" }))).toBe(
+        edit,
+      );
+      expect(
+        Boolean(screen.queryByRole("button", { name: "Delete post" })),
+      ).toBe(remove);
+    },
+  );
+
+  it.each([true, false])(
+    "preserves anonymous shaman capability through both mappers and deletion (success=%s)",
+    async (success) => {
+      const preview = mapPostToForumPostPreview(
+        {
+          id: post.id,
+          dao_group_id: "dao-1",
+          author_id: null,
+          author: null,
+          post_type: null,
+          title: post.title,
+          body: post.body,
+          anonymous: true,
+          is_pinned: false,
+          image_url: null,
+          created_at: post.createdAt,
+          updated_at: null,
+          comment_count: 0,
+          view_count: 3,
+          is_unread: false,
+          is_own_post: false,
+          can_delete: true,
+          tags: [],
+        },
+        "shaman-user",
+      );
+      const onDeletePost = vi.fn().mockResolvedValue(success);
+      render(
+        createElement(PostThread, {
+          daoGroupId: "dao-1",
+          post: mapForumPostPreviewToThreadPost(preview),
+          comments: [],
+          onUpdatePost: vi.fn(),
+          onDeletePost,
+        }),
+      );
+
+      expect(screen.getByText("Anonymous")).toBeDefined();
+      expect(screen.queryByRole("button", { name: "Edit post" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Delete post" }));
+      fireEvent.click(
+        within(screen.getByRole("alertdialog")).getByRole("button", {
+          name: "Delete post",
+        }),
+      );
+
+      await waitFor(() => expect(onDeletePost).toHaveBeenCalledOnce());
+      await waitFor(() => {
+        expect(Boolean(screen.queryByRole("alertdialog"))).toBe(!success);
+      });
+    },
+  );
 });
 
 describe("PostThread sort and filter panel", () => {

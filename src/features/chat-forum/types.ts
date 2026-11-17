@@ -41,7 +41,6 @@ export type ForumThreadPost = {
   statusLabel?: string;
   imageUrl?: string | null;
   anonymous?: boolean;
-  isPinned?: boolean;
   isOwnPost?: boolean;
   canDelete?: boolean;
 };

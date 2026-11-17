@@ -1,6 +1,6 @@
 import {
   postCapabilities,
-  redactAnonymousPost,
+  serializeForumPost,
   validatePostFieldTypes,
 } from "@/features/chat-forum/server/posts";
 import {
@@ -53,7 +53,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json(redactAnonymousPost(data as Post, user.id), {
+  return NextResponse.json(serializeForumPost(data as Post, user.id), {
     headers: corsHeaders,
   });
 }
@@ -76,8 +76,7 @@ export async function PATCH(
     !hasValidPostTitle(body.title) ||
     !hasMeaningfulForumContent(body.body) ||
     !body.post_type ||
-    body.anonymous === undefined ||
-    body.is_pinned === undefined
+    body.anonymous === undefined
   ) {
     return NextResponse.json(
       { error: "Missing required fields" },
@@ -138,7 +137,6 @@ export async function PATCH(
       title: normalizedTitle,
       body: normalizedBody,
       anonymous: body.anonymous,
-      is_pinned: body.is_pinned,
       image_url: body.image_url,
     })
     .eq("dao_group_id", daoGroupId)
@@ -161,7 +159,7 @@ export async function PATCH(
     );
   }
 
-  return NextResponse.json(redactAnonymousPost(data, user.id), {
+  return NextResponse.json(serializeForumPost(data, user.id), {
     status: 200,
     headers: corsHeaders,
   });
@@ -237,7 +235,7 @@ export async function DELETE(
     );
   }
 
-  return NextResponse.json(redactAnonymousPost(data, user.id), {
+  return NextResponse.json(serializeForumPost(data, user.id), {
     status: 200,
     headers: corsHeaders,
   });

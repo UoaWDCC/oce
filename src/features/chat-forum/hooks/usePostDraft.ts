@@ -8,7 +8,6 @@ export type PostDraft = {
   body: string;
   postType: string;
   anonymous: boolean;
-  isPinned: boolean;
   imageUrl?: string; // Stored as reference/URL, NEVER raw File objects
   poll?: PollSubmitPayload;
   version: number;
@@ -62,7 +61,6 @@ export function usePostDraft(userId?: string, daoGroupId?: string) {
           body: parsed.body ?? "",
           postType: parsed.postType ?? "Discussion",
           anonymous: Boolean(parsed.anonymous),
-          isPinned: Boolean(parsed.isPinned),
           imageUrl:
             typeof parsed.imageUrl === "string" ? parsed.imageUrl : undefined,
           poll:

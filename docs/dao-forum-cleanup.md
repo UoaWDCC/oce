@@ -16,7 +16,7 @@ Validation: full Vitest suite, lint/format, production build, and TypeScript bef
 
 ## 3. API consistency
 
-Shared CORS construction and JSON-object parsing across forum routes; malformed JSON, null, arrays, and scalar request bodies now return controlled 400 errors. Post types, boolean flags, and image field types are validated before writes. Shared post capability and redaction helpers keep moderation separate from ownership and redact anonymous author IDs from single-post and mutation responses. Single-post reads/edits/deletion exclude deleted rows; updates also include that condition to handle deletion races. The API contract reflects nullable anonymous author IDs.
+Shared CORS construction and JSON-object parsing across forum routes; malformed JSON, null, arrays, and scalar request bodies now return controlled 400 errors. Post types, the anonymity flag, and image field types are validated before writes. Shared post capability and redaction helpers keep moderation separate from ownership and redact anonymous author IDs from single-post and mutation responses. Single-post reads/edits/deletion exclude deleted rows; updates also include that condition to handle deletion races. The API contract reflects nullable anonymous author IDs.
 
 Validation: regression tests for invalid request envelopes across five write routes, invalid post field types, anonymous ownership/redaction, and deleted-post reads/edits; existing author/shaman, reaction, poll, and comment tests; full suite, lint/format, production build, and TypeScript before commit.
 
@@ -44,6 +44,14 @@ Removed the now-unused forum directory placeholder in step 1. The forum developm
 
 Validation: parse OpenAPI and resolve local schema references; confirm non-forum routes/schemas are unchanged; full tests, lint/format, production build, and TypeScript before commit.
 
+## 7. Remove post pinning
+
+Removed the pinned section and ordering split, composer toggles/state, draft fields, API request/response fields, UI/data contracts, mappings, fixtures, and public API documentation. All posts now share one newest-first feed. Legacy draft content is preserved while its pin flag is discarded, and legacy API pin inputs are ignored.
+
+The existing database column and historical migrations are retained. Regular post creation writes the compatibility column as false, and poll creation supplies false to the existing required RPC argument. Post responses omit that legacy column. No schema or live-data migration is required for this application change.
+
+Validation: regression tests cover a legacy pinned post appearing in normal chronological order, old draft preservation, ignored API pin input, and the retained poll RPC signature. Full suite: 727 tests; lint/format, production build, and TypeScript before commit.
+
 ## Check results
 
 Every row also passed full lint (including formatting), the Next.js production build, TypeScript, and whitespace checks before its commit. Existing application-wide React hook warnings remain non-blocking.
@@ -55,7 +63,8 @@ Every row also passed full lint (including formatting), the Next.js production b
 | 3. API             | `0d4bc097b` | 717 passed |
 | 4. Dead code       | `ea732aa00` | 717 passed |
 | 5. Editor boundary | `81dd490a5` | 725 passed |
-| 6. Documentation   | This commit | 725 passed |
+| 6. Documentation   | `1ee972bd5` | 725 passed |
+| 7. Remove pinning  | This commit | 727 passed |
 
 ## Deferred follow-up
 

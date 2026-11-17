@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import ForumPanel from "../ForumPanel";
 import { PENDING_ASYNC_STATE } from "../../lib/asyncState";
+import { mockForumPostPreviews } from "../../mocks";
 
 vi.mock("@/features/chat-forum/components/NewPostDialog", () => ({
   default: () => null,
@@ -11,6 +12,38 @@ vi.mock("@/features/chat-forum/components/NewPostDialog", () => ({
 afterEach(cleanup);
 
 describe("ForumPanel post states", () => {
+  it("shows all posts newest first in one feed, ignoring legacy pin flags", () => {
+    const posts = [
+      {
+        ...mockForumPostPreviews[0],
+        id: "older",
+        title: "Older post",
+        createdAt: "2026-11-01T00:00:00Z",
+        isPinned: true,
+      },
+      {
+        ...mockForumPostPreviews[0],
+        id: "newer",
+        title: "Newest post",
+        createdAt: "2026-11-02T00:00:00Z",
+      },
+    ];
+    render(
+      createElement(ForumPanel, {
+        daoGroupId: "dao-1",
+        daoName: "Test DAO",
+        posts,
+      }),
+    );
+    expect(screen.queryByText("Pinned")).toBeNull();
+    expect(
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual(["Newest post", "Older post"]);
+    expect(screen.queryByText("No posts match these filters.")).toBeNull();
+  });
+
   it("hides zero counts and empty states while posts have not loaded", () => {
     render(
       createElement(ForumPanel, {

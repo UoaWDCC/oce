@@ -235,7 +235,6 @@ export default function ChatForumPreviewClient() {
       viewCount: 0,
       types: [payload.postType],
       tags: [],
-      isPinned: payload.isPinned,
     };
     setForumPanelPosts((prev) => [newPost, ...prev]);
   };

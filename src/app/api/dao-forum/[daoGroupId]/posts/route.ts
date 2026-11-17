@@ -1,6 +1,6 @@
 import {
   postCapabilities,
-  redactAnonymousPost,
+  serializeForumPost,
   validatePostFieldTypes,
 } from "@/features/chat-forum/server/posts";
 import {
@@ -109,7 +109,6 @@ function formatPostListItem(
     title: post.title,
     body: post.body,
     anonymous: post.anonymous,
-    is_pinned: post.is_pinned,
     image_url: post.image_url,
     created_at: post.created_at,
     updated_at: post.updated_at,
@@ -156,7 +155,6 @@ export async function GET(
         title,
         body,
         anonymous,
-        is_pinned,
         image_url,
         created_at,
         updated_at,
@@ -353,7 +351,8 @@ export async function POST(
       p_title: normalizedTitle,
       p_body: normalizedBody,
       p_anonymous: body.anonymous,
-      p_is_pinned: body.is_pinned,
+      // Required by the existing poll RPC signature; pinning is not exposed.
+      p_is_pinned: false,
       p_image_url: body.image_url,
       p_poll_question: poll.question,
       p_poll_options: poll.options,
@@ -377,7 +376,8 @@ export async function POST(
         title: normalizedTitle,
         body: normalizedBody,
         anonymous: body.anonymous,
-        is_pinned: body.is_pinned,
+        // Compatibility with existing databases; no client-controlled pinning.
+        is_pinned: false,
         image_url: body.image_url,
         author_id: user.id,
         dao_group_id: daoGroupId,
@@ -400,7 +400,7 @@ export async function POST(
       { status: 500, headers: corsHeaders },
     );
   }
-  return NextResponse.json(redactAnonymousPost(data, user.id), {
+  return NextResponse.json(serializeForumPost(data, user.id), {
     status: 201,
     headers: corsHeaders,
   });

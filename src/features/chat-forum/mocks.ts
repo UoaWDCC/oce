@@ -20,7 +20,6 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     viewCount: 18,
     types: ["Announcement"],
     tags: ["Governance"],
-    isPinned: true,
   },
   {
     id: "forum-post-proposal",

@@ -36,7 +36,7 @@ This repository includes the AI Tutor and DAO Chat Forum developed by the Univer
 - A dedicated forum within each linked DAO.
 - Posts, comments and nested replies.
 - Author-only editing and soft deletion.
-- Post categories, pinned posts, search and unread filtering.
+- Post categories, search and unread filtering.
 - ENS or wallet-based author labels and optional anonymous posts.
 - Formatted content and image attachments.
 - Comment reactions and sorting.

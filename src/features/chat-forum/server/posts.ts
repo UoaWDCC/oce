@@ -9,31 +9,31 @@ export function postCapabilities(
   return { isAuthor, canDelete: isAuthor || viewerIsShaman };
 }
 
-export function redactAnonymousPost<
+export function serializeForumPost<
   T extends { anonymous?: boolean; author_id?: string | null },
 >(post: T, viewerId: string) {
-  if (!post?.anonymous) return post;
+  if (!post) return post;
+  const data = { ...post };
+  // Hide unused legacy database metadata from every post response.
+  Reflect.deleteProperty(data, "is_pinned");
+  if (!data.anonymous) return data;
   return {
-    ...post,
+    ...data,
     author_id: null,
-    is_own_post: post.author_id === viewerId,
+    is_own_post: data.author_id === viewerId,
   };
 }
 
 export function validatePostFieldTypes(body: {
   post_type: unknown;
   anonymous?: unknown;
-  is_pinned?: unknown;
   image_url?: unknown;
 }): string | null {
   if (!Object.values(POST_TYPE).some((type) => type === body.post_type)) {
     return "Invalid post type";
   }
-  if (
-    (body.anonymous !== undefined && typeof body.anonymous !== "boolean") ||
-    (body.is_pinned !== undefined && typeof body.is_pinned !== "boolean")
-  ) {
-    return "Anonymous and pinned flags must be booleans";
+  if (body.anonymous !== undefined && typeof body.anonymous !== "boolean") {
+    return "Anonymous flag must be a boolean";
   }
   if (body.image_url != null && typeof body.image_url !== "string") {
     return "Image URL must be a string or null";

@@ -209,7 +209,6 @@ describe("PostThread moderation actions", () => {
           title: post.title,
           body: post.body,
           anonymous: true,
-          is_pinned: false,
           image_url: null,
           created_at: post.createdAt,
           updated_at: null,

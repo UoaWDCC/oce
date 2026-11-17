@@ -16,7 +16,6 @@ export interface Post {
   title: string | null;
   body: string | null;
   anonymous: boolean;
-  is_pinned: boolean;
   image_url: string | null;
   created_at: string;
   updated_at: string | null;
@@ -31,7 +30,6 @@ export interface PostListItem {
   title: string | null;
   body: string | null;
   anonymous: boolean;
-  is_pinned: boolean;
   image_url: string | null;
   created_at: string;
   updated_at: string | null;
@@ -57,7 +55,6 @@ export interface CreatePostFields {
   title: string;
   body: string;
   anonymous: boolean;
-  is_pinned: boolean;
   image_url: string | null;
   poll?: CreatePollFields;
 }
@@ -67,7 +64,6 @@ export interface UpdatePostFields {
   title: string;
   body: string;
   anonymous: boolean;
-  is_pinned: boolean;
   image_url: string | null;
   updated_at: string | null;
 }
@@ -77,7 +73,6 @@ export type PostSubmitPayload = {
   body: string;
   postType: PostType;
   anonymous: boolean;
-  isPinned: boolean;
   imageUrl?: string | null;
   poll?: PollSubmitPayload;
 };
@@ -213,7 +208,6 @@ export interface ForumPostPreview {
   types: PostType[];
   tags: string[];
   anonymous?: boolean;
-  isPinned?: boolean;
   isUnread?: boolean;
   isOwnPost?: boolean;
   canDelete?: boolean;

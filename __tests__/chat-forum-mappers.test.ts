@@ -24,7 +24,6 @@ describe("mapPostSubmitPayloadToCreatePostFields", () => {
         body: "Question body",
         postType: POST_TYPE.Question,
         anonymous: true,
-        isPinned: false,
         imageUrl: undefined,
       }),
     ).toEqual({
@@ -32,7 +31,6 @@ describe("mapPostSubmitPayloadToCreatePostFields", () => {
       title: "Question title",
       body: "Question body",
       anonymous: true,
-      is_pinned: false,
       image_url: null,
     });
   });
@@ -44,7 +42,6 @@ describe("mapPostSubmitPayloadToCreatePostFields", () => {
         body: "Post body",
         postType: POST_TYPE.Discussion,
         anonymous: false,
-        isPinned: false,
         imageUrl: "https://example.supabase.co/forum-images/user/image.png",
       }).image_url,
     ).toBe("https://example.supabase.co/forum-images/user/image.png");
@@ -56,7 +53,6 @@ describe("mapPostSubmitPayloadToCreatePostFields", () => {
       body: "Discuss this proposal",
       postType: POST_TYPE.Proposal,
       anonymous: false,
-      isPinned: false,
       poll: {
         question: "Should we proceed?",
         options: ["Yes", "No", "Abstain"],
@@ -343,7 +339,6 @@ describe("mapPostSubmitPayloadToUpdatePostFields", () => {
         body: "Updated body",
         postType: POST_TYPE.Discussion,
         anonymous: false,
-        isPinned: true,
         imageUrl: "https://example.supabase.co/forum-images/user/image.png",
       }).image_url,
     ).toBe("https://example.supabase.co/forum-images/user/image.png");
@@ -356,7 +351,6 @@ describe("mapPostSubmitPayloadToUpdatePostFields", () => {
         body: "Updated body",
         postType: POST_TYPE.Discussion,
         anonymous: false,
-        isPinned: false,
         imageUrl: null,
       }).image_url,
     ).toBeNull();
@@ -387,7 +381,6 @@ describe("mapPostToForumPostPreview", () => {
     title: "Title",
     body: "Body",
     anonymous: false,
-    is_pinned: false,
     image_url: "https://example.supabase.co/forum-images/user/image.png",
     created_at: "2026-07-22T00:00:00.000Z",
     updated_at: null,
@@ -497,7 +490,6 @@ describe("applyUpdatedPostToPreview", () => {
       title: "Old title",
       body: "Old body",
       anonymous: false,
-      is_pinned: false,
       image_url: "https://example.supabase.co/forum-images/user/old.png",
       created_at: "2026-07-22T00:00:00.000Z",
       updated_at: null,
@@ -524,7 +516,6 @@ describe("applyUpdatedPostToPreview", () => {
       title: "New title",
       body: "New body",
       anonymous: true,
-      is_pinned: true,
       image_url: "https://example.supabase.co/forum-images/user/old.png",
       created_at: "2026-07-22T00:00:00.000Z",
       updated_at: "2026-08-13T00:00:00.000Z",
@@ -537,7 +528,6 @@ describe("applyUpdatedPostToPreview", () => {
     expect(preview.excerpt).toBe("New body");
     expect(preview.types).toEqual([POST_TYPE.Discussion]);
     expect(preview.anonymous).toBe(true);
-    expect(preview.isPinned).toBe(true);
     expect(preview.imageUrl).toBe(
       "https://example.supabase.co/forum-images/user/old.png",
     );

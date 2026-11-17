@@ -62,7 +62,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         title: "Hello",
         body: "Post body",
         anonymous: false,
-        is_pinned: true,
         image_url: "https://example.com/image.png",
         created_at: "2026-06-01T00:00:00Z",
         updated_at: null,
@@ -108,7 +107,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
         title: "Hello",
         body: "Post body",
         anonymous: false,
-        is_pinned: true,
         image_url: "https://example.com/image.png",
         created_at: "2026-06-01T00:00:00Z",
         updated_at: null,
@@ -142,7 +140,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
       title: id,
       body: "Post body",
       anonymous: false,
-      is_pinned: false,
       image_url: null,
       created_at: "2026-08-19T10:00:00.000Z",
       updated_at: null,
@@ -230,7 +227,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
             title: "Anonymous post",
             body: "Post body",
             anonymous: true,
-            is_pinned: false,
             image_url: null,
             created_at: "2026-06-01T00:00:00Z",
             updated_at: null,
@@ -272,7 +268,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           title: "Anonymous post",
           body: "Post body",
           anonymous: true,
-          is_pinned: false,
           image_url: null,
           created_at: "2026-06-01T00:00:00Z",
           updated_at: null,
@@ -336,7 +331,6 @@ describe("GET /api/dao-forum/[daoGroupId]/posts", () => {
           title: "Hello",
           body: "Post body",
           anonymous: false,
-          is_pinned: false,
           image_url: null,
           created_at: "2026-06-01T00:00:00Z",
           updated_at: null,
@@ -374,7 +368,6 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       body: "Content",
       post_type: "Announcement",
       anonymous: false,
-      is_pinned: false,
       image_url: null,
     });
     const res = await POST(req, mockParams);
@@ -382,6 +375,22 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
 
     expect(res.status).toBe(201);
     expect(json).toEqual(newPost);
+  });
+
+  it("ignores legacy pin input and omits the database flag from responses", async () => {
+    setMockQueryResult({
+      data: { id: "post-new", title: "New post", is_pinned: true },
+      error: null,
+    });
+    const res = await POST(
+      createMockRequest("POST", { ...defaultPostBody, is_pinned: true }),
+      mockParams,
+    );
+    expect(res.status).toBe(201);
+    expect(await res.json()).not.toHaveProperty("is_pinned");
+    expect(mockSupabase.insert).toHaveBeenCalledWith(
+      expect.objectContaining({ is_pinned: false }),
+    );
   });
 
   it("creates a post and poll atomically through the database function", async () => {
@@ -407,6 +416,7 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
         p_poll_question: "Should we proceed?",
         p_poll_options: ["Yes", "No"],
         p_allow_multiple: false,
+        p_is_pinned: false,
       }),
     );
     expect(mockSupabase.insert).not.toHaveBeenCalled();
@@ -466,7 +476,6 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       body: "",
       post_type: "",
       anonymous: false,
-      is_pinned: false,
       image_url: null,
     });
     const res = await POST(req, mockParams);
@@ -480,7 +489,6 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       body: "test",
       post_type: "Announcement",
       anonymous: false,
-      is_pinned: false,
       image_url: null,
     });
     const res = await POST(req, mockParams);
@@ -494,7 +502,6 @@ describe("POST /api/dao-forum/[daoGroupId]/posts", () => {
       body: "test",
       post_type: "Announcement",
       anonymous: false,
-      is_pinned: false,
       image_url: null,
     });
     const res = await POST(req, mockParams);
@@ -674,7 +681,6 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
     body: "Updated body",
     post_type: "Announcement",
     anonymous: false,
-    is_pinned: false,
     image_url: null,
   };
 
@@ -694,7 +700,6 @@ describe("PATCH /api/dao-forum/[daoGroupId]/posts/[postId]", () => {
   it.each([
     { post_type: "Unknown" },
     { anonymous: "false" },
-    { is_pinned: 1 },
     { image_url: {} },
   ])("rejects invalid post fields %j", async (fields) => {
     const res = await PATCH(

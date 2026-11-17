@@ -189,7 +189,6 @@ export default function PostThread({
             body: post.body,
             postType: post.postType ?? undefined,
             anonymous: post.anonymous,
-            isPinned: post.isPinned,
             imageUrl: post.imageUrl,
           }}
           onCancel={() => setIsEditing(false)}

@@ -20,7 +20,6 @@ export function mapPostSubmitPayloadToCreatePostFields(
     title: payload.title,
     body: payload.body,
     anonymous: payload.anonymous,
-    is_pinned: payload.isPinned,
     image_url: payload.imageUrl ?? null,
     ...(payload.poll
       ? {
@@ -42,7 +41,6 @@ export function mapPostSubmitPayloadToUpdatePostFields(
     title: payload.title,
     body: payload.body,
     anonymous: payload.anonymous,
-    is_pinned: payload.isPinned,
     image_url: payload.imageUrl ?? null,
     // The updated_at field is set to null as the DB will handle the timestamp.
     updated_at: null,
@@ -81,7 +79,6 @@ export function applyUpdatedPostToPreview(
       excerpt: updated.body ?? existing.excerpt,
       types: updated.post_type ? [updated.post_type] : existing.types,
       anonymous: updated.anonymous,
-      isPinned: updated.is_pinned,
       imageUrl: updated.image_url,
       authorId: updated.author_id || existing.authorId,
       authorName: updated.anonymous ? "Anonymous" : existing.authorName,
@@ -134,7 +131,6 @@ export function mapPostToForumPostPreview(
       types: post.post_type ? [post.post_type as PostType] : [],
       tags: post.tags,
       anonymous: post.anonymous,
-      isPinned: post.is_pinned,
       isUnread: post.is_unread,
       imageUrl: post.image_url,
     },
@@ -195,7 +191,6 @@ export function mapForumPostPreviewToThreadPost(
     imageUrl: post.imageUrl,
     viewCount: post.viewCount,
     anonymous: post.anonymous,
-    isPinned: post.isPinned,
     isOwnPost: post.isOwnPost,
     canDelete: post.canDelete,
   };

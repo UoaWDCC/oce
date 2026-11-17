@@ -72,7 +72,7 @@ Use separate author, ordinary member, shaman, other-DAO member, and non-member a
 - Test expected launch data volumes. Feed/search and counts operate on loaded lists without pagination; database row caps may truncate results.
 - Verify the production origin in shared middleware and run a Cloudflare build/preview. A passing Next.js build alone does not validate deployment bindings or live services.
 
-The main UI can display pinned posts, but pin/unpin controls are not exposed. Reporting, bans, moderation history, shaman deletion of individual comments, and automatic incoming updates are outside the implemented feature set.
+Pinning is not part of the forum feature. Posts appear together in newest-first order. The existing database column and poll-RPC argument are retained only for compatibility; server-created values are always false. Reporting, bans, moderation history, shaman deletion of individual comments, and automatic incoming updates are outside the implemented feature set.
 
 ## Local checks
 

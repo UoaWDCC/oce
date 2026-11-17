@@ -441,7 +441,6 @@ paths:
               title: Test post
               body: Testing a DAO forum post
               anonymous: false
-              is_pinned: false
               image_url: null
       responses:
         "201":
@@ -515,7 +514,6 @@ paths:
               title: Updated post
               body: Updated post body
               anonymous: false
-              is_pinned: false
               image_url: null
               updated_at: 2026-05-24T00:00:00.000Z
       responses:
@@ -1615,8 +1613,6 @@ components:
           nullable: true
         anonymous:
           type: boolean
-        is_pinned:
-          type: boolean
         image_url:
           type: string
           nullable: true
@@ -1694,8 +1690,6 @@ components:
           nullable: true
         anonymous:
           type: boolean
-        is_pinned:
-          type: boolean
         image_url:
           type: string
           nullable: true
@@ -1720,7 +1714,6 @@ components:
         - title
         - body
         - anonymous
-        - is_pinned
       properties:
         post_type:
           type: string
@@ -1737,8 +1730,6 @@ components:
           type: string
           description: Formatted content, limited to 350 visible text characters.
         anonymous:
-          type: boolean
-        is_pinned:
           type: boolean
         image_url:
           type: string

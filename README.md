@@ -35,11 +35,12 @@ This repository includes the AI Tutor and DAO Chat Forum developed by the Univer
 
 - A dedicated forum within each linked DAO.
 - Posts, comments and nested replies.
-- Author-only editing and soft deletion.
-- Post categories, search and unread filtering.
+- Author-only editing and deletion of your own posts/comments.
+- Shaman deletion of posts within their DAO, including anonymous posts.
+- A newest-first feed with post categories, search and unread filtering.
 - ENS or wallet-based author labels and optional anonymous posts.
 - Formatted content and image attachments.
-- Comment reactions and sorting.
+- Four comment reaction types, sorting, and reaction/minimum-count filters saved in the URL.
 - Single-choice and multiple-choice polls.
 - Unique-viewer counts and read tracking.
 - Local post drafts and cached data fetching.
@@ -181,7 +182,7 @@ Each forum group links to an existing DAO through `dao_groups.dao_id`. Creating 
 
 The `forum-images` bucket supports JPEG, PNG, GIF and WebP files up to 5 MB.
 
-Uploads use user-specific folders. The supplied bucket configuration allows public reads, so uploaded image URLs are not restricted by DAO membership.
+Uploads use folders containing the uploader's user ID. The supplied bucket configuration allows public reads, so uploaded image URLs are not restricted by DAO membership and can identify the uploader. Anonymous post responses hide the author ID, but this does not make attached images anonymous or private.
 
 ### Accessing the Features
 
@@ -314,7 +315,7 @@ Reactions support `heart`, `thumbs_up`, `fire` and `thumbs_down`.
 
 Comment sorts are `latest`, `oldest` and `most_reacted`. The latter uses the combined count of all reaction types. Reply filters support reaction type and minimum count, retain necessary ancestors, and persist the view in the URL.
 
-Polls support single or multiple selections. Updating a vote replaces the user's previous selections. Forum polls are stored in Supabase and are separate from on-chain governance proposals.
+Polls support single or multiple selections. Updating a vote replaces the user's previous selections. Existing poll questions/options cannot be edited. Forum polls are stored in Supabase and are separate from on-chain governance proposals.
 
 View tracking records one entry per user and post. New comments after the user's last view make the post unread again.
 
@@ -451,11 +452,14 @@ Use a prepared development database and separate test accounts.
 - Create a post, comment and nested reply.
 - Edit and delete your own content.
 - Verify another account cannot modify it.
-- Add and remove reactions.
+- As a shaman, delete another author's regular and anonymous posts in your DAO; verify you cannot edit them or moderate another DAO's posts.
+- Add/remove reactions and combine sort, reaction type and minimum-count filters. Check nested replies, deleted ancestors, empty results, URL refresh and back/forward.
 - Create a poll, vote and update the selection.
 - Upload an image.
 - Check search, unread state and view counts.
 - Verify access with accounts from different DAOs.
+
+For handover, record the tested commit SHA, environment/URL, date, account roles, flows covered and results. Record any untested cases separately; a successful UI journey does not establish direct Supabase access-policy or image-privacy guarantees. See [forum setup and acceptance](docs/dao-forum-database.md) for the full checklist and [deferred work](docs/dao-forum-cleanup.md) for outstanding items.
 
 ## Deployment
 
@@ -531,6 +535,9 @@ After deployment, verify authentication, streaming, persistence, forum operation
 - Forum changes are loaded through requests rather than live subscriptions.
 - Forum post lists are not paginated; search filters loaded posts.
 - Post drafts are browser-local and do not synchronise between devices.
+- Anonymous post responses do not guarantee anonymous/private images or direct database access.
+- Complete DAO membership synchronization and database-policy verification depend on OCE's existing integration.
+- Existing poll questions/options cannot be edited; users can change their votes.
 - Usage allowance is an estimate rather than a billing measurement.
 
 ## Documentation and Contributing

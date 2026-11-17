@@ -4,7 +4,7 @@ import type {
   ForumPostPreview,
   Post,
   PostSubmitPayload,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 /**
  * Orchestration for DAO forum composer submissions (ticket #122).

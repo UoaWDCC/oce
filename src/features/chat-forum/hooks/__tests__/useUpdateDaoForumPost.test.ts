@@ -7,7 +7,7 @@ import type {
   Post,
   PostSubmitPayload,
   UpdatePostFields,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 vi.mock("../../services", () => ({
   updateForumPost: vi.fn(),

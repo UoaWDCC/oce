@@ -13,7 +13,6 @@ export const defaultPostBody = {
   body: "Content",
   post_type: "Announcement",
   anonymous: false,
-  is_pinned: false,
   image_url: null,
 };
 

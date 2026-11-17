@@ -4,7 +4,7 @@ import { useDaoForumComments } from "../useDaoForumComments";
 import { getPostComments } from "../../services";
 import { onlineManager, QueryClient } from "@tanstack/react-query";
 import { createTestQueryClient, createWrapper } from "./queryTestUtils";
-import type { FormattedComment } from "@app-types/dao-forum";
+import type { FormattedComment } from "@/features/chat-forum/contracts";
 import { DEFAULT_COMMENT_FILTER } from "../../lib/commentReactions";
 import type { ForumCommentFilter } from "../../types";
 

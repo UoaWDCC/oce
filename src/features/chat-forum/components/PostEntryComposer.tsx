@@ -1,30 +1,31 @@
 "use client";
 
+import { classNames } from "../lib/classNames";
+
 import React, { useEffect, useRef, useState } from "react";
 import { X, BarChart3, Plus, Trash2 } from "lucide-react";
 import {
   POST_TYPE,
   type PostSubmitPayload,
   type PostType,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import ForumEntryComposer from "./ForumEntryComposer";
 import { usePostDraft } from "@/features/chat-forum/hooks/usePostDraft";
-import { CONTENT_LIMITS } from "../../features/chat-forum/lib/contentLimits";
-import { useCharacterCount } from "../../features/chat-forum/hooks/useCharacterCount";
+import { CONTENT_LIMITS } from "../lib/contentLimits";
+import { useCharacterCount } from "../hooks/useCharacterCount";
 import { CharacterCounter } from "./CharacterCounter";
 import { POLL_LIMITS } from "@/features/chat-forum/polls";
 import {
   POST_TYPES_IN_ORDER,
   POST_TYPE_PRESENTATION,
 } from "@/features/chat-forum/postTypePresentation";
-import type { PollSubmitPayload } from "@app-types/dao-forum";
+import type { PollSubmitPayload } from "@/features/chat-forum/contracts";
 
 export type PostComposerInitialValues = {
   title?: string;
   body?: string;
   postType?: PostType;
   anonymous?: boolean;
-  isPinned?: boolean;
   imageUrl?: string | null;
 };
 
@@ -36,17 +37,12 @@ export type PostEntryComposerProps = {
   onCancel?: () => void;
   onClose?: () => void;
   showAnonymousToggle?: boolean;
-  showPinnedToggle?: boolean;
   disabled?: boolean;
   className?: string;
   mode?: "create" | "edit";
   initialValues?: PostComposerInitialValues;
   onSubmittingChange?: (isSubmitting: boolean) => void;
 };
-
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function PostEntryComposer({
   userId,
@@ -56,7 +52,6 @@ export default function PostEntryComposer({
   onCancel,
   onClose,
   showAnonymousToggle = true,
-  showPinnedToggle = false,
   disabled = false,
   className = "",
   mode = "create",
@@ -78,7 +73,6 @@ export default function PostEntryComposer({
     initialValues?.postType ?? POST_TYPE.Discussion,
   );
   const [anonymous, setAnonymous] = useState(initialValues?.anonymous ?? false);
-  const [isPinned, setIsPinned] = useState(initialValues?.isPinned ?? false);
   const [pollEnabled, setPollEnabled] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
@@ -106,7 +100,6 @@ export default function PostEntryComposer({
     setBody(draft?.body ?? "");
     setPostType(savedPostType);
     setAnonymous(draft?.anonymous ?? false);
-    setIsPinned(draft?.isPinned ?? false);
     setPollEnabled(Boolean(draft?.poll));
     setPollQuestion(draft?.poll?.question ?? "");
     setPollOptions(draft?.poll?.options ?? ["", ""]);
@@ -118,7 +111,6 @@ export default function PostEntryComposer({
     body?: string;
     postType?: PostType;
     anonymous?: boolean;
-    isPinned?: boolean;
     poll?: PollSubmitPayload | null;
   }) => {
     if (isEditMode) return;
@@ -127,7 +119,6 @@ export default function PostEntryComposer({
       body: updates.body ?? body,
       postType: updates.postType ?? postType,
       anonymous: updates.anonymous ?? anonymous,
-      isPinned: updates.isPinned ?? isPinned,
       imageUrl: draft?.imageUrl,
       poll:
         updates.poll === null
@@ -201,31 +192,25 @@ export default function PostEntryComposer({
       };
     }
 
-    try {
-      await onSubmit({
-        title: title.trim(),
-        body: data.body,
-        postType,
-        anonymous,
-        isPinned,
-        imageUrl: data.imageUrl,
-        poll,
-      });
+    await onSubmit({
+      title: title.trim(),
+      body: data.body,
+      postType,
+      anonymous,
+      imageUrl: data.imageUrl,
+      poll,
+    });
 
-      if (!isEditMode) {
-        clearDraft();
-        setTitle("");
-        setBody("");
-        setPostType(POST_TYPE.Discussion);
-        setAnonymous(false);
-        setIsPinned(false);
-        setPollEnabled(false);
-        setPollQuestion("");
-        setPollOptions(["", ""]);
-        setAllowMultiple(false);
-      }
-    } catch (err) {
-      throw err;
+    if (!isEditMode) {
+      clearDraft();
+      setTitle("");
+      setBody("");
+      setPostType(POST_TYPE.Discussion);
+      setAnonymous(false);
+      setPollEnabled(false);
+      setPollQuestion("");
+      setPollOptions(["", ""]);
+      setAllowMultiple(false);
     }
   };
 
@@ -357,39 +342,21 @@ export default function PostEntryComposer({
           </div>
         </div>
 
-        {(showAnonymousToggle || showPinnedToggle) && (
+        {showAnonymousToggle && (
           <div className="flex flex-wrap gap-4">
-            {showAnonymousToggle && (
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={anonymous}
-                  onChange={(e) => {
-                    setAnonymous(e.target.checked);
-                    persistDraft({ anonymous: e.target.checked });
-                  }}
-                  disabled={disabled}
-                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                />
-                Post anonymously
-              </label>
-            )}
-
-            {showPinnedToggle && (
-              <label className="flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  checked={isPinned}
-                  onChange={(e) => {
-                    setIsPinned(e.target.checked);
-                    persistDraft({ isPinned: e.target.checked });
-                  }}
-                  disabled={disabled}
-                  className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                />
-                Pin post
-              </label>
-            )}
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={anonymous}
+                onChange={(e) => {
+                  setAnonymous(e.target.checked);
+                  persistDraft({ anonymous: e.target.checked });
+                }}
+                disabled={disabled}
+                className="h-4 w-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500"
+              />
+              Post anonymously
+            </label>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import type { CreatePollFields } from "@app-types/dao-forum";
+import type { CreatePollFields } from "@/features/chat-forum/contracts";
 
 export const POLL_LIMITS = {
   MIN_OPTIONS: 2,

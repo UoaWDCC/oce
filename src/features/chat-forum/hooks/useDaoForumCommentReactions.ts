@@ -7,7 +7,7 @@ import type {
   ReactionCounts,
   ReactionType,
   UserReactions,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 type OptimisticCommentReactions = {
   reactionCounts: ReactionCounts;
@@ -60,7 +60,7 @@ export function useDaoForumCommentReactions(
     setError(null);
   }, [daoGroupId, postId, currentUserId]);
 
-  const patchCommentInAllSorts = useCallback(
+  const patchCachedCommentReactions = useCallback(
     (commentId: string, patch: OptimisticCommentReactions) => {
       queryClient.setQueriesData<ForumCommentPreview[]>(
         { queryKey: forumKeys.commentsAll(daoGroupId, postId, currentUserId) },
@@ -121,7 +121,7 @@ export function useDaoForumCommentReactions(
 
       optimisticRef.current = { ...optimisticRef.current, [commentId]: next };
       setOptimisticState((previous) => ({ ...previous, [commentId]: next }));
-      patchCommentInAllSorts(commentId, next);
+      patchCachedCommentReactions(commentId, next);
 
       const previousRequest =
         requestQueuesRef.current[commentId] ?? Promise.resolve();
@@ -152,7 +152,7 @@ export function useDaoForumCommentReactions(
                 ...previous,
                 [commentId]: current,
               }));
-              patchCommentInAllSorts(commentId, current);
+              patchCachedCommentReactions(commentId, current);
               stateToClear = current;
             }
             setError(
@@ -190,7 +190,7 @@ export function useDaoForumCommentReactions(
       daoGroupId,
       postId,
       currentUserId,
-      patchCommentInAllSorts,
+      patchCachedCommentReactions,
       clearOptimisticState,
     ],
   );

@@ -10,7 +10,6 @@ const payload = {
   body: "Updated body",
   postType: POST_TYPE.Discussion,
   anonymous: false,
-  isPinned: false,
   imageUrl: "https://example.supabase.co/forum-images/user/image.png",
 };
 
@@ -22,7 +21,6 @@ const updatedPost: Post = {
   title: "Updated",
   body: "Updated body",
   anonymous: false,
-  is_pinned: false,
   image_url: payload.imageUrl,
   created_at: "2026-07-22T00:00:00.000Z",
   updated_at: "2026-08-13T00:00:00.000Z",

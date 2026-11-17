@@ -1,19 +1,17 @@
 "use client";
 
+import { classNames } from "../lib/classNames";
+
 import React from "react";
 import { Bold, Italic, Underline, List } from "lucide-react";
 
-export type FormatType = "bold" | "italic" | "underline" | "bullet";
+import type { FormatType } from "../lib/editorFormats";
 
 type FormattingToolbarProps = {
   onFormat: (type: FormatType) => void;
   activeFormats?: FormatType[];
   disabled?: boolean;
 };
-
-function classNames(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function FormattingToolbar({
   onFormat,

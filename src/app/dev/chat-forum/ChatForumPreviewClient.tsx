@@ -3,7 +3,7 @@
 import { StudentAvatar } from "@/components/common";
 import { Timestamp } from "@/components/common/StudentAvatar";
 import { useState, type ReactNode } from "react";
-import PostCard from "@/components/dao-forum/Post";
+import PostCard from "@/features/chat-forum/components/PostCard";
 import {
   POST_TYPE,
   type CommentSubmitPayload,
@@ -12,8 +12,8 @@ import {
   type PostSubmitPayload,
   type ReactionType,
 } from "@app-types/dao-forum";
-import CommentEntryComposer from "@/components/dao-forum/CommentEntryComposer";
-import PostEntryComposer from "@/components/dao-forum/PostEntryComposer";
+import CommentEntryComposer from "@/features/chat-forum/components/CommentEntryComposer";
+import PostEntryComposer from "@/features/chat-forum/components/PostEntryComposer";
 import { ForumPanel } from "@/features/chat-forum";
 import type {
   ForumCommentFilter,
@@ -235,7 +235,6 @@ export default function ChatForumPreviewClient() {
       viewCount: 0,
       types: [payload.postType],
       tags: [],
-      isPinned: payload.isPinned,
     };
     setForumPanelPosts((prev) => [newPost, ...prev]);
   };

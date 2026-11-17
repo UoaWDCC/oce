@@ -3,12 +3,12 @@ import type {
   ReactionCounts,
   ReactionType,
   UserReactions,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 export type {
   ForumCommentPreview,
   ForumPostPreview,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 export type ForumThreadSort = "oldest" | "latest" | "most_reacted";
 
@@ -41,7 +41,6 @@ export type ForumThreadPost = {
   statusLabel?: string;
   imageUrl?: string | null;
   anonymous?: boolean;
-  isPinned?: boolean;
   isOwnPost?: boolean;
   canDelete?: boolean;
 };

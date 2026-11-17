@@ -1,7 +1,7 @@
 import type {
   ForumCommentPreview,
   ForumPostPreview,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 import type { ForumThreadComment, ForumThreadPost } from "./types";
 
 export const mockForumPostPreviews: ForumPostPreview[] = [
@@ -20,7 +20,6 @@ export const mockForumPostPreviews: ForumPostPreview[] = [
     viewCount: 18,
     types: ["Announcement"],
     tags: ["Governance"],
-    isPinned: true,
   },
   {
     id: "forum-post-proposal",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ReactionCounts } from "@app-types/dao-forum";
+import type { ReactionCounts } from "@/features/chat-forum/contracts";
 import {
   compareComments,
   filterCommentsWithAncestors,

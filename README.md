@@ -35,11 +35,12 @@ This repository includes the AI Tutor and DAO Chat Forum developed by the Univer
 
 - A dedicated forum within each linked DAO.
 - Posts, comments and nested replies.
-- Author-only editing and soft deletion.
-- Post categories, pinned posts, search and unread filtering.
+- Author-only editing and deletion of your own posts/comments.
+- Shaman deletion of posts within their DAO, including anonymous posts.
+- A newest-first feed with post categories, search and unread filtering.
 - ENS or wallet-based author labels and optional anonymous posts.
 - Formatted content and image attachments.
-- Comment reactions and sorting.
+- Four comment reaction types, sorting, and reaction/minimum-count filters saved in the URL.
 - Single-choice and multiple-choice polls.
 - Unique-viewer counts and read tracking.
 - Local post drafts and cached data fetching.
@@ -181,7 +182,7 @@ Each forum group links to an existing DAO through `dao_groups.dao_id`. Creating 
 
 The `forum-images` bucket supports JPEG, PNG, GIF and WebP files up to 5 MB.
 
-Uploads use user-specific folders. The supplied bucket configuration allows public reads, so uploaded image URLs are not restricted by DAO membership.
+Uploads use folders containing the uploader's user ID. The supplied bucket configuration allows public reads, so uploaded image URLs are not restricted by DAO membership and can identify the uploader. Anonymous post responses hide the author ID, but this does not make attached images anonymous or private.
 
 ### Accessing the Features
 
@@ -192,24 +193,24 @@ Development preview pages are available at `/dev/chatbot` and `/dev/chat-forum`.
 
 ## Project Structure
 
-| Path                           | Purpose                                                      |
-| ------------------------------ | ------------------------------------------------------------ |
-| `src/app/`                     | Application pages, layouts and API routes                    |
-| `src/app/api/ai-tutor/`        | AI chat, conversations, favourites, usage and tutor requests |
-| `src/app/api/dao-forum/`       | Forum posts, comments and polls                              |
-| `src/app/api/comments/`        | Comment actions and reactions                                |
-| `src/features/chatbot/`        | AI Tutor components, hooks, state and API clients            |
-| `src/features/chatbot/server/` | Tutor instructions, page knowledge and context selection     |
-| `src/features/chat-forum/`     | Forum queries, mutations, mapping and thread views           |
-| `src/features/tutorRequest/`   | Student tutor-request interface                              |
-| `src/components/dao-forum/`    | Shared forum components and composers                        |
-| `src/llm/`                     | AI provider interface, factory and implementations           |
-| `src/utils/supabase/`          | Supabase browser and server clients                          |
-| `src/utils/authHelper.ts`      | Authentication and role helpers                              |
-| `src/lib/queryClient.tsx`      | React Query configuration                                    |
-| `supabase/migrations/`         | Incremental database changes                                 |
-| `__tests__/`                   | API, component and behaviour tests                           |
-| `docs/`                        | Development guides and API documentation                     |
+| Path                                  | Purpose                                                      |
+| ------------------------------------- | ------------------------------------------------------------ |
+| `src/app/`                            | Application pages, layouts and API routes                    |
+| `src/app/api/ai-tutor/`               | AI chat, conversations, favourites, usage and tutor requests |
+| `src/app/api/dao-forum/`              | Forum posts, comments and polls                              |
+| `src/app/api/comments/`               | Comment actions and reactions                                |
+| `src/features/chatbot/`               | AI Tutor components, hooks, state and API clients            |
+| `src/features/chatbot/server/`        | Tutor instructions, page knowledge and context selection     |
+| `src/features/chat-forum/`            | Forum queries, mutations, mapping and thread views           |
+| `src/features/tutorRequest/`          | Student tutor-request interface                              |
+| `src/features/chat-forum/components/` | Forum UI and composers                                       |
+| `src/llm/`                            | AI provider interface, factory and implementations           |
+| `src/utils/supabase/`                 | Supabase browser and server clients                          |
+| `src/utils/authHelper.ts`             | Authentication and role helpers                              |
+| `src/lib/queryClient.tsx`             | React Query configuration                                    |
+| `supabase/migrations/`                | Incremental database changes                                 |
+| `__tests__/`                          | API, component and behaviour tests                           |
+| `docs/`                               | Development guides and API documentation                     |
 
 Additional tests are colocated within feature directories.
 
@@ -297,7 +298,7 @@ The DAO page resolves a forum group UUID and passes it to the forum module. Auth
 
 React Query manages cached results and refreshes after mutations. Cache keys include relevant group, thread, sort and user context. Reaction updates are optimistic and reconciled with the server.
 
-The forum currently uses request-based loading rather than live subscriptions.
+The forum currently uses request-based loading rather than live subscriptions. See [forum setup and acceptance](docs/dao-forum-database.md) and the [cleanup record/deferred work](docs/dao-forum-cleanup.md) for current structure, database prerequisites, and verification limits.
 
 #### Content and Activity
 
@@ -305,16 +306,16 @@ The forum currently uses request-based loading rather than live subscriptions.
 - Search matches loaded post titles and content.
 - Comments use `parent_comment_id` for threaded replies.
 - Editing remains author-only. Posts may also be deleted by a shaman of that DAO, including anonymous posts. Comment deletion remains author-only.
-- Soft deletion uses `deleted_at`.
+- Soft deletion uses `deleted_at`; normal single-post reads and edits exclude deleted posts.
 - Deleted parent comments may retain placeholders where replies remain.
 - Author labels prefer ENS names, falling back to wallet addresses.
-- Post drafts are stored locally per user and DAO.
+- Post text/poll drafts are stored locally per user and DAO. Selected image files are not restored after reload.
 
 Reactions support `heart`, `thumbs_up`, `fire` and `thumbs_down`.
 
-Comment sorts are `latest`, `oldest` and `most_likes`. The latter uses the combined count of all reaction types.
+Comment sorts are `latest`, `oldest` and `most_reacted`. The latter uses the combined count of all reaction types. Reply filters support reaction type and minimum count, retain necessary ancestors, and persist the view in the URL.
 
-Polls support single or multiple selections. Updating a vote replaces the user's previous selections. Forum polls are stored in Supabase and are separate from on-chain governance proposals.
+Polls support single or multiple selections. Updating a vote replaces the user's previous selections. Existing poll questions/options cannot be edited. Forum polls are stored in Supabase and are separate from on-chain governance proposals.
 
 View tracking records one entry per user and post. New comments after the user's last view make the post unread again.
 
@@ -451,11 +452,14 @@ Use a prepared development database and separate test accounts.
 - Create a post, comment and nested reply.
 - Edit and delete your own content.
 - Verify another account cannot modify it.
-- Add and remove reactions.
+- As a shaman, delete another author's regular and anonymous posts in your DAO; verify you cannot edit them or moderate another DAO's posts.
+- Add/remove reactions and combine sort, reaction type and minimum-count filters. Check nested replies, deleted ancestors, empty results, URL refresh and back/forward.
 - Create a poll, vote and update the selection.
 - Upload an image.
 - Check search, unread state and view counts.
 - Verify access with accounts from different DAOs.
+
+For handover, record the tested commit SHA, environment/URL, date, account roles, flows covered and results. Record any untested cases separately; a successful UI journey does not establish direct Supabase access-policy or image-privacy guarantees. See [forum setup and acceptance](docs/dao-forum-database.md) for the full checklist and [deferred work](docs/dao-forum-cleanup.md) for outstanding items.
 
 ## Deployment
 
@@ -531,6 +535,9 @@ After deployment, verify authentication, streaming, persistence, forum operation
 - Forum changes are loaded through requests rather than live subscriptions.
 - Forum post lists are not paginated; search filters loaded posts.
 - Post drafts are browser-local and do not synchronise between devices.
+- Anonymous post responses do not guarantee anonymous/private images or direct database access.
+- Complete DAO membership synchronization and database-policy verification depend on OCE's existing integration.
+- Existing poll questions/options cannot be edited; users can change their votes.
 - Usage allowance is an estimate rather than a billing measurement.
 
 ## Documentation and Contributing

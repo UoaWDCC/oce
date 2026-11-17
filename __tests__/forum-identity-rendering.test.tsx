@@ -8,13 +8,13 @@ import type {
   ForumPostPreview,
 } from "@app-types/dao-forum";
 
-vi.mock("@/components/dao-forum/NewPostDialog", () => ({
+vi.mock("@/features/chat-forum/components/NewPostDialog", () => ({
   default: () => null,
 }));
-vi.mock("@/components/dao-forum/CommentEntryComposer", () => ({
+vi.mock("@/features/chat-forum/components/CommentEntryComposer", () => ({
   default: () => null,
 }));
-vi.mock("@/components/dao-forum/PostEntryComposer", () => ({
+vi.mock("@/features/chat-forum/components/PostEntryComposer", () => ({
   default: () => null,
 }));
 vi.mock("@/features/chat-forum/hooks/useDaoForumPoll", () => ({

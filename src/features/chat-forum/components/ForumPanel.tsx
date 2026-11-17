@@ -12,8 +12,8 @@ import {
   Search,
   Tag as TagIcon,
 } from "lucide-react";
-import PostCard from "@/components/dao-forum/Post";
-import NewPostDialog from "@/components/dao-forum/NewPostDialog";
+import PostCard from "@/features/chat-forum/components/PostCard";
+import NewPostDialog from "@/features/chat-forum/components/NewPostDialog";
 import PostThread from "./PostThread";
 import {
   buildForumThreadComments,
@@ -29,7 +29,7 @@ import type {
   PostSubmitPayload,
   PostType,
   ReactionType,
-} from "@app-types/dao-forum";
+} from "@/features/chat-forum/contracts";
 
 type ForumPanelProps = {
   daoGroupId: string;
@@ -188,8 +188,6 @@ export default function ForumPanel({
     });
   }, [ownedPosts, postType, query, unreadOnly]);
 
-  const pinnedPosts = filteredPosts.filter((post) => post.isPinned);
-  const regularPosts = filteredPosts.filter((post) => !post.isPinned);
   const selectedPost = ownedPosts.find((post) => post.id === selectedPostId);
   const selectedComments = useMemo(
     () => comments.filter((comment) => comment.postId === selectedPostId),
@@ -467,33 +465,13 @@ export default function ForumPanel({
           </div>
         ) : postsState.isBlockingError ? null : (
           <>
-            {pinnedPosts.length > 0 && (
-              <section className="mb-7" aria-labelledby="pinned-posts-heading">
-                <h2
-                  id="pinned-posts-heading"
-                  className="mb-3 text-sm font-bold uppercase tracking-wider text-purple-600"
-                >
-                  Pinned
-                </h2>
-                <div className="space-y-4 rounded-2xl bg-purple-100/50 p-3">
-                  {pinnedPosts.map((post) => (
-                    <PostPreview
-                      key={post.id}
-                      post={post}
-                      onSelect={() => selectPost(post.id)}
-                    />
-                  ))}
-                </div>
-              </section>
-            )}
-
             <section aria-labelledby="forum-posts-heading">
               <h2 id="forum-posts-heading" className="sr-only">
                 Forum posts
               </h2>
-              {regularPosts.length > 0 ? (
+              {filteredPosts.length > 0 ? (
                 <div className="space-y-4">
-                  {regularPosts.map((post) => (
+                  {filteredPosts.map((post) => (
                     <PostPreview
                       key={post.id}
                       post={post}

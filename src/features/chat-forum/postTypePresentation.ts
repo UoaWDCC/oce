@@ -6,7 +6,7 @@ import {
   MessageCircle,
   type LucideIcon,
 } from "lucide-react";
-import { POST_TYPE, type PostType } from "@app-types/dao-forum";
+import { POST_TYPE, type PostType } from "@/features/chat-forum/contracts";
 
 /**
  * Single source of truth for how each post type is presented across the forum.

@@ -16,7 +16,7 @@ import {
   normalizePostTitle,
   trimTrailingEmptyParagraphs,
   forumContentToPlainText,
-} from "@/utils/forumContent";
+} from "@/features/chat-forum/lib/content";
 import type { CreatePostFields, PostListItem } from "@app-types/dao-forum";
 import { NextRequest, NextResponse } from "next/server";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";

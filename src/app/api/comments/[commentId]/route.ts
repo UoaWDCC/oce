@@ -8,7 +8,7 @@ import {
   hasMeaningfulForumContent,
   trimTrailingEmptyParagraphs,
   forumContentToPlainText,
-} from "@/utils/forumContent";
+} from "@/features/chat-forum/lib/content";
 import { CONTENT_LIMITS } from "@/features/chat-forum/lib/contentLimits";
 import type { UpdateCommentFields } from "@app-types/dao-forum";
 

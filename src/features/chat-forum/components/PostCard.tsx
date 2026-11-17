@@ -6,7 +6,7 @@ import React from "react";
 import { Eye, MessageCircle } from "lucide-react";
 import Tag from "./Tag";
 import StudentAvatar, { Timestamp } from "@/components/common/StudentAvatar";
-import { forumContentToPlainText } from "@/utils/forumContent";
+import { forumContentToPlainText } from "@/features/chat-forum/lib/content";
 import type { PostType } from "@/features/chat-forum/contracts";
 export type PostCardProps = {
   title: string;

@@ -5,7 +5,7 @@ import { classNames } from "../lib/classNames";
 import React from "react";
 import { Bold, Italic, Underline, List } from "lucide-react";
 
-export type FormatType = "bold" | "italic" | "underline" | "bullet";
+import type { FormatType } from "../lib/editorFormats";
 
 type FormattingToolbarProps = {
   onFormat: (type: FormatType) => void;

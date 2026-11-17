@@ -28,9 +28,16 @@ Removed the unused `getOnePost` client wrapper (the documented API route remains
 
 Validation: full Vitest suite, lint/format, production build, and TypeScript before commit.
 
+## 5. Editor/content boundary
+
+Moved selection tracking, formatting, paste handling, content hydration, and clearing into `useForumEditor`. The toolbar and hook share a canonical format type/command map. Forum content normalization now lives under the feature; the old utility path remains a compatibility re-export. Added interaction coverage for editing existing content, draft changes, formatted submission, failed-save retention, all toolbar commands, and plain-text paste.
+
+Validation: editor interaction tests plus the full suite, lint/format, production build, and TypeScript before commit.
+
+Deferred: replacing `document.execCommand`/`queryCommandState` and introducing a new editor document format. That is a separate migration needing browser selection/undo, touch/keyboard, paste, sanitization, and existing-content compatibility testing. This cleanup isolates those APIs but deliberately retains their behavior and the existing sanitized display renderer. It is not a new storage sanitizer or a cross-browser acceptance result.
+
 ## Remaining steps
 
-5. Consolidate editor commands/content handling; defer a full editor replacement if it needs new dependencies or extensive interaction testing.
 6. Update forum API/setup documentation and record remaining database/privacy/deployment work. Remove only forum-owned development residue; leave shared repository cleanup out of this branch.
 
 ## Verification limits

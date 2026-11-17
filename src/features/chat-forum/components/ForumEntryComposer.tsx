@@ -7,18 +7,12 @@ import { Paperclip, X, Loader2, ImageIcon } from "lucide-react";
 import {
   forumContentToPlainText,
   hasMeaningfulForumContent,
-} from "@/utils/forumContent";
+} from "@/features/chat-forum/lib/content";
 import { useForumImageUpload } from "@/features/chat-forum/hooks/useForumImageUpload";
-import FormattingToolbar, { type FormatType } from "./FormattingToolbar";
+import FormattingToolbar from "./FormattingToolbar";
+import { useForumEditor } from "../hooks/useForumEditor";
 import { useCharacterCount } from "../hooks/useCharacterCount";
 import { CharacterCounter } from "./CharacterCounter";
-
-const FORMAT_COMMANDS: Record<FormatType, string> = {
-  bold: "bold",
-  italic: "italic",
-  underline: "underline",
-  bullet: "insertUnorderedList",
-};
 
 export type ForumEntryComposerProps = {
   onChange?: (value: string) => void;
@@ -57,7 +51,16 @@ export default function ForumEntryComposer({
   initialImageUrl = null,
   onSubmittingChange,
 }: ForumEntryComposerProps) {
-  const [body, setBody] = useState(initialBody);
+  const {
+    body,
+    editorRef,
+    activeFormats,
+    applyFormat,
+    handleEditorInput,
+    handlePaste,
+    updateActiveFormats,
+    clearEditor,
+  } = useForumEditor(initialBody, autoFocus, onChange);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [retainedImageUrl, setRetainedImageUrl] = useState<string | null>(
     initialImageUrl,
@@ -83,8 +86,6 @@ export default function ForumEntryComposer({
     validateFile,
     clearError: clearUploadError,
   } = useForumImageUpload();
-  const [activeFormats, setActiveFormats] = useState<FormatType[]>([]);
-  const editorRef = useRef<HTMLDivElement>(null);
 
   const clearSelectedImage = useCallback(() => {
     if (imagePreviewRef.current) {
@@ -99,90 +100,13 @@ export default function ForumEntryComposer({
   }, []);
 
   const clear = useCallback(() => {
-    setBody("");
-    setActiveFormats([]);
-    if (editorRef.current) {
-      editorRef.current.innerHTML = "";
-    }
+    clearEditor();
     clearSelectedImage();
     setRetainedImageUrl(null);
     setError(null);
     setValidationError(null);
     clearUploadError();
-  }, [clearSelectedImage, clearUploadError]);
-
-  const updateActiveFormats = useCallback(() => {
-    const editor = editorRef.current;
-    const selection = document.getSelection();
-
-    if (
-      !editor ||
-      !selection?.anchorNode ||
-      !editor.contains(selection.anchorNode)
-    ) {
-      setActiveFormats([]);
-      return;
-    }
-
-    const nextFormats = (Object.keys(FORMAT_COMMANDS) as FormatType[]).filter(
-      (type) => document.queryCommandState(FORMAT_COMMANDS[type]),
-    );
-
-    setActiveFormats((currentFormats) =>
-      currentFormats.length === nextFormats.length &&
-      currentFormats.every((format, index) => format === nextFormats[index])
-        ? currentFormats
-        : nextFormats,
-    );
-  }, []);
-
-  useEffect(() => {
-    document.addEventListener("selectionchange", updateActiveFormats);
-    return () =>
-      document.removeEventListener("selectionchange", updateActiveFormats);
-  }, [updateActiveFormats]);
-
-  const applyFormat = (type: FormatType) => {
-    const editor = editorRef.current;
-    if (!editor) return;
-
-    editor.focus();
-    document.execCommand(FORMAT_COMMANDS[type]);
-    const nextBody = editor.innerHTML;
-    setBody(nextBody);
-    onChange?.(nextBody);
-    updateActiveFormats();
-  };
-
-  const handleEditorInput = () => {
-    const nextBody = editorRef.current?.innerHTML ?? "";
-    setBody(nextBody);
-    onChange?.(nextBody);
-    updateActiveFormats();
-  };
-
-  const handlePaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    document.execCommand(
-      "insertText",
-      false,
-      event.clipboardData.getData("text/plain"),
-    );
-    handleEditorInput();
-  };
-
-  useEffect(() => {
-    if (autoFocus) {
-      editorRef.current?.focus();
-    }
-  }, [autoFocus]);
-
-  useEffect(() => {
-    const editor = editorRef.current;
-    if (!editor || initialBody === editor.innerHTML) return;
-    setBody(initialBody);
-    editor.innerHTML = initialBody;
-  }, [initialBody]);
+  }, [clearEditor, clearSelectedImage, clearUploadError]);
 
   useEffect(() => {
     return () => {

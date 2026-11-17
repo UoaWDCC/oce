@@ -415,16 +415,19 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PostListItem"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "500":
           $ref: "#/components/responses/InternalServerError"
+      security: &a1
+        - bearerAuth: []
+      description: Returns live posts with counts, unread state, anonymous-author redaction and can_delete capability. DAO read access is enforced by the configured database policies. Lists are not paginated.
     post:
       tags:
         - DAO Forum
       summary: Create a post in a DAO forum group
       operationId: createDaoForumPost
-      description: >
-        Uses the current Supabase cookie-backed session in the route code.
-        The user must be a member of the DAO group.
+      description: Authenticates a Bearer token and checks DAO membership. Optional poll creation is atomic through create_forum_post_with_poll. Anonymous responses redact author_id. JSON must be an object; invalid field types return 400 and content/poll validation failures return 422.
       parameters:
         - $ref: "#/components/parameters/DaoGroupId"
       requestBody:
@@ -459,9 +462,15 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Content or poll validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
+      security: *a1
   /api/dao-forum/{daoGroupId}/posts/{postId}:
     get:
       tags:
@@ -478,18 +487,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Post"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
+      security: *a1
+      description: Returns a non-deleted post subject to database read policies. Anonymous author_id is null; is_own_post preserves ownership without exposing identity.
     patch:
       tags:
         - DAO Forum
       summary: Update one DAO forum post
       operationId: updateDaoForumPost
-      description: >
-        Uses the current Supabase cookie-backed session in the route code.
-        The route only updates posts authored by the current user.
+      description: Authors may edit their own live posts. Shaman status does not grant editing rights. Existing polls cannot be edited through this route. Invalid JSON objects or field types return 400; content limit failures return 422.
       parameters:
         - $ref: "#/components/parameters/DaoGroupId"
         - $ref: "#/components/parameters/PostId"
@@ -506,7 +517,7 @@ paths:
               anonymous: false
               is_pinned: false
               image_url: null
-              updated_at: "2026-05-24T00:00:00.000Z"
+              updated_at: 2026-05-24T00:00:00.000Z
       responses:
         "200":
           description: Updated post
@@ -518,23 +529,26 @@ paths:
           $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "422":
+          description: Content validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "500":
           $ref: "#/components/responses/InternalServerError"
+      security: *a1
     delete:
       tags:
         - DAO Forum
       summary: Soft delete one DAO forum post
       operationId: deleteDaoForumPost
-      description: >
-        Uses a Bearer token to authenticate the current user. The route first
-        verifies that the post exists in the DAO group and that the current
-        user is the post author or a shaman of that DAO, then soft-deletes the
-        post by setting deleted_at. Shaman status is resolved from the DAO's
-        shaman addresses and the authenticated user's wallets. This includes
-        anonymous posts and does not grant permission to edit another author's
-        content. Comments are not individually soft-deleted by this route.
+      description: |
+        Uses a Bearer token to authenticate the current user. The route first verifies that the post exists in the DAO group and that the current user is the post author or a shaman of that DAO, then soft-deletes the post by setting deleted_at. Shaman status is resolved from the DAO's shaman addresses and the authenticated user's wallets. This includes anonymous posts and does not grant permission to edit another author's content. Comments are not individually soft-deleted by this route.
       security:
         - bearerAuth: []
       parameters:
@@ -555,7 +569,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/dao-forum/{daoGroupId}/posts/{postId}/comments:
     options:
       tags:
@@ -570,12 +583,7 @@ paths:
         - DAO Forum
       summary: List comments for a DAO forum post
       operationId: listDaoForumComments
-      description: >
-        Uses a Bearer token to authenticate the current user. The user must be
-        a member of the DAO group and the post must exist in that DAO group
-        and not be soft-deleted. Deleted comments are hidden unless they have
-        active child comments, in which case their body and image_url are
-        returned as null.
+      description: Authenticates a Bearer token and verifies DAO membership and a live parent post. Returns matching comments and all ancestors needed to retain nesting. Live non-matching ancestors have is_context_only=true. Deleted ancestors have null body/image_url. Sorting applies within each set of siblings.
       security:
         - bearerAuth: []
       parameters:
@@ -589,9 +597,28 @@ paths:
             enum:
               - oldest
               - latest
-              - most_likes
+              - most_reacted
             default: oldest
           description: Sort order for returned comments.
+        - name: reaction
+          in: query
+          schema:
+            type: string
+            enum:
+              - all
+              - heart
+              - thumbs_up
+              - fire
+              - thumbs_down
+            default: all
+          description: Reaction type to filter. A specific type requires at least one reaction even when min_reactions is zero.
+        - name: min_reactions
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Minimum selected-type count, or total count when reaction=all. Invalid values return 400.
       responses:
         "200":
           description: DAO forum comments
@@ -616,12 +643,8 @@ paths:
         - DAO Forum
       summary: Create a comment on a DAO forum post
       operationId: createDaoForumComment
-      description: >
-        Uses a Bearer token to authenticate the current user. The user must be
-        a member of the DAO group, the post must exist in that DAO group and
-        not be soft-deleted, and any parent comment must exist on the same
-        post and not be soft-deleted. At least one of body or image_url must be
-        provided after trimming whitespace.
+      description: |
+        Uses a Bearer token to authenticate the current user. The user must be a member of the DAO group, the post must exist in that DAO group and not be soft-deleted, and any parent comment must exist on the same post and not be soft-deleted. At least one of body or image_url must be provided after trimming whitespace.
       security:
         - bearerAuth: []
       parameters:
@@ -654,7 +677,6 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
-
   /api/comments/{commentId}:
     options:
       tags:
@@ -669,13 +691,8 @@ paths:
         - DAO Forum
       summary: Update one DAO forum comment
       operationId: updateDaoForumComment
-      description: >
-        Uses a Bearer token to authenticate the current user. The comment must
-        exist, not be soft-deleted, and be authored by the current user. The
-        parent post must also exist and not be soft-deleted. At least one of
-        body or image_url must be provided; string values are trimmed, empty
-        strings are rejected, and the update cannot leave the comment with
-        neither body nor image_url.
+      description: |
+        Uses a Bearer token to authenticate the current user. The comment must exist, not be soft-deleted, and be authored by the current user. The parent post must also exist and not be soft-deleted. At least one of body or image_url must be provided; string values are trimmed, empty strings are rejected, and the update cannot leave the comment with neither body nor image_url.
       security:
         - bearerAuth: []
       parameters:
@@ -711,11 +728,8 @@ paths:
         - DAO Forum
       summary: Soft delete one DAO forum comment
       operationId: deleteDaoForumComment
-      description: >
-        Uses a Bearer token to authenticate the current user. The comment must
-        exist, not be soft-deleted, and be authored by the current user. The
-        parent post must also exist and not be soft-deleted. The route
-        soft-deletes the comment by setting deleted_at.
+      description: |
+        Uses a Bearer token to authenticate the current user. The comment must exist, not be soft-deleted, and be authored by the current user. The parent post must also exist and not be soft-deleted. The route soft-deletes the comment by setting deleted_at.
       security:
         - bearerAuth: []
       parameters:
@@ -735,44 +749,48 @@ paths:
           $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalServerError"
-  /api/comments/{commentId}/like:
+  /api/comments/{commentId}/reaction/{reactionType}:
     options:
       tags:
         - DAO Forum
-      summary: CORS preflight for comment like
-      operationId: optionsCommentLike
+      summary: CORS preflight for comment reactions
+      operationId: optionsCommentReaction
       responses:
         "200":
           description: CORS preflight accepted
     post:
       tags:
         - DAO Forum
-      summary: Like a comment
-      operationId: likeComment
-      description: >
-        Uses a Bearer token to authenticate the current user. The comment must
-        exist and not be soft-deleted. If the user has already liked the
-        comment, returns 409 Conflict.
+      summary: Add a comment reaction
+      operationId: addCommentReaction
+      description: Authenticates a Bearer token, rejects deleted comments, and creates the selected reaction for that user. Duplicate user/comment/type returns 409. DAO membership and deleted-parent protection still need database-policy verification and application hardening.
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CommentId"
+        - name: reactionType
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ReactionType"
       responses:
         "201":
-          description: Like created
+          description: Reaction created
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  like:
-                    $ref: "#/components/schemas/CommentLike"
+                  reaction:
+                    $ref: "#/components/schemas/CommentReaction"
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: User has already liked this comment
+          description: This user already added the selected reaction type
           content:
             application/json:
               schema:
@@ -782,19 +800,21 @@ paths:
     delete:
       tags:
         - DAO Forum
-      summary: Unlike a comment
-      operationId: unlikeComment
-      description: >
-        Uses a Bearer token to authenticate the current user. The comment must
-        exist and not be soft-deleted. If the user has not liked the comment,
-        returns 404.
+      summary: Remove a comment reaction
+      operationId: removeCommentReaction
+      description: Removes only the authenticated user's selected reaction. A missing reaction or deleted comment returns 404. DAO membership and deleted-parent protection still need verification.
       security:
         - bearerAuth: []
       parameters:
         - $ref: "#/components/parameters/CommentId"
+        - name: reactionType
+          in: path
+          required: true
+          schema:
+            $ref: "#/components/schemas/ReactionType"
       responses:
         "200":
-          description: Like removed
+          description: Reaction removed
           content:
             application/json:
               schema:
@@ -802,8 +822,84 @@ paths:
                 properties:
                   message:
                     type: string
+        "400":
+          $ref: "#/components/responses/BadRequest"
         "401":
           $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+  /api/dao-forum/{daoGroupId}/posts/{postId}/poll:
+    options:
+      tags:
+        - DAO Forum
+      operationId: optionsForumPoll
+      summary: CORS preflight for forum polls
+      responses:
+        "200":
+          description: CORS preflight accepted
+    get:
+      tags:
+        - DAO Forum
+      operationId: getForumPoll
+      summary: Get the post poll and current user selections
+      security: *a1
+      parameters: &a2
+        - $ref: "#/components/parameters/DaoGroupId"
+        - $ref: "#/components/parameters/PostId"
+      description: Returns {poll:null} when no poll exists. The get_forum_poll RPC authorizes access to the actual post. The route currently does not independently cross-check daoGroupId against that post.
+      responses:
+        "200":
+          description: Poll, or null
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForumPollResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+    post:
+      tags:
+        - DAO Forum
+      operationId: voteForumPoll
+      summary: Submit or replace the current user vote
+      security: *a1
+      parameters: *a2
+      description: Replaces existing selections. Single-choice polls require one option; multiple-choice polls allow up to six distinct options from this poll. Database RPCs enforce membership and a live post. This is a forum poll, not an on-chain governance vote.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - optionIds
+              properties:
+                optionIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 6
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Updated poll
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForumPollResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
         "500":
@@ -1506,6 +1602,8 @@ components:
         author_id:
           type: string
           format: uuid
+          nullable: true
+          description: Null for anonymous posts.
         post_type:
           type: string
           nullable: true
@@ -1550,11 +1648,27 @@ components:
             Name:
               type: string
               nullable: true
+            walletAddress:
+              type: string
+              nullable: true
+            ensName:
+              type: string
+              nullable: true
         tags:
           type: array
           items:
             type: string
-
+        is_own_post:
+          type: boolean
+          description: Present for anonymous posts; indicates viewer ownership without identifying the author.
+        can_delete:
+          type: boolean
+          description: True for the author or a shaman of this DAO.
+        view_count:
+          type: integer
+          minimum: 0
+        is_unread:
+          type: boolean
     Post:
       type: object
       properties:
@@ -1567,6 +1681,8 @@ components:
         author_id:
           type: string
           format: uuid
+          nullable: true
+          description: Null for anonymous posts.
         post_type:
           type: string
           nullable: true
@@ -1594,7 +1710,9 @@ components:
           type: string
           format: date-time
           nullable: true
-
+        is_own_post:
+          type: boolean
+          description: Present for anonymous posts; indicates viewer ownership without identifying the author.
     CreatePostRequest:
       type: object
       required:
@@ -1606,10 +1724,18 @@ components:
       properties:
         post_type:
           type: string
+          enum:
+            - Announcement
+            - Proposal
+            - Question
+            - Discussion
+            - Resource
         title:
           type: string
+          maxLength: 50
         body:
           type: string
+          description: Formatted content, limited to 350 visible text characters.
         anonymous:
           type: boolean
         is_pinned:
@@ -1617,17 +1743,12 @@ components:
         image_url:
           type: string
           nullable: true
-
+        poll:
+          $ref: "#/components/schemas/CreateForumPoll"
     UpdatePostRequest:
       allOf:
         - $ref: "#/components/schemas/CreatePostRequest"
-        - type: object
-          properties:
-            updated_at:
-              type: string
-              format: date-time
-              nullable: true
-
+      description: Same post fields as creation; poll is ignored and cannot modify an existing poll. updated_at is database-managed.
     Comment:
       type: object
       properties:
@@ -1661,7 +1782,6 @@ components:
           type: string
           format: date-time
           nullable: true
-
     CommentListItem:
       type: object
       properties:
@@ -1679,8 +1799,6 @@ components:
           format: uuid
         username:
           type: string
-        like_count:
-          type: integer
         parent_comment_id:
           type: string
           format: uuid
@@ -1692,9 +1810,22 @@ components:
           type: string
           format: date-time
           nullable: true
-        is_liked:
+        wallet_address:
+          type: string
+          nullable: true
+        ens_name:
+          type: string
+          nullable: true
+        deleted_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_context_only:
           type: boolean
-
+        reaction_counts:
+          $ref: "#/components/schemas/ReactionCounts"
+        user_reactions:
+          $ref: "#/components/schemas/UserReactions"
     CreateCommentRequest:
       type: object
       description: At least one of body or image_url must be provided.
@@ -1709,15 +1840,11 @@ components:
           type: string
           format: uuid
           nullable: true
-
     CreateCommentResponse:
       type: object
       properties:
-        success:
-          type: boolean
         comment:
-          $ref: "#/components/schemas/Comment"
-
+          $ref: "#/components/schemas/CommentListItem"
     UpdateCommentRequest:
       type: object
       description: At least one of body or image_url must be provided.
@@ -1728,20 +1855,17 @@ components:
         image_url:
           type: string
           nullable: true
-
     UpdateCommentResponse:
       type: object
       properties:
         comment:
           $ref: "#/components/schemas/Comment"
-
     DeleteCommentResponse:
       type: object
       properties:
         comment:
           $ref: "#/components/schemas/Comment"
-
-    CommentLike:
+    CommentReaction:
       type: object
       properties:
         comment_id:
@@ -1753,6 +1877,95 @@ components:
         created_at:
           type: string
           format: date-time
+        reaction:
+          $ref: "#/components/schemas/ReactionType"
+    ReactionType:
+      type: string
+      enum:
+        - heart
+        - thumbs_up
+        - fire
+        - thumbs_down
+    ReactionCounts:
+      type: object
+      properties:
+        heart:
+          type: integer
+          minimum: 0
+        thumbs_up:
+          type: integer
+          minimum: 0
+        fire:
+          type: integer
+          minimum: 0
+        thumbs_down:
+          type: integer
+          minimum: 0
+    UserReactions:
+      type: object
+      properties:
+        heart:
+          type: boolean
+        thumbs_up:
+          type: boolean
+        fire:
+          type: boolean
+        thumbs_down:
+          type: boolean
+    CreateForumPoll:
+      type: object
+      required:
+        - question
+        - options
+        - allow_multiple
+      properties:
+        question:
+          type: string
+          minLength: 1
+          maxLength: 200
+        options:
+          type: array
+          minItems: 2
+          maxItems: 6
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+        allow_multiple:
+          type: boolean
+    ForumPoll:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        question:
+          type: string
+        allowMultiple:
+          type: boolean
+        totalVoters:
+          type: integer
+        options:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              label:
+                type: string
+              voteCount:
+                type: integer
+              isSelected:
+                type: boolean
+    ForumPollResponse:
+      type: object
+      properties:
+        poll:
+          allOf:
+            - $ref: "#/components/schemas/ForumPoll"
+          nullable: true
 
     SummonDaoRequest:
       type: object

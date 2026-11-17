@@ -36,9 +36,41 @@ Validation: editor interaction tests plus the full suite, lint/format, productio
 
 Deferred: replacing `document.execCommand`/`queryCommandState` and introducing a new editor document format. That is a separate migration needing browser selection/undo, touch/keyboard, paste, sanitization, and existing-content compatibility testing. This cleanup isolates those APIs but deliberately retains their behavior and the existing sanitized display renderer. It is not a new storage sanitizer or a cross-browser acceptance result.
 
-## Remaining steps
+## 6. Forum documentation and hygiene
 
-6. Update forum API/setup documentation and record remaining database/privacy/deployment work. Remove only forum-owned development residue; leave shared repository cleanup out of this branch.
+Updated OpenAPI for the reaction routes, filters, anonymous/ownership/moderation fields, polls, and current authentication/deletion behavior. Updated the README's forum structure and behavior. Added `dao-forum-database.md` with baseline schema prerequisites, migration/backfill and likes-conversion rehearsal, recovery expectations, direct database permission checks, and user acceptance checks.
+
+Removed the now-unused forum directory placeholder in step 1. The forum development preview remains production-guarded. Shared `.DS_Store` files, `supabase/.temp`, duplicate Next configurations, middleware production origins, and CI/deployment configuration are intentionally untouched because they are application-wide, not forum-owned.
+
+Validation: parse OpenAPI and resolve local schema references; confirm non-forum routes/schemas are unchanged; full tests, lint/format, production build, and TypeScript before commit.
+
+## Check results
+
+Every row also passed full lint (including formatting), the Next.js production build, TypeScript, and whitespace checks before its commit. Existing application-wide React hook warnings remain non-blocking.
+
+| Step               | Commit      | Tests      |
+| ------------------ | ----------- | ---------- |
+| 1. Structure       | `7f0547fe5` | 684 passed |
+| 2. Components      | `539acf2dd` | 684 passed |
+| 3. API             | `0d4bc097b` | 717 passed |
+| 4. Dead code       | `ea732aa00` | 717 passed |
+| 5. Editor boundary | `81dd490a5` | 725 passed |
+| 6. Documentation   | This commit | 725 passed |
+
+## Deferred follow-up
+
+These are remaining work, not functionality certified by this cleanup:
+
+- Database/RLS/grants verification, complete schema packaging, and membership synchronization.
+- Reaction membership and deleted-parent enforcement across endpoints and direct database access.
+- Image anonymity/privacy and migration of existing assets and URLs.
+- Pagination/database aggregation and launch-volume testing.
+- Rich editor replacement, browser selection/undo testing, and a coordinated stored-content/sanitization migration.
+- Cross-device drafts and draft image restoration.
+- Poll URL DAO/post consistency checks and existing poll editing, if required.
+- Shared production origins, Cloudflare preview/deployment, CI, shared metadata, and application-wide configuration cleanup.
+
+See [setup and acceptance](dao-forum-database.md) for validation steps and dependency details. These follow-ups require broader integration decisions or live services and were left out to keep this cleanup bounded.
 
 ## Verification limits
 

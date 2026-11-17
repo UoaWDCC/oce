@@ -4,8 +4,12 @@ import { getPostComments } from "../services";
 import { mapCommentToForumCommentPreview } from "../mappers";
 import { forumKeys } from "../queryKeys";
 import { toForumAsyncState, type ForumAsyncState } from "../lib/asyncState";
-import type { ForumCommentPreview } from "../types";
-import type { ForumThreadSort } from "../types";
+import { DEFAULT_COMMENT_FILTER } from "../lib/commentReactions";
+import type {
+  ForumCommentFilter,
+  ForumCommentPreview,
+  ForumThreadSort,
+} from "../types";
 
 export interface UseDaoForumCommentsResult extends ForumAsyncState {
   comments: ForumCommentPreview[];
@@ -19,6 +23,7 @@ export function useDaoForumComments(
   sort: ForumThreadSort = "oldest",
   enabled = true,
   currentUserId: string | null = null,
+  filter: ForumCommentFilter = DEFAULT_COMMENT_FILTER,
 ): UseDaoForumCommentsResult {
   const queryClient = useQueryClient();
   const isEnabled = Boolean(daoGroupId) && Boolean(postId) && enabled;
@@ -33,7 +38,13 @@ export function useDaoForumComments(
   }
 
   const query = useQuery({
-    queryKey: forumKeys.comments(daoGroupId, postId, sort, currentUserId),
+    queryKey: forumKeys.comments(
+      daoGroupId,
+      postId,
+      sort,
+      currentUserId,
+      filter,
+    ),
     queryFn: async ({ signal }) => {
       const rawComments = await getPostComments(
         daoGroupId as string,
@@ -41,6 +52,7 @@ export function useDaoForumComments(
         sort,
         token,
         signal,
+        filter,
       );
       return rawComments.map((comment) =>
         mapCommentToForumCommentPreview(
@@ -51,7 +63,7 @@ export function useDaoForumComments(
       );
     },
     enabled: isEnabled,
-    // Preserve the prior sort while another sort for the same thread loads,
+    // Preserve the prior sort or filter while another loads for the same thread,
     // but never carry data across posts, DAOs, or authenticated users.
     placeholderData: (previousData, previousQuery) => {
       const previousKey = previousQuery?.queryKey;

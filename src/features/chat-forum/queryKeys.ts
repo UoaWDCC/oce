@@ -1,4 +1,4 @@
-import type { ForumThreadSort } from "./types";
+import type { ForumCommentFilter, ForumThreadSort } from "./types";
 
 export const forumKeys = {
   all: ["forum"] as const,
@@ -22,10 +22,13 @@ export const forumKeys = {
     postId: string | undefined | null,
     sort: ForumThreadSort,
     currentUserId: string | undefined | null = null,
+    filter: ForumCommentFilter = { reaction: "all", minCount: 0 },
   ) =>
     [
       ...forumKeys.commentsAll(daoGroupId, postId, currentUserId),
       sort,
+      filter.reaction,
+      filter.minCount,
     ] as const,
   poll: (
     daoGroupId: string | undefined | null,

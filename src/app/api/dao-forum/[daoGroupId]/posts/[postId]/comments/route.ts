@@ -17,6 +17,14 @@ import type {
   UserReactions,
 } from "@app-types/dao-forum";
 import { loadDaoAuthorIdentities } from "@/features/chat-forum/authorIdentity";
+import {
+  REACTION_FILTER_TYPES,
+  compareComments,
+  filterCommentsWithAncestors,
+  parseCommentSort,
+  parseMinReactions,
+  parseReactionFilterType,
+} from "@/features/chat-forum/lib/commentReactions";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -172,7 +180,9 @@ export async function POST(
   }
 
   const inserted = newComment as unknown as RawComment;
-  const identities = await loadDaoAuthorIdentities(supabase, [inserted.author?.id || user.id]);
+  const identities = await loadDaoAuthorIdentities(supabase, [
+    inserted.author?.id || user.id,
+  ]);
   const identity = identities[inserted.author?.id || user.id];
 
   const formattedComment: FormattedComment = {
@@ -213,11 +223,29 @@ export async function GET(
 ) {
   const { daoGroupId, postId } = await params;
   const { searchParams } = new URL(req.url);
-  const sort = searchParams.get("sort") || "oldest";
+  const sort = parseCommentSort(searchParams.get("sort"));
+  const reaction = parseReactionFilterType(searchParams.get("reaction"));
+  const minCount = parseMinReactions(searchParams.get("min_reactions"));
 
-  if (sort !== "oldest" && sort !== "latest" && sort !== "most_likes") {
+  if (sort === null) {
     return NextResponse.json(
       { error: "Invalid sort option" },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (reaction === null) {
+    return NextResponse.json(
+      {
+        error: `Invalid reaction filter. Use one of: ${REACTION_FILTER_TYPES.join(", ")}`,
+      },
+      { status: 400, headers: corsHeaders },
+    );
+  }
+
+  if (minCount === null) {
+    return NextResponse.json(
+      { error: "min_reactions must be a whole number of 0 or more" },
       { status: 400, headers: corsHeaders },
     );
   }
@@ -322,40 +350,45 @@ export async function GET(
     userReactionsMap[reaction.comment_id] = reactions;
   });
 
-  const identities = await loadDaoAuthorIdentities(
-    supabase,
-    comments.filter((c) => !c.deleted_at).map((c) => c.author?.id),
-  );
+  const commentsWithCounts = comments.map((comment) => ({
+    ...comment,
+    reaction_counts: reactionCountsMap[comment.id] ?? {
+      heart: 0,
+      thumbs_up: 0,
+      fire: 0,
+      thumbs_down: 0,
+    },
+  }));
 
-  const activeChildCounts: Record<string, number> = {};
-  comments.forEach((comment) => {
-    if (comment.parent_comment_id && !comment.deleted_at) {
-      activeChildCounts[comment.parent_comment_id] =
-        (activeChildCounts[comment.parent_comment_id] || 0) + 1;
-    }
+  // Deleted comments stay only as ancestors of a kept reply, so a reply is
+  // never orphaned. Comments outside the reaction filter are kept the same
+  // way, flagged as context.
+  const visibleComments = filterCommentsWithAncestors(commentsWithCounts, {
+    reaction,
+    minCount,
   });
 
-  const filteredComments: FormattedComment[] = comments
-    .filter((comment) => {
-      if (!comment.deleted_at) return true;
-      return (activeChildCounts[comment.id] || 0) > 0;
-    })
-    .map((comment) => {
-      const identity = comment.author?.id ? identities[comment.author.id] : undefined;
+  const identities = await loadDaoAuthorIdentities(
+    supabase,
+    visibleComments.filter((c) => !c.deleted_at).map((c) => c.author?.id),
+  );
+
+  const formattedComments: FormattedComment[] = visibleComments.map(
+    (comment) => {
+      const identity = comment.author?.id
+        ? identities[comment.author.id]
+        : undefined;
       return {
         id: comment.id,
         body: comment.deleted_at ? null : comment.body,
         image_url: comment.deleted_at ? null : comment.image_url,
         author_id: comment.author?.id || "",
         username: comment.author?.username || "",
-        wallet_address: comment.deleted_at ? null : (identity?.walletAddress ?? null),
+        wallet_address: comment.deleted_at
+          ? null
+          : (identity?.walletAddress ?? null),
         ens_name: comment.deleted_at ? null : (identity?.ensName ?? null),
-        reaction_counts: reactionCountsMap[comment.id] ?? {
-          heart: 0,
-          thumbs_up: 0,
-          fire: 0,
-          thumbs_down: 0,
-        },
+        reaction_counts: comment.reaction_counts,
         user_reactions: userReactionsMap[comment.id] ?? {
           heart: false,
           thumbs_up: false,
@@ -366,27 +399,14 @@ export async function GET(
         created_at: comment.created_at,
         updated_at: comment.updated_at,
         deleted_at: comment.deleted_at,
+        is_context_only: comment.is_context_only,
       };
-    });
+    },
+  );
 
-  const sortedComments = filteredComments.sort((a, b) => {
-    if (sort === "latest") {
-      return (
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-    }
-
-    if (sort === "most_likes") {
-      const totalReactions = (comment: FormattedComment) =>
-        Object.values(comment.reaction_counts ?? {}).reduce(
-          (total, count) => total + count,
-          0,
-        );
-      return totalReactions(b) - totalReactions(a);
-    }
-
-    return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-  });
+  // Replies are nested by the client in the order returned here, so sorting
+  // the flat list sorts every set of siblings.
+  const sortedComments = formattedComments.sort(compareComments(sort));
 
   return NextResponse.json(sortedComments, { headers: corsHeaders });
 }

@@ -1,6 +1,7 @@
 import type {
   PostType,
   ReactionCounts,
+  ReactionType,
   UserReactions,
 } from "@app-types/dao-forum";
 
@@ -9,7 +10,16 @@ export type {
   ForumPostPreview,
 } from "@app-types/dao-forum";
 
-export type ForumThreadSort = "oldest" | "latest" | "most_likes";
+export type ForumThreadSort = "oldest" | "latest" | "most_reacted";
+
+/** A single reaction type, or every reaction type summed together. */
+export type ForumReactionFilterType = ReactionType | "all";
+
+export type ForumCommentFilter = {
+  reaction: ForumReactionFilterType;
+  /** Minimum number of matching reactions a comment needs to be shown. */
+  minCount: number;
+};
 
 export type ForumThreadAuthor = {
   name: string;
@@ -45,6 +55,8 @@ export type ForumThreadComment = {
   userReactions?: UserReactions;
   isDeleted?: boolean;
   isOwnComment?: boolean;
+  /** Kept only so a matching reply stays nested; it does not match itself. */
+  isContextOnly?: boolean;
   imageUrl?: string | null;
   replies?: ForumThreadComment[];
 };

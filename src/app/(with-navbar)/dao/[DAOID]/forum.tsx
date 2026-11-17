@@ -5,6 +5,7 @@ import { DAO } from "./types";
 import { useDaoForumAuthSession } from "@/features/chat-forum/hooks/useDaoForumAuthSession";
 import { useDaoForumPosts } from "@/features/chat-forum/hooks/useDaoForumPosts";
 import { useDaoForumComments } from "@/features/chat-forum/hooks/useDaoForumComments";
+import { useCommentViewSearchParams } from "@/features/chat-forum/hooks/useCommentViewSearchParams";
 import { useCreateDaoForumPost } from "@/features/chat-forum/hooks/useCreateDaoForumPost";
 import { useCreateDaoForumComment } from "@/features/chat-forum/hooks/useCreateDaoForumComment";
 import { useUpdateDaoForumPost } from "@/features/chat-forum/hooks/useUpdateDaoForumPost";
@@ -24,7 +25,6 @@ import type {
   PostSubmitPayload,
   ReactionType,
 } from "@app-types/dao-forum";
-import type { ForumThreadSort } from "@/features/chat-forum";
 
 type DaoForumProps = {
   dao: DAO;
@@ -37,7 +37,12 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
   const isAuthenticated = authSession.status === "authenticated";
   const currentUserId = authSession.userId;
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
-  const [commentSort, setCommentSort] = useState<ForumThreadSort>("latest");
+  const {
+    sort: commentSort,
+    filter: commentFilter,
+    setSort: setCommentSort,
+    setFilter: setCommentFilter,
+  } = useCommentViewSearchParams("latest");
 
   const postsQuery = useDaoForumPosts(
     daoGroupId,
@@ -59,6 +64,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
     commentSort,
     isAuthenticated,
     currentUserId,
+    commentFilter,
   );
   const {
     comments,
@@ -189,6 +195,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       daoGroupId={daoGroupId}
       daoName={dao.Name}
       commentSort={commentSort}
+      commentFilter={commentFilter}
       commentsError={threadError}
       error={postsError}
       commentsState={commentsState}
@@ -197,6 +204,7 @@ export default function DaoForum({ dao, daoGroupId }: DaoForumProps) {
       isUpdatingPost={isUpdatingPost}
       mutationError={mutationError}
       onCommentSortChange={setCommentSort}
+      onCommentFilterChange={setCommentFilter}
       onDeletePost={handleDeletePost}
       onReaction={handleReaction}
       onSelectPost={handleSelectPost}

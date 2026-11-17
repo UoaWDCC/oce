@@ -20,7 +20,7 @@ import {
   mapForumPostPreviewToThreadPost,
   withOwnPostCapability,
 } from "../mappers";
-import type { ForumThreadSort } from "../types";
+import type { ForumCommentFilter, ForumThreadSort } from "../types";
 import { RESOLVED_ASYNC_STATE, type ForumAsyncState } from "../lib/asyncState";
 import type {
   CommentSubmitPayload,
@@ -45,6 +45,7 @@ type ForumPanelProps = {
   commentsError?: string | null;
   mutationError?: string | null;
   commentSort?: ForumThreadSort;
+  commentFilter?: ForumCommentFilter;
   isUpdatingPost?: boolean;
   isDeletingPost?: boolean;
   onCreatePost?: () => void;
@@ -65,6 +66,7 @@ type ForumPanelProps = {
     reaction: ReactionType,
   ) => void | Promise<void>;
   onCommentSortChange?: (sort: ForumThreadSort) => void;
+  onCommentFilterChange?: (filter: ForumCommentFilter) => void;
   token?: string;
 };
 
@@ -137,6 +139,7 @@ export default function ForumPanel({
   commentsError = null,
   mutationError = null,
   commentSort = "latest",
+  commentFilter,
   isUpdatingPost = false,
   isDeletingPost = false,
   onCreatePost,
@@ -148,6 +151,7 @@ export default function ForumPanel({
   onCommentRefetch,
   onReaction,
   onCommentSortChange,
+  onCommentFilterChange,
   token,
 }: ForumPanelProps) {
   const [query, setQuery] = useState("");
@@ -260,6 +264,7 @@ export default function ForumPanel({
         onReaction={onReaction}
         onReplyToComment={setReplyingToCommentId}
         onSortChange={onCommentSortChange}
+        onFilterChange={onCommentFilterChange}
         onSubmitComment={submitComment}
         onCommentRefetch={onCommentRefetch}
         onUpdatePost={onUpdatePost ? submitUpdatedPost : undefined}
@@ -274,6 +279,7 @@ export default function ForumPanel({
             : null
         }
         sort={commentSort}
+        filter={commentFilter}
       />
     );
   }
